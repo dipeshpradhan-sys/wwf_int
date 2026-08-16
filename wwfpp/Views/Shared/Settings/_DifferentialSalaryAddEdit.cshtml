@@ -1,0 +1,62 @@
+﻿@using wwfpp.Services
+@inject SettingsServices SettingsServices
+@model wwfpp.Models.Settings.DifferentialSalaryViewModel
+@{
+    string mode = ViewBag.mode;
+}
+<partial name="_ConstantValues" view-data='new ViewDataDictionary(ViewData) { { "NoteKey", "RequiredField" } }' />
+
+@Html.HiddenFor(m => m.id)
+
+<div class="row">
+    <div class="col-lg-3"><label class="col-lg-12 col-form-label-lg">Fiscal Year : &nbsp;</label></div>
+    <div class="col-lg-9">
+        @Html.DropDownList("fiscal_year", (SelectList)ViewBag.FiscalYearFilter, "-- Select --", new { @class = "form-select", style = "width:300px;" })
+    </div>
+</div>
+<div class="row">
+    <div class="col-lg-3"><label class="col-lg-12 col-form-label-lg">Fiscal Year : &nbsp;</label></div>
+    <div class="col-lg-9">
+        @Html.DropDownList("emp_year", (SelectList)ViewBag.YearFilter, "-- Select --", new { @class = "form-select", style = "width:300px;" })
+    </div>
+</div>
+<div class="row">
+    <div class="col-lg-3"><label class="col-lg-12 col-form-label-lg">Fiscal Year : &nbsp;</label></div>
+    <div class="col-lg-9">
+        @Html.DropDownList("emp_month", (SelectList)ViewBag.MonthFilter, "-- Select --", new { @class = "form-select", style = "width:300px;" })
+    </div>
+</div>
+<div class="form-group row p-1">
+        <label class="col-lg-12 col-form-label-lg">CSV File<span class="text-danger">*</span>&nbsp;</label>
+        <label class="col-lg-12 col-form-label-sm">Note : The file should be in CSV format.</label>
+        <div class="col-lg-12">
+        @Html.TextBox("file","", new { type = "file" })
+        </div>
+</div>
+
+@if (ViewBag.apern == "true")
+{    
+    <script>
+    renderModalImportButtons("modal-button-list", "Import");
+
+    $(document).off("click", "#btnSave").on("click", "#btnSave", function () 
+    {
+        var btn = $(this);
+        if (btn.text().trim() === "Edit") {$("#ModalID .modal-title").text("Update");btn.text("Update");$("#btnC").text("Cancel");return;}  
+        if (btn.text().trim() === "Update" || btn.text().trim() === "Import") 
+        {
+            if ( checkInput( 'cmb', 'fiscal_year', 'Fiscal Year is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'cmb', 'emp_year', 'Year is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'cmb', 'emp_month', 'Month is required.', 'modal-message') == false ) {return false;}
+    
+            if ($("#file").val() === ""){ showError('CSV file is required.', 'modal-message');return false; }
+            
+            var filename = $("#file").val();
+            file_format = filename.split(".").pop().toLowerCase();
+            if (file_format !== "csv"){ showError('CSV file is required.', 'modal-message');return false; }
+
+            submitSaveUpdateUpload('@Url.Content("~/Settings/DifferentialSalaryImport")');
+        }
+    });
+    </script>
+}

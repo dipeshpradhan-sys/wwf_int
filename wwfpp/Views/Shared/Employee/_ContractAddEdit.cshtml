@@ -1,0 +1,101 @@
+﻿@using wwfpp.Services
+@inject SettingsServices SettingsServices
+@model wwfpp.Models.Employee.EmployeeContractViewModel
+@{
+    string? mode = ViewBag.mode;
+    string? DATE_FORMAT = ViewBag.DATE_FORMAT;
+    string? issue_date = Model.issue_date.ToString();
+    string? s_issue_date = SettingsServices.DateformatToDt(issue_date ?? string.Empty);
+    string? end_date = Model.end_date.ToString();
+    string? s_end_date = SettingsServices.DateformatToDt(end_date ?? string.Empty);
+}
+<!-- (A) HTML DIALOG BOX -->
+<partial name="_ConstantValues" view-data='new ViewDataDictionary(ViewData) { { "NoteKey", "RequiredField" } }' />
+@Html.HiddenFor(m => m.emp_contract_id) 
+<div class="form-group row p-1">
+
+    @if (mode == "add")
+    {
+    <label class="col-lg-12 col-form-label-lg">Employee<span class="text-danger">*</span></label>
+    <div class="col-lg-12">
+        @Html.DropDownListFor(m => m.emp_id, (SelectList)ViewBag.EmployeeList, "-- Select --", new { @class = "form-select" })
+    </div>
+    }
+    else
+    {
+        string empStatus = Model.emp_status == "A" ? "Active" : "Inactive";
+        <label class="col-lg-12 col-form-label-lg">Employee:<span class="text-danger">*</span> @ViewBag.Employee [@empStatus] @Html.HiddenFor(m => m.emp_id)</label>
+        <div class="col-lg-12">
+            &nbsp;
+        </div>
+    }
+
+
+    <label class="col-lg-12 col-form-label-lg">Contract Subject<span class="text-danger">*</span></label>
+    <div class="col-lg-12">
+        @Html.DropDownListFor(m => m.contract_document_id, (SelectList)ViewBag.ContractDocumentSubjectList, "-- Select --", new { @class = "form-select" })
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Description</label>
+    <div class="col-lg-12">
+        @Html.TextAreaFor(m => m.contract_desc, new { @class = "form-control", rows = "4", cols = "50", maxlength = "500" })
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Issue Date<span class="text-danger">*</span>&nbsp;(@DATE_FORMAT)</label>
+    <div class="col-lg-4">
+        @Html.TextBox("issue_date", s_issue_date, new { @class = "form-control", maxlength = "10" })
+        <div class="col-lg-8"><button type="button" name="btnIssueDate" id="btnIssueDate" class="button bg-sky">Date...</button></div>
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">End Date<span class="text-danger">*</span>&nbsp;(@DATE_FORMAT)</label>
+    <div class="col-lg-4">
+        @Html.TextBox("end_date", s_end_date, new { @class = "form-control", maxlength = "10" })
+        <div class="col-lg-8"><button type="button" name="btnEndDate" id="btnEndDate" class="button bg-sky">Date...</button></div>
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Status<span class="text-danger">*</span></label>
+    <div class="col-lg-12">
+        @Html.DropDownListFor(m => m.contract_status, (SelectList)ViewBag.Status, new { @class = "form-select" })
+    </div>
+
+</div>
+@if (mode == "add" && ViewBag.apern == "true")
+{
+    <script>renderModalButtons("modal-button-list", "Save");</script>
+}
+else if (mode == "edit" && ViewBag.epern == "true" && Model.emp_status == "A")
+{
+    <script>renderModalButtons("modal-button-list", "Edit");</script>
+}
+else
+{
+    <script>renderModalCloseButton("modal-button-list")</script>
+}
+<script>
+    $(document).off("click", "#btnSave").on("click", "#btnSave", function() {
+        var btn = $(this);
+        if (btn.text() == "Edit") { $("#ModalID .modal-title").text("Update"); btn.text("Update"); $("#btnC").text("Cancel"); return; }
+        if (btn.text() === "Update" || btn.text() === "Save") {
+            if ( $("#mode").val() === "add"){
+                if (checkInput('cmb', 'emp_id', 'Employee is required.', 'modal-message') == false) { return false; }
+            }
+            if (checkInput('cmb', 'contract_document_id', 'Document Subject is required.', 'modal-message') == false) { return false; }
+            if (checkInput('txt', 'issue_date', 'Issue Date is required.', 'modal-message') == false) { return false; }
+            if (checkInput('txt', 'end_date', 'End Date is required.', 'modal-message') == false) { return false; }
+            if (checkInput('cmb', 'contract_status', 'Status is required.', 'modal-message') == false) { return false; }
+            
+            var issue_date = $("#issue_date").val();
+            var end_date = $("#end_date").val();
+
+            if (isStartDateGreater(issue_date, end_date)) {
+                showError('Issue Date is greater than End Date','modal-message')
+                return false;
+            }
+            submitSaveUpdate("/Employee/Contract");
+        }
+    });
+    $(document).off('blur', '#issue_date').on('blur', '#issue_date', function () { convert_date(issue_date, 'modal-message'); });
+    $(document).off('blur', '#end_date').on('blur', '#end_date', function () { convert_date(end_date, 'modal-message'); });
+    $(document).off('click', '#btnIssueDate').on('click', '#btnIssueDate', function () { show_calendar('frm.issue_date'); });
+    $(document).off('click', '#btnEndDate').on('click', '#btnEndDate', function () { show_calendar('frm.end_date'); });
+</script>

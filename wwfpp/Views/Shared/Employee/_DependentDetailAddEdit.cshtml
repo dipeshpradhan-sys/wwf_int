@@ -1,0 +1,116 @@
+﻿@using wwfpp.Services
+@inject SettingsServices SettingsServices
+@model wwfpp.Models.Employee.EmployeeDependentChildrenDetailsViewModel
+@{
+    string? mode = ViewBag.mode;
+    string? DATE_FORMAT = ViewBag.DATE_FORMAT;
+    string? date_of_birth = Model.date_of_birth.ToString();
+    string? s_date_of_birth = SettingsServices.DateformatToDt(date_of_birth ?? string.Empty);
+    string? submit_date = Model.submit_date.ToString();
+    string? s_submit_date = SettingsServices.DateformatToDt(submit_date ?? string.Empty);
+    string? update_date = Model.update_date.ToString();
+    string? s_update_date = SettingsServices.DateformatToDt(update_date ?? string.Empty);
+    string d_status = Model.status == "P" ? "Pending" : Model.status == "A" ? "Active"  : "Inactive";
+}
+<partial name="_ConstantValues" view-data='new ViewDataDictionary(ViewData) { { "NoteKey", "RequiredField" } }' />
+
+<div class="form-group row p-1">
+    @if (mode == "add")
+    {
+        <label class="col-lg-12 col-form-label-lg">Employee<span class="text-danger">*</span></label>
+        <div class="col-lg-12">
+            @Html.DropDownListFor(m => m.emp_id, (SelectList)ViewBag.EmployeeList, "-- Select --", new { @class = "form-select" })
+        </div>
+    }
+    else
+    {
+        string empStatus = Model.emp_status == "A" ? "Active" : "Inactive";
+        <label class="col-lg-12 col-form-label-lg">Employee: @ViewBag.Employee [@empStatus]</label>
+        <div class="col-lg-12">
+            &nbsp; @Html.HiddenFor(m => m.emp_id)@Html.HiddenFor(m => m.id) 
+        </div>
+    }
+    <label class="col-lg-12 col-form-label-lg">Dependent Name<span class="text-danger">*</span></label>
+    <div class="col-lg-12">
+        @Html.TextBoxFor(m => m.c_name, new { @class = "form-control", maxlength = "50" })
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Gender<span class="text-danger">*</span></label>
+    <div class="col-lg-12">
+        @Html.DropDownListFor(m => m.gender, (SelectList)ViewBag.Gender, new { @class = "form-select", style = "width:300px;"})
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Date of Birth<span class="text-danger">*</span>&nbsp;(@DATE_FORMAT)</label>
+    <div class="row">
+        <div class="col-lg-4">@Html.TextBox("date_of_birth", s_date_of_birth, new { @class = "form-control", maxlength = "10" })</div>
+        <div class="col-lg-8"><button type="button" name="btndate" id="btndate" class="button bg-sky">Date...</button></div>
+    </div>
+    <div class="form-group row p-1">
+        <label class="col-lg-12 col-form-label-sm">Note : The file should be in JPG, JPEG, PNG or PDF format. suggested width = 650px and height = 850px.</label>
+        <label class="col-lg-12 col-form-label-lg">Birth Certificate</label>
+        <div class="col-lg-12">
+            @Html.TextBox("file", "", new { type = "file" })
+        </div>
+
+        @if (mode == "edit")
+        {
+            <div class="row">
+                <div class="col-lg-12 col-form-label-sm ">
+                    @Html.Hidden("h_file_name", @Model.dob_file_name)
+                </div>
+            </div>
+            @if (Model.dob_file_name != "")
+            {
+                <label class="col-lg-12 col-form-label-sm">@ViewBag.fileSize</label>
+            }
+        }
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Remarks</label>
+    <div class="col-lg-12">
+        @Html.TextAreaFor(m => m.remarks, new { @class = "form-control", rows = "4", cols = "50", maxlength = "500" })
+    </div>
+
+    @if (mode == "edit")
+    {
+        <label class="col-lg-12 col-form-label-lg">Submit Date</label>
+        <div class="col-lg-12">@Html.Raw(s_submit_date)</div>
+
+        <label class="col-lg-12 col-form-label-lg">Update Date</label>
+        <div class="col-lg-12">@Html.Raw(s_update_date)</div>
+
+        <label class="col-lg-12 col-form-label-lg">Status</label>
+        <div class="col-lg-12">@Html.Raw(d_status)</div>
+
+    }
+</div>
+@if (mode == "add" && ViewBag.apern == "true")
+{
+    <script>renderModalButtons("modal-button-list", "Save")</script>
+}
+else if (mode == "edit" && ViewBag.epern == "true" && Model.emp_status == "A")
+{
+    <script>renderModalButtons("modal-button-list", "Edit")</script>
+}
+else
+{
+    <script>renderModalCloseButton("modal-button-list")</script>
+}
+<script>
+        $(document).off("click", "#btnSave").on("click", "#btnSave", function () {
+        var btn = $(this);
+        if (btn.text() == "Edit") {$("#ModalID .modal-title").text("Update");btn.text("Update");$("#btnC").text("Cancel");return;}
+        if (btn.text() === "Update" || btn.text() === "Save") {
+            if ($("#mode").val() === "add") {
+                if (checkInput(' cmb', 'emp_id', 'Employee is required.', 'modal-message') == false) { return false; }
+            }
+            if ( checkInput( 'txt', 'c_name', 'Dependent Name is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'cmb', 'gender', 'Select Gender.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'txt', 'date_of_birth', 'Date of Birth is required.', 'modal-message') == false ) {return false;}
+
+            submitSaveUpdateUpload("/Employee/DependentDetail");
+        }
+    });
+    $(document).off('blur', '#date_of_birth').on('blur', '#date_of_birth', function() { convert_date(date_of_birth, 'modal-message'); });
+    $(document).off('click', '#btndate').on('click', '#btndate', function() { show_calendar('frm.date_of_birth'); });
+</script>

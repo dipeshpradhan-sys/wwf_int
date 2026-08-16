@@ -1,0 +1,71 @@
+﻿@model wwfpp.Models.Admin.ModulesViewModel
+@{
+    string mode = ViewBag.mode;
+}
+
+<partial name="_ConstantValues" view-data='new ViewDataDictionary(ViewData) { { "NoteKey", "RequiredField" } }' />
+@Html.HiddenFor(m => m.module_id) 
+<div class="form-group row p-1">
+    <label class="col-lg-12 col-form-label-lg">Code<span class="text-danger">*</span></label>
+    <div class="col-lg-12">
+        @Html.TextBoxFor(m => m.module_code, new { @class = "form-control", maxlength = "50" })
+    </div>
+    <label class="col-lg-12 col-form-label-lg">Name<span class="text-danger">*</span></label>
+    <div class="col-lg-12">
+        @Html.TextBoxFor(m => m.module_name, new { @class = "form-control", maxlength = "250" })
+    </div>
+    <label class="col-lg-12 col-form-label-lg">Label<span class="text-danger">*</span></label>
+    <div class="col-lg-12">
+        @Html.TextBoxFor(m => m.module_label, new { @class = "form-control", maxlength = "250" })
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Folder<span class="text-danger">*</span></label>
+    <div class="col-lg-12">
+        @Html.TextBoxFor(m => m.module_folder, new { @class = "form-control", maxlength = "250" })
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Sorting<span class="text-danger">*</span></label>
+    <div class="col-lg-12">
+        @Html.TextBoxFor(m => m.module_sort, new { @class = "form-control", maxlength = "2" })
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Status<span class="text-danger">*</span></label>
+    <div class="col-lg-12">
+        @Html.DropDownList("module_status", (SelectList)ViewBag.ModuleStatus, "--Select--", new
+        {
+            @class = "form-select", style = "width:300px;"
+        })
+    </div>
+</div>
+@if (string.Equals(mode, "add", StringComparison.OrdinalIgnoreCase) && string.Equals(ViewBag.apern, "true", StringComparison.OrdinalIgnoreCase))
+{
+    <script>renderModalButtons("modal-button-list", "Save");</script>
+}
+else if (string.Equals(mode, "edit", StringComparison.OrdinalIgnoreCase) && string.Equals(ViewBag.epern, "true", StringComparison.OrdinalIgnoreCase))
+{
+    <script>renderModalButtons("modal-button-list", "Edit");</script>
+}
+else
+{
+    <script>renderModalCloseButton("modal-button-list")</script>
+}
+<script>
+    var modulesUrl = '@Url.Content("~/Admin/Modules")';
+    $(document).off("click", "#btnSave").on("click", "#btnSave", function ()
+    {
+        var btn = $(this);
+        var btntext = btn.text().trim().toLowerCase();
+        if (btntext === "edit") {$("#ModalID .modal-title").text("Update");btn.text("Update");$("#btnC").text("Cancel");return;}
+        if (btntext === "update" || btntext === "save")
+        {
+            if ( checkInput( 'txt', 'module_code', 'Code is required', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'txt', 'module_name', 'Name is required', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'txt', 'module_label', 'Label is required', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'txt', 'module_folder', 'Folder is required','modal-message') == false ) {return false;}
+            if ( checkInput( 'txt', 'module_sort', 'Sorting is required', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'cmb', 'module_status', 'Status is required', 'modal-message') == false ) {return false;}
+            submitSaveUpdate(modulesUrl);
+        }
+    });
+    $(document).off("blur", "#module_sort").on("blur", "#module_sort", function (){OnlyNumeric('module_sort', 'modal-message');});
+</script>

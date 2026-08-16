@@ -1,0 +1,212 @@
+﻿@using Microsoft.AspNetCore.Http;
+@inject IHttpContextAccessor HttpContextAccessor;
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var PageTitle = "Advance";
+    var Page_Tips = "After submission of salary the advances can not be modified. In case of modification needed, first need to delete the salary sheet.<br/><br/> Set all advance values to 0 (zero) and submit to delete any employees advance.";  //Tool tip message on right side
+    var msg_please_wait = "";
+    var Page_Mode = PageTitle;
+    var Pern = ViewBag.vpern;
+    ViewData["Title"] = "| " + PageTitle;
+    var Help_Tips = GblUtilities.HelpTips(Page_Tips);
+    /*success|fail|error'*/
+    string ShowMsg = GblUtilities.MsgDisplay(Context.Request.Query["msg"].ToString());
+}
+
+@Html.AntiForgeryToken()
+<h2 class="titlebig"><span name="header" id="header">@Page_Mode</span> @Html.Raw(Help_Tips)</h2>
+@Html.Hidden("mode", "")
+
+<div id="message_header"><p id="loading" class="loading displaynone">@msg_please_wait</p></div>
+
+<div class="row">
+    <div class="col-lg-2"><label class="col-lg-12 col-form-label-lg">Employee Status:</label></div>
+    <div class="col-lg-10">
+        @Html.DropDownList("EmployeeStatusFilter", (SelectList)ViewBag.EmployeeStatusFilter, new { @class = "form-select", style = "width:300px;" })
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-2"><label class="col-lg-12 col-form-label-lg">Year:</label></div>
+    <div class="col-lg-10">
+        @Html.DropDownList("YearFilter", (SelectList)ViewBag.YearDropDown, new { @class = "form-select", style = "width:300px;" })
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-2"><label class="col-lg-12 col-form-label-lg">Month:</label></div>
+    <div class="col-lg-10">
+        @Html.DropDownList("MonthFilter", (SelectList)ViewBag.MonthDropDown, new { @class = "form-select", style = "width:300px;" })
+    </div>
+</div>
+
+<div class="row"><span id="blnShow" class="normal red">@ViewBag.msg_cant_edit_salary_processed</span></div>
+
+<div class="p-0 bg-white rounded mb-3">
+    <div class="row align-items-center">
+        <div class="col-auto ms-auto">
+            @Html.Raw(ViewBag.ViewButtons)
+        </div>
+    </div>
+</div>
+
+<div class="form-group p-2">
+    <table id="tblData" class="display compact nowrap" style="width:100%">
+        <thead>
+            <tr style="background-color:silver; height:40px;">
+                <th colspan="2" class="text-center">Employee</th>
+                <th colspan="3" class="text-center">Advances</th>
+                <th >Field</th>
+                <th colspan="3" class="text-center">Loan</th>
+            </tr>
+            <tr style="background-color:silver; height:40px;">
+                <th width="1%"><input type="checkbox" id="selectAll"></th>
+                <th width="29%">Name (ID)</th>
+                <th width="10%">Personal</th>
+                <th width="10%">Program</th>
+                <th width="10%">Travel</th>
+                <th width="10%">Drawing</th>
+                <th width="10%">PF</th>
+                <th width="10%">CIT</th>
+                <th width="10%">Welfare</th>
+            </tr>
+        </thead>
+    </table>
+</div>
+<div id="message_header">@Html.Raw(ShowMsg)</div>
+@if (ViewBag.epern == "true")
+{
+    <div class="form-group row p-1">
+        <label class="col-sm-4 col-form-label">&nbsp;</label>
+        <div class="col-sm-8">
+            <button type="reset" name="btnReset" id="btnReset" class="button btn-secondary">Reset</button>
+            <button type="button" name="btnSave" id="btnSave" class="button btn-primary">Save</button>
+        </div>
+    </div>
+}
+@await Html.PartialAsync("_SharedModal", new wwfpp.Models.ModalViewModel { ModalId = "ModalID", DialogClass = "modal-lg", BodyId = "ModalBody", })
+
+@section scripts
+{
+    <script>
+        var ilaka = "/Payroll/Advance";
+        var selectedIds = new Set();
+        var hideviewaction = "yes";
+        var table;
+        $(document).ready(function () {
+            GetAllData(ilaka, "emp_id", [
+                { data: "employee", name: "employee", autoWidth: false, render: function (data, type, row) { return data; } },
+                { data: "adv_personnel", name: "adv_personnel", autoWidth: false, render: function(data, type, row, meta) { return '<input type="text" name="adv_personnel' + meta.row + '" id="adv_personnel' + meta.row + '" value="' + data + '" class="form-control adv_personnel-input" style = "width:90px;", maxlength = "10">'; } },
+                { data: "adv_program", name: "adv_program", autoWidth: false, render: function(data, type, row, meta) { return '<input type="text" name="adv_program' + meta.row + '" id="adv_program' + meta.row + '" value="' + data + '" class="form-control adv_program-input" style = "width:90px;", maxlength = "10">'; } },
+                { data: "adv_travel", name: "adv_travel", autoWidth: false, render: function(data, type, row, meta) { return '<input type="text" name="adv_travel' + meta.row + '" id="adv_travel' + meta.row + '" value="' + data + '" class="form-control adv_travel-input" style = "width:90px;", maxlength = "10">'; } },
+                { data: "adv_field_drawing", name: "adv_field_drawing", autoWidth: false, render: function(data, type, row, meta) { return '<input type="text" name="adv_field_drawing' + meta.row + '" id="adv_field_drawing' + meta.row + '" value="' + data + '" class="form-control adv_field_drawing-input" style = "width:90px;", maxlength = "10">'; } },
+                { data: "adv_pf_loan", name: "adv_pf_loan", autoWidth: false, render: function(data, type, row, meta) { return '<input type="text" name="adv_pf_loan' + meta.row + '" id="adv_pf_loan' + meta.row + '" value="' + data + '" class="form-control adv_pf_loan-input" style = "width:90px;", maxlength = "10">'; } },
+                { data: "adv_cit_loan", name: "adv_cit_loan", autoWidth: false, render: function(data, type, row, meta) { return '<input type="text" name="adv_cit_loan' + meta.row + '" id="adv_cit_loan' + meta.row + '" value="' + data + '" class="form-control adv_cit_loan-input" style = "width:90px;", maxlength = "10">'; } },
+                { data: "adv_welfare", name: "adv_welfare", autoWidth: false, render: function(data, type, row, meta) { return '<input type="text" name="adv_welfare' + meta.row + '" id="adv_welfare' + meta.row + '" value="' + data + '" class="form-control adv_welfare-input" style = "width:90px;", maxlength = "10">'; } }
+            ],
+                {
+                    Status: "EmployeeStatusFilter",
+                    Year: "YearFilter",
+                    Month: "MonthFilter"
+                });
+            $(document).one('init.dt', '#tblData', function () { table.page.len(-1).draw(); })/** Wait for first draw to complete before changing page length*/
+            $('#tblData_filter').hide();
+            $('#tblData_length').hide();
+        });
+        $(document).on('blur', '.adv_personnel-input', function () { OnlyNumericCtrl(this); });
+        $(document).on('blur', '.adv_program-input', function () { OnlyNumericCtrl(this); });
+        $(document).on('blur', '.adv_travel-input', function () { OnlyNumericCtrl(this); });
+        $(document).on('blur', '.adv_field_drawing-input', function () { OnlyNumericCtrl(this); });
+        $(document).on('blur', '.adv_pf_loan-input', function () { OnlyNumericCtrl(this); });
+        $(document).on('blur', '.adv_cit_loan-input', function () { OnlyNumericCtrl(this); });
+        $(document).on('blur', '.adv_welfare-input', function () { OnlyNumericCtrl(this); });
+        $(document).off("click", "#btnSave").on("click", "#btnSave", function () { $("#mode").val("update"); updateDataJSON(ilaka + "Save"); });
+        $(document).off('click', '#btnDownLoadFormat').on('click', '#btnDownLoadFormat', function() { postdata(ilaka + 'DownloadFormat'); });
+        $(document).off('click', '#btnImport').on('click', '#btnImport', function() {
+            $("#modal-message").text("").hide();
+            $("#ModalBody").html("");
+            var adv_year = $("#YearFilter").val();
+            var adv_month = $("#MonthFilter").val();
+            $.get(ilaka + "Import", { adv_year: adv_year, adv_month: adv_month }, function(data) {
+                $("#ModalBody").html(data);
+                $("#ModalID .modal-title").text("Import");
+                var modal = new bootstrap.Modal(document.getElementById("ModalID"));
+                modal.show();
+            }).fail(function(xhr) { showError("Error occured while loading record(s): " + xhr.responseText); });
+        });
+        function collectExtraFields() {
+            var extraSettings = [];
+            $("#tblData tbody tr").each(function() {
+                var row = $(this);
+                var id = row.find("input.row-checkbox:checked").val();
+                if (selectedIds.has(id)) {
+                    extraSettings.push({
+                        emp_id: parseInt(id, 10),
+                        adv_personnel: row.find("input[name^='adv_personnel']").val(),
+                        adv_program: row.find("input[name^='adv_program']").val(),
+                        adv_travel: row.find("input[name^='adv_travel']").val(),
+                        adv_pf_loan: row.find("input[name^='adv_pf_loan']").val(),
+                        adv_field_drawing: row.find("input[name^='adv_field_drawing']").val(),
+                        adv_cit_loan: row.find("input[name^='adv_cit_loan']").val(),
+                        adv_welfare: row.find("input[name^='adv_welfare']").val(),
+                        adv_year: $("#YearFilter").val() || 0,
+                        adv_month: $("#MonthFilter").val() || 0,
+                    });
+                }
+            });
+            return extraSettings;
+        }
+        $(document).off("click", "#btnExport").on("click", "#btnExport", function () {
+            var btn = $(this);
+            if (btn.text().trim() === "Export") {
+                if (checkInput('cmb', 'YearFilter', 'Year is required.', 'modal-message') == false) { return false; }
+                if (checkInput('cmb', 'MonthFilter', 'Month is required.', 'modal-message') == false) { return false; }
+                if (confirm(msg_are_you_sure_to_perform_this_action) == false) { return false; }
+                var formData = $("#frm").serialize();
+                $.post("/Payroll/AdvanceExport", formData).done(function (data) {
+                    if (data.status === "success") {
+                        showSuccess(msg_data_exported_success, "modal-message");
+                        window.location = data.url; // triggers download
+                    } else { showError(data.message, "modal-message"); }
+                }).fail(function (xhr) { showError(xhr.responseText, "modal-message"); });
+            }
+        });
+        $(function () {
+            $("#YearFilter, #MonthFilter, #EmployeeStatusFilter").on("change", function () {
+                var year = parseInt($('#YearFilter').val(), 10);
+                var month = parseInt($('#MonthFilter').val(), 10);
+                if ((year > 0) && (month > 0)) {
+                    $.get("/Payroll/AdvanceCSP", {year: year, month: month, status: $("#EmployeeStatusFilter").val()}, function (data) {
+                        if (data.status === "success") {
+                            if (data.blnShow === "false" && data.perm == "false")
+                            {
+                                $("#btnSave").hide();
+                                $("#blnShow").show();
+                                $("#blnShow").text("The salary has already been processed so that it can not be edited.");
+                            }
+                            else if (data.blnShow === "true" && data.perm == "false"){
+                                $("#btnSave").hide();
+                                $("#blnShow").hide();
+                                $("#blnShow").text("");
+                            }
+                            else{
+                                $("#btnSave").show();
+                                $("#blnShow").hide();
+                                $("#blnShow").text("");
+                            }
+                        } else { showError(data.message, "modal-message"); }
+                    }).fail(function (xhr) { showError(xhr.responseText, "modal-message"); });
+                }
+                const statusV = $("#EmployeeStatusFilter").val();
+                if (statusV === "A") {
+                    $('#tblData_length').hide();
+                    table.page.len(-1).draw();
+                } else {
+                    $('#tblData_length').show();
+                    table.page.len(10).draw();
+                }
+                table.draw();
+            });
+        });
+    </script>
+}

@@ -1,0 +1,108 @@
+﻿@model wwfpp.Models.Settings.EmployeeMedicalReimburseVerificationViewModel
+@{
+    string mode = ViewBag.mode;
+}
+<!-- (A) HTML DIALOG BOX -->
+<partial name="_ConstantValues" view-data='new ViewDataDictionary(ViewData) { { "NoteKey", "RequiredField" } }' />
+    @Html.HiddenFor(m => m.id) <!-- Needed for Edit -->
+        <div class="form-group row p-1">
+
+        <label class="col-lg-12 ">Employee [Marital Status]</label>
+        <div class="col-lg-12 col-form-label-lg">@Model.employee</div>
+
+        <label class="col-lg-12">Fiscal Year</label>
+        <div class="col-lg-12 col-form-label-lg">@Model.fiscal_year</div>
+    
+        <label class="col-lg-12 ">Referance Number</label>
+        <div class="col-lg-12 col-form-label-lg">@Model.bill_no</div>
+        
+        <label class="col-lg-12">Payment Date</label>
+        <div class="col-lg-12 col-form-label-lg">@ViewBag.bill_date</div>
+        
+        <label class="col-lg-12">Total = Amount [Self] + Amount [Spouse] + Amount [Other Dependent]</label>
+        <div class="col-lg-12 col-form-label-lg">@Model.total_amount = @Model.self_amt + @Model.spouse_amt + @Model.other_dep_amt</div>
+
+        <label class="col-lg-12">Submit Date</label>
+        <div class="col-lg-12 col-form-label-lg">@ViewBag.submit_date</div>        
+    
+        <label class="col-lg-12">Status | By | Date</label>
+    @{
+        if (Model.status == "Approved" || Model.status == "Declined")
+        {
+            var bg_class = Model.status == "Approved" ? "light-green" : "light-red";
+            <div class="col-lg-12 col-form-label-lg @bg_class">@Model.status | @ViewBag.Appby | @ViewBag.AppDate</div>
+            <label class="col-lg-12">Period</label>
+            <div class="col-lg-12 col-form-label-lg">@ViewBag.SalMonth - @Model.sal_year </div>
+            
+            <label class="col-lg-12 col-form-label-lg">Choose Action<span class="text-danger">*</span></label>
+            <div class="col-lg-12">
+                @Html.DropDownListFor(m => m.status,
+                    new SelectList(new[] {
+                    new { Value = "Pending", Text = "Cancel" }
+                    }, "Value", "Text"),
+                    "--Select--",
+                    new { @class = "form-control" })                
+            </div>
+        }
+        else
+        {
+            <div class="col-lg-12 col-form-label-lg light-yellow">@Model.status | N/A | N/A</div>
+
+            <label class="col-lg-12 col-form-label-lg">Year<span class="text-danger">*</span></label>
+            <div class="col-lg-12">
+                @Html.DropDownListFor(m => m.sal_year, (SelectList)ViewBag.Years, new
+                    {
+                        @class = "form-select",
+                        style = "width:300px;"
+                    })
+            </div>
+            <label class="col-lg-12 col-form-label-lg">Month<span class="text-danger">*</span></label>
+            <div class="col-lg-12">
+                @Html.DropDownListFor(m => m.sal_month, (SelectList)ViewBag.Months, new
+                    {
+                        @class = "form-select",
+                        style = "width:300px;"
+                    })
+            </div>
+            <label class="col-lg-12 col-form-label-lg">Choose Action<span class="text-danger">*</span></label>
+            <div class="col-lg-12">
+                @Html.DropDownListFor(m => m.status,
+                    new SelectList(new[] {
+                    new { Value = "Approved", Text = "Approve" },
+                    new { Value = "Declined", Text = "Decline" }
+                    }, "Value", "Text"),
+                    "--Select--",
+                    new { @class = "form-control" })                
+            </div>
+        }
+    }
+
+
+    </div>
+
+@if (mode == "edit" && ViewBag.epern == "true")
+{
+    <script>renderModalButtons("modal-button-list", "Edit");</script>
+}
+else
+{
+    <script>renderModalCloseButton("modal-button-list")</script>
+}
+    <script>
+    // Toggle between Edit and Update
+    var status = "@Model.status";
+    $(document).off("click", "#btnSave").on("click", "#btnSave", function () {
+        var btn = $(this);
+        if (btn.text() == "Edit") {$("#ModalID .modal-title").text("Update");btn.text("Update");$("#btnC").text("Cancel");return;}  
+        if (btn.text() === "Update" || btn.text() === "Save") {
+
+            if (status === "Pending"){
+                if ( checkInput( 'cmb', 'sal_year', 'Year is required.', 'modal-message') == false ) {return false;}
+                if ( checkInput( 'cmb', 'sal_month', 'Month is required.', 'modal-message') == false ) {return false;}
+            }
+            if ( checkInput( 'cmb', 'status', 'Action is required.', 'modal-message') == false ) {return false;}
+
+            submitSaveUpdate('@Url.Content("~/Settings/MedicalInsurance")');
+        }
+    });
+    </script>

@@ -1,0 +1,73 @@
+﻿@using wwfpp.Services
+@inject SettingsServices SettingsServices
+@model wwfpp.Models.Payroll.WelfarePaidoutViewModel
+@{
+    string? mode = ViewBag.mode;
+
+}
+<!-- (A) HTML DIALOG BOX -->
+<partial name="_ConstantValues" view-data='new ViewDataDictionary(ViewData) { { "NoteKey", "RequiredField" } }' />
+@Html.HiddenFor(m => m.id) <!-- Needed for Edit -->
+<div class="form-group row p-1">
+
+    @if (mode == "add")
+    {
+        <label class="col-lg-12 col-form-label-lg">Employee<span class="text-danger">*</span></label>
+        <div class="col-lg-12">
+            @Html.DropDownListFor(m => m.emp_id, (SelectList)ViewBag.EmployeeList, "-- Select --", new { @class = "form-select" })
+        </div>
+    }
+    else
+    {
+        string empStatus = Model.emp_status == "A" ? "Active" : "Inactive";
+        <label class="col-lg-12 col-form-label-lg">Employee:<span class="text-danger">*</span> @ViewBag.Employee [@empStatus] @Html.HiddenFor(m => m.emp_id)</label>
+        <div class="col-lg-12">&nbsp;</div>
+    }
+    <label class="col-lg-12 col-form-label-lg">Year<span class="text-danger">*</span></label>
+    <div class="col-lg-12">
+        @Html.DropDownListFor(m => m.wl_year, (SelectList)ViewBag.YearDropDown, new { @class = "form-select" })
+    </div>
+    <label class="col-lg-12 col-form-label-lg">Month<span class="text-danger">*</span></label>
+    <div class="col-lg-12">
+        @Html.DropDownListFor(m => m.wl_month, (SelectList)ViewBag.MonthDropDown, new { @class = "form-select" })
+    </div>
+    <label class="col-lg-12 col-form-label-lg">Amount<span class="text-danger">*</span></label>
+    <div class="col-lg-12">
+        @Html.TextBoxFor(m => m.wl_amount, new { @class = "form-control" })
+    </div>
+    <label class="col-lg-12 col-form-label-lg">Remarks</label>
+    <div class="col-lg-12">
+        @Html.TextAreaFor(m => m.remarks, new { @class = "form-control", rows = "4", cols = "50", maxlength = "500" })
+    </div> 
+    <label class="col-lg-12 col-form-label-lg">Submit Date : </label>
+    <div class="col-lg-12">@ViewBag.SubmitDate</div>
+</div>
+@if (mode == "add" && ViewBag.apern == "true")
+{
+    <script>renderModalButtons("modal-button-list", "Save");</script>
+}
+else if (mode == "edit" && ViewBag.epern == "true" && Model.emp_status == "A")
+{
+    <script>renderModalButtons("modal-button-list", "Edit");</script>
+}
+else
+{
+    <script>renderModalCloseButton("modal-button-list")</script>
+}
+<script>
+    // Toggle between Edit and Update
+    $(document).off("click", "#btnSave").on("click", "#btnSave", function () {
+        var btn = $(this);
+        if (btn.text() == "Edit") { $("#ModalID .modal-title").text("Update"); btn.text("Update"); $("#btnC").text("Cancel"); return; }
+        if (btn.text() === "Update" || btn.text() === "Save") {
+            if ($("#mode").val() === "add") {
+                if (checkInput('cmb', 'emp_id', 'Employee is required.', 'modal-message') == false) { return false; }
+            }
+            if (checkInput('cmb', 'wl_year', 'Select Year.', 'modal-message') == false) { return false; }
+            if (checkInput('cmb', 'wl_month', 'Select Month.', 'modal-message') == false) { return false; }
+            if (checkInput('txt', 'wl_amount', 'Amount is required.', 'modal-message') == false) { return false; }
+            submitSaveUpdate("/Payroll/WelfarePaidout");
+
+        }
+    });
+</script>

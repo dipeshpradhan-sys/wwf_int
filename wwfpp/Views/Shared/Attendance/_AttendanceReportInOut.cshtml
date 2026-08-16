@@ -1,0 +1,97 @@
+﻿@using wwfpp.Models.Attendance
+@model List<ReportDailyAttendanceRangeInOutViewModel>
+@{
+    int cnt = 0;
+    var allDates = Model.SelectMany(m => m.DateInOutRemarks.Keys).Distinct().OrderBy(d => d).ToList();
+    var DateFlag = ViewBag.DateFlag;
+    string DATE_FORMAT = ViewBag.DATE_FORMAT;
+}
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th class="bg-gray">Report Title:</th>
+            <th>@ViewBag.ReportTitle</th>
+        </tr>
+        @if (!string.IsNullOrWhiteSpace(@ViewBag.DutyStation))
+        {
+            <tr>
+                <th class="bg-gray">Duty Station:</th>
+                <th>@ViewBag.DutyStation</th>
+            </tr>
+        }
+        @if (!string.IsNullOrWhiteSpace(@ViewBag.EmployeeType))
+        {
+            <tr>
+                <th class="bg-gray">Employee Type:</th>
+                <th>@ViewBag.EmployeeType</th>
+            </tr>
+        }
+        @if (!string.IsNullOrWhiteSpace(@ViewBag.EmployeeStatus))
+        {
+            <tr>
+                <th class="bg-gray">Employee Status:</th>
+                <th>@ViewBag.EmployeeStatus</th>
+            </tr>
+        }
+        @if (!string.IsNullOrWhiteSpace(@ViewBag.startDate))
+        {
+            <tr>
+                <th class="bg-gray">Date:</th>
+                <th>@ViewBag.startDate - @ViewBag.endDate</th>
+            </tr>
+        }
+        @if (!string.IsNullOrWhiteSpace(@ViewBag.AbsentRemarkLto))
+        {
+        <tr>
+            <th class="bg-gray">Late to office:</th>
+            <th>@ViewBag.AbsentRemarkLto</th>
+        </tr>
+        }
+    </thead>
+</table>
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th>SN</th>
+            <th>Employee</th>
+            @foreach (var entry in allDates)
+            {
+                var flag = DateFlag.ContainsKey(entry) ? DateFlag[entry] : string.Empty;
+                var cssClass = flag == "W" ? "weekend" : flag == "H" ? "holiday" : string.Empty;
+                <th colspan="3" class="@cssClass">
+                    @entry.ToString(DATE_FORMAT)
+                </th>
+            }
+        </tr>
+        <tr>
+            <th>&nbsp;</th>
+            <th>&nbsp;</th>
+            @foreach (var entry in allDates)
+            {
+                var flag = DateFlag.ContainsKey(entry) ? DateFlag[entry] : string.Empty;
+                var cssClass = flag == "W" ? "weekend" : flag == "H" ? "holiday" : string.Empty;
+                <th class="@cssClass">In</th>
+                <th class="@cssClass">Out</th>
+                <th class="@cssClass">Remarks</th>
+            }
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Model)
+        {
+            cnt++;
+            <tr>
+                <th>@cnt</th>
+                <th>@item.Employee</th>
+                @foreach (var date in allDates)
+                {
+                    var flag = DateFlag.ContainsKey(date) ? DateFlag[date] : string.Empty;
+                    var cssClass = flag == "W" ? "weekend" : flag == "H" ? "holiday" : string.Empty;
+                    <th class="@cssClass">@item.DateInOutRemarks[date].In</th>
+                    <th class="@cssClass">@item.DateInOutRemarks[date].Out</th>
+                    <th class="@cssClass">@item.DateInOutRemarks[date].Remarks</th>
+                }
+            </tr>
+        }
+    </tbody>
+</table>

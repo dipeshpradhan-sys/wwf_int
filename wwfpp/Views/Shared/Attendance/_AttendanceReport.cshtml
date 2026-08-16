@@ -1,0 +1,258 @@
+﻿@using Microsoft.AspNetCore.Http;
+@using wwfpp.Services;
+@inject SettingsServices SettingsServices;
+@inject AttendanceServices AttendanceServices;
+@inject IHttpContextAccessor HttpContextAccessor;
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var PageTitle = "Attendance Report";
+    var Page_Tips = "";  //Tool tip message on right side
+    var msg_please_wait = "";
+    var Page_Mode = PageTitle;
+    ViewData["Title"] = "| " + PageTitle;
+    var Help_Tips = GblUtilities.HelpTips(Page_Tips);
+    string ShowMsg = GblUtilities.MsgDisplay(Context.Request.Query["msg"].ToString());/*success|fail|error'*/
+
+    string DATE_FORMAT = ViewBag.DATE_FORMAT;
+    string in_out_date = ViewBag.InOutDay.ToString();
+    string s_in_out_date = SettingsServices.DateformatToDt(in_out_date);
+    string s_start_date = s_in_out_date;
+    string s_end_date = s_in_out_date;
+}
+@Html.AntiForgeryToken()
+@Html.Hidden("ilaka", "/Attendance/AttendanceReport")
+<h2 class="titlebig"><span name="header" id="header">@Page_Mode</span> @Html.Raw(Help_Tips)</h2>
+@Html.Hidden("mode", "")
+@Html.Hidden("Id", "")
+@Html.Hidden("dailyrange", "")
+<div id="message_header"><p id="loading" class="loading displaynone">@msg_please_wait</p></div>
+<div id="message_header">@Html.Raw(ShowMsg)</div>
+
+<div class="row">
+    <div id="button-box">
+        <div id="button-box-right">
+            <h5>Date Format : @DATE_FORMAT</h5>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-3"><label class="col-lg-12 col-form-label-lg">Duty Station: &nbsp;</label></div>
+    <div class="col-lg-9">
+        @Html.DropDownList("duty_station_id", (SelectList)ViewBag.DutyStationFilter, new { @class = "form-select", style = "width:300px;" })
+    </div>
+</div>
+<div class="row">
+    <div class="col-lg-3"><label class="col-lg-12 col-form-label-lg">Employee Type: &nbsp;</label></div>
+    <div class="col-lg-9">
+        @Html.DropDownList("employee_type", (SelectList)ViewBag.EmployeeTypeFilter, "-- Select --", new { @class = "form-select", style = "width:300px;" })
+    </div>
+</div>
+
+<div id="button-box"><div id="button-box-right"><h5>Daily</h5></div></div>
+
+<div class="row">
+    <div class="col-lg-3"><label class="col-lg-12 col-form-label-lg">Date: &nbsp;</label></div>
+    <div class="col-lg-9">
+        <div class="row col-lg-12">
+            <div class="col-lg-3">@Html.TextBox("in_out_date", s_in_out_date, new { @class = "form-control", maxlength = "10", style = "width:200px;" })</div>
+            <div class="col-lg-9">
+                <Button type="Button" name="btnDate" id="btnDate" class="button bg-sky">Date...</Button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-3"><label class="col-lg-12 col-form-label-lg">Type : &nbsp;</label></div>
+    <div class="col-lg-9">
+        @Html.DropDownList("report_type", (SelectList)ViewBag.ReportTypeFilter, new { @class = "form-select", style = "width:300px;" })
+    </div>
+</div>
+
+<div class="row">
+    <div id="button-box">
+        <div id="button-box-right">
+            <h5>
+                <Button type="Button" name="btnShow" id="btnShow" class="button bg-blue">Show</Button>
+                <Button type="Button" name="btnLunch" id="btnLunch" class="button bg-blue">Lunch</Button>
+            </h5>
+        </div>
+    </div>
+</div>
+
+<div id="button-box"><div id="button-box-right"><h5>Date Range</h5></div></div>
+
+<div class="row">
+    <div class="col-lg-3"><label class="col-lg-12 col-form-label-lg">Employee Status: &nbsp;</label></div>
+    <div class="col-lg-9">
+        @Html.DropDownList("emp_status", (SelectList)ViewBag.EmployeeStatusFilter, new { @class = "form-select", style = "width:300px;" })
+    </div>
+</div>
+<div class="row">
+    <div class="col-lg-3"><label class="col-lg-12 col-form-label-lg">Start Date: &nbsp;</label></div>
+    <div class="col-lg-9">
+        <div class="row col-lg-12">
+            <div class="col-lg-3">@Html.TextBox("start_date", s_start_date, new { @class = "form-control", maxlength = "10", style = "width:150px;" })</div>
+            <div class="col-lg-9">
+                <Button type="Button" name="btnStartDate" id="btnStartDate" class="button bg-sky">Date...</Button>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="row">
+    <div class="col-lg-3"><label class="col-lg-12 col-form-label-lg">End Date: &nbsp;</label></div>
+    <div class="col-lg-9">
+        <div class="row col-lg-12">
+            <div class="col-lg-3">@Html.TextBox("end_date", s_end_date, new { @class = "form-control", maxlength = "10", style = "width:150px;" })</div>
+            <div class="col-lg-9">
+                <Button type="Button" name="btnEndDate" id="btnEndDate" class="button bg-sky">Date...</Button>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="row">
+    <div class="col-lg-3"><label class="col-lg-12 col-form-label-lg">Late to office: &nbsp;</label></div>
+    <div class="col-lg-9">
+        @Html.DropDownList("absent_remark_lto", (SelectList)ViewBag.AbsentRemarkLTOFilter, new { @class = "form-select", style = "width:300px;" })
+    </div>
+</div>
+<div class="row">
+    <div class="col-lg-3"><label class="col-lg-12 col-form-label-lg">Employee: &nbsp;</label></div>
+    <div class="col-lg-9">
+        @Html.DropDownList("EmployeeFilter", (SelectList)ViewBag.EmployeeList, "-- Select --", new { @class = "form-select", style = "width:300px;" })
+    </div>
+</div>
+<div class="row">
+    <div id="button-box">
+        <div id="button-box-right">
+            <h5>
+                <Button type="Button" name="btnRemarks" id="btnRemarks" class="button bg-blue">Remarks</Button>
+                <Button type="Button" name="btnFrequency" id="btnFrequency" class="button bg-blue">Frequency</Button>
+                <Button type="Button" name="btnHours" id="btnHours" class="button bg-blue">Hour(s)</Button>
+                <Button type="Button" name="btnInOut" id="btnInOut" class="button bg-blue">In/Out</Button>
+            </h5>
+        </div>
+    </div>
+</div>
+
+@await Html.PartialAsync("_SharedModal", new wwfpp.Models.ModalViewModel { ModalId = "ModalID", DialogClass = "modal-lg", BodyId = "ModalBody" })
+
+@section scripts
+{
+    <script>
+        (function() {
+            var ilakaEl = document.getElementById('ilaka');
+            var ilaka = ilakaEl ? ilakaEl.value : '';
+
+            renderModalExportButtons("modal-button-list");
+
+            $(document).off('change', '#emp_status').on('change', '#emp_status', function() {
+                GetEmployeeListStatusWise("/Employee/EmployeeList", "EmployeeFilter", $(this).val());
+            });
+
+            $(document).off('blur', '#in_out_date').on('blur', '#in_out_date', function() { convert_date(in_out_date, 'message'); });
+            $(document).off('blur', '#start_date').on('blur', '#start_date', function() { convert_date(start_date, 'message'); });
+            $(document).off('blur', '#end_date').on('blur', '#end_date', function() { convert_date(end_date, 'message'); });
+
+            $(document).off('click', '#btnDate').on('click', '#btnDate', function() { show_calendar('frm.in_out_date'); });
+            $(document).off('click', '#btnStartDate').on('click', '#btnStartDate', function() { show_calendar('frm.start_date'); });
+            $(document).off('click', '#btnEndDate').on('click', '#btnEndDate', function() { show_calendar('frm.end_date'); });
+
+            $(document).off('click', '#btnShow').on('click', '#btnShow', function(e) { attendanceReport('Daily', 'Daily', 'HTML', e); });
+            $(document).off('click', '#btnLunch').on('click', '#btnLunch', function(e) { attendanceReport('Lunch', 'Daily','HTML', e); });
+            
+            $(document).off('click', '#btnRemarks').on('click', '#btnRemarks', function(e) { attendanceReport('Remarks', 'Range', 'HTML',e); });
+            $(document).off('click', '#btnFrequency').on('click', '#btnFrequency', function(e) { attendanceReport('Frequency', 'Range','HTML', e); });
+            $(document).off('click', '#btnHours').on('click', '#btnHours', function(e) { attendanceReport('Hours', 'Range','HTML', e); });
+            $(document).off('click', '#btnInOut').on('click', '#btnInOut', function(e) { attendanceReport('InOut', 'Range','HTML', e); });
+            
+            $(document).off('click', '#btnPDF').on('click', '#btnPDF', function(e) { attendanceReport( $('#mode').val(), $('#dailyrange').val(), 'Pdf', e); });
+            $(document).off('click', '#btnExcel').on('click', '#btnExcel', function(e) { attendanceReport($('#mode').val() , $('#dailyrange').val(), 'Excel',e); });
+            $(document).off('click', '#btnC').on('click', '#btnC', function() { modalCloseCancel($(this)); });
+
+            function attendanceReport(type, report_ctrl, format, e) 
+            {
+                if (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+                $('#mode').val(type);
+                $('#dailyrange').val(report_ctrl);
+                var suffix = "";
+                if (report_ctrl === 'Daily') {
+                    if (checkInput('txt', 'in_out_date', 'Date is required.', 'message') === false) { return false; }
+                    suffix = format;
+                } else {
+                    if (checkInput('txt', 'start_date', 'Start Date is required.', 'message') === false) { return false; }
+                    if (checkInput('txt', 'end_date', 'End Date is required.', 'message') === false) { return false; }
+                    
+                    var start_date = $("#start_date").val();
+                    var end_date = $("#end_date").val();
+
+                    if (isStartDateGreater(start_date, end_date)) {
+                        showError("Start date is greater than end date.");
+                        return false;
+                    }
+
+                    if (getDiffDays($('#start_date').val(), $('#end_date').val()) > 31) { 
+                        showError("Allowed range is maximum of 31 days only."); 
+                        return false;
+                    }
+                    
+                    suffix = "";
+                }
+                var emp_id = $('#EmployeeFilter').val();
+                if (emp_id === "") { emp_id = 0; }
+                if (format === "HTML")
+                {
+
+                    var payload = {
+                        report_name: type,
+                        duty_station_id: $('#duty_station_id').val(),
+                        employee_type: $('#employee_type').val(),
+                        in_out_date: $('#in_out_date').val(),
+                        report_type: $('#report_type').val(),
+                        emp_status: $('#emp_status').val(),
+                        start_date: $('#start_date').val(),
+                        end_date: $('#end_date').val(),
+                        absent_remark_lto: $('#absent_remark_lto').val(),
+                        emp_id: emp_id
+                    };
+                    showReport(ilaka+report_ctrl, payload);
+                }
+                else
+                {
+                    if( report_ctrl === "Daily")
+                    {
+                        var params = new URLSearchParams({
+                            reportName: type || '',
+                            dutyStationId: $('#duty_station_id').val() || '',
+                            employeeType: $('#employee_type').val() || '',
+                            inOutDate: $('#in_out_date').val() || '',
+                            reportType: $('#report_type').val() || ''
+                        });
+                    }
+                    else
+                    {
+                        var params = new URLSearchParams({
+                            reportName: type || '',
+                            dutyStationId: $('#duty_station_id').val() || '',
+                            employeeType: $('#employee_type').val() || '',
+                            empStatus: $('#emp_status').val() || '',
+                            startDate: $('#start_date').val() || '',
+                            endDate: $('#end_date').val() || '',
+                            absentRemarkLto: $('#absent_remark_lto').val() || '',
+                            format : format,
+                            emp_id: emp_id,
+                        });                    
+                    }
+
+                    var action = 'ExportAttendanceReport' + report_ctrl + suffix;
+                    var url = '@Url.Action("__ACTION__", "Attendance")'.replace('__ACTION__', action) + '?' + params.toString();
+                    window.location.href = url;                
+                }
+            }
+        })();
+    </script>
+}

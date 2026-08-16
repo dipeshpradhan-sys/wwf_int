@@ -1,0 +1,101 @@
+﻿@using wwfpp.Services
+@inject SettingsServices SettingsServices
+@inject GlobalOptionServices globalOptionServices
+@model wwfpp.Models.Employee.EmployeeAddressViewModel
+@{
+    string? mode = ViewBag.mode;
+}
+<partial name="_ConstantValues" view-data='new ViewDataDictionary(ViewData) { { "NoteKey", "RequiredField" } }' />
+<div class="form-group row p-1">
+    @if (mode == "add")
+    {
+        <label class="col-lg-12 col-form-label-lg">Employee<span class="text-danger">*</span></label>
+        <div class="col-lg-12">
+            @Html.DropDownListFor(m => m.emp_id, (SelectList)ViewBag.EmployeeList, "-- Select --", new { @class = "form-select" })
+        </div>
+    }
+    else
+    {
+        string empStatus = Model.emp_status == "A" ? "Active" : "Inactive";
+        <label class="col-lg-12 col-form-label-lg">Employee:<span class="text-danger">*</span> @ViewBag.Employee [@empStatus] @Html.HiddenFor(m => m.emp_id)</label>
+        <div class="col-lg-12">&nbsp;</div>
+    }
+
+    <label class="col-lg-12 col-form-label-lg">Address 1<span class="text-danger">*</span></label>
+    <div class="col-lg-12">
+        @Html.TextBoxFor(m => m.address1, new { @class = "form-control", maxlength = "100" })
+    </div>
+    
+    <label class="col-lg-12 col-form-label-lg">Address 2</label>
+    <div class="col-lg-12">
+        @Html.TextBoxFor(m => m.address2, new { @class = "form-control", maxlength = "100" })
+    </div>
+    
+    <label class="col-lg-12 col-form-label-lg">City</label>
+    <div class="col-lg-12">
+        @Html.TextBoxFor(m => m.city, new { @class = "form-control", maxlength = "100" })
+    </div>
+    
+    <label class="col-lg-12 col-form-label-lg">State/District<span class="text-danger">*</span></label>
+    <div class="col-lg-12">
+        @Html.TextBoxFor(m => m.state, new { @class = "form-control", maxlength = "20" })
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Country<span class="text-danger">*</span></label>
+    <div class="col-lg-12">
+        @Html.DropDownListFor(m => m.country, (SelectList)ViewBag.Country, new { @class = "form-select" })
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Postal Code</label>
+    <div class="col-lg-12">
+        @Html.TextBoxFor(m => m.postalcode, new { @class = "form-control", maxlength = "20" })
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Phone 1</label>
+    <div class="col-lg-12">
+        @Html.TextBoxFor(m => m.phone1, new { @class = "form-control", maxlength = "20" })
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Phone 2</label>
+    <div class="col-lg-12">
+        @Html.TextBoxFor(m => m.phone1, new { @class = "form-control", maxlength = "20" })
+    </div>
+    
+    <label class="col-lg-12 col-form-label-lg">Mobile</label>
+    <div class="col-lg-12">
+        @Html.TextBoxFor(m => m.mobile, new { @class = "form-control", maxlength = "20" })
+    </div>
+    <label class="col-lg-12 col-form-label-lg">Personal Email</label>
+    
+    <div class="col-lg-12">
+        @Html.TextBoxFor(m => m.personal_email, new { @class = "form-control", maxlength = "20" })
+    </div>
+
+</div>
+@if (mode == "add" && ViewBag.apern == "true")
+{
+    <script>renderModalButtons("modal-button-list", "Save");</script>
+}
+else if (mode == "edit" && ViewBag.epern == "true" && Model.emp_status == "A")
+{
+    <script>renderModalButtons("modal-button-list", "Edit");</script>
+}
+else
+{
+    <script>renderModalCloseButton("modal-button-list")</script>
+}
+<script>
+    $(document).off("click", "#btnSave").on("click", "#btnSave", function () {
+        var btn = $(this);
+        if (btn.text() == "Edit") {$("#ModalID .modal-title").text("Update");btn.text("Update");$("#btnC").text("Cancel");return;}
+        if (btn.text() === "Update" || btn.text() === "Save") 
+        {
+            if ($("#mode").val() === "add") {
+                if (checkInput(' cmb', 'emp_id', 'Employee is required.', 'modal-message') == false) { return false; }
+            }
+            if (checkInput('txt', 'address1', 'Address is required.', 'modal-message') == false) { return false; }
+            if (checkInput('cmb', 'country', 'Country is required.', 'modal-message') == false) { return false; }
+            submitSaveUpdate("/Employee/Address");
+        }
+    });    
+</script>

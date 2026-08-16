@@ -1,0 +1,101 @@
+﻿@using wwfpp.Services
+@inject SettingsServices SettingsServices
+@model wwfpp.Models.Settings.FiscalYearViewModel
+@{
+    string mode = ViewBag.mode;
+    string date_from = Model.date_from.ToString();
+    string s_date_from = SettingsServices.DateformatToDt(date_from);
+    string date_to = Model.date_to.ToString();
+    string s_date_to = SettingsServices.DateformatToDt(date_to);
+}
+<!-- (A) HTML DIALOG BOX -->
+<partial name="_ConstantValues" view-data='new ViewDataDictionary(ViewData) { { "NoteKey", "RequiredField" } }' />
+        <div class="form-group row p-1">
+            @if (mode == "add")
+            {
+                <label class="col-lg-12 col-form-label-lg">Fiscal Year<span class="text-danger">*</span></label>
+                <div class="col-lg-12">
+                @Html.DropDownList("fiscal_year", (SelectList)ViewBag.FiscalYear, "--Select--", new
+                {
+                    @class = "form-select",
+                    style = "width:300px;"
+                    })
+                </div>
+            }
+            else
+            {
+            <label class="col-lg-12 col-form-label-lg">Fiscal Year<span class="text-danger">*</span> @Model.fiscal_year @Html.Hidden("fiscal_year", Model.fiscal_year)</label>
+            }
+        </div>
+
+        <label class="col-lg-12 col-form-label-lg">Abbr.<span class="text-danger">*</span></label>
+        <div class="col-lg-12">
+        @Html.TextBoxFor(m => m.fiscal_year_abb, new { @class = "form-control", maxlength = "10" })
+        </div>
+        
+        <label class="col-lg-12 col-form-label-lg">Start Date<span class="text-danger">*</span></label>
+        <div class="col-lg-12">
+        @Html.TextBox("date_from", s_date_from, new { @class = "form-control", maxlength = "10", @readonly = "readonly" })
+        </div>
+        
+        <label class="col-lg-12 col-form-label-lg">End Date<span class="text-danger">*</span></label>
+        <div class="col-lg-12">
+         @Html.TextBox("date_to", s_date_to, new { @class = "form-control", maxlength = "10", @readonly = "readonly" })
+        </div>
+        
+        <label class="col-lg-12 col-form-label-lg">Status<span class="text-danger">*</span></label>
+        <div class="col-lg-12">
+        @Html.DropDownList("is_active", (SelectList)ViewBag.Status, new
+        {
+		        @class = "form-select",
+		        style = "width:300px;"
+        })
+        </div>        
+
+        <label class="col-lg-12 col-form-label-lg">Total Working Hours<span class="text-danger">*</span></label>
+        <div class="col-lg-12">
+            @Html.TextBoxFor(m => m.yearly_working_hrs, new { @class = "form-control", maxlength = "4" })
+        </div>
+
+@if (mode == "add" && ViewBag.apern == "true")
+{
+    <script>renderModalButtons("modal-button-list", "Save");</script>
+}
+else if (mode == "edit" && ViewBag.epern == "true")
+{
+    <script>renderModalButtons("modal-button-list", "Edit");</script>
+}
+else
+{
+    <script>renderModalCloseButton("modal-button-list")</script>
+}
+    <script>
+    // Toggle between Edit and Update
+    $(document).off("click", "#btnSave").on("click", "#btnSave", function () {
+        var btn = $(this);
+        if (btn.text() == "Edit") {$("#ModalID .modal-title").text("Update");btn.text("Update");$("#btnC").text("Cancel");return;}  
+        if (btn.text() === "Update" || btn.text() === "Save") {
+            if (mode == "add") {
+                if (checkInput('cmb', 'fiscal_year', 'Fiscal Year is required.', 'modal-message') == false) { return false; }
+            }
+            if ( checkInput( 'txt', 'fiscal_year_abb', 'Abbr. is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'txt', 'date_from', 'Start Date is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'txt', 'date_to', 'End Date is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'cmb', 'is_active', 'Status is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'txt', 'yearly_working_hrs', 'Total Working Hours is required.', 'modal-message') == false ) {return false;}
+
+            submitSaveUpdate('@Url.Content("~/Settings/FiscalYearSetting")');
+        }
+    });
+    $(document).off('blur', '#yearly_working_hrs').on('blur', '#yearly_working_hrs', function () {OnlyNumeric('yearly_working_hrs','modal-message');});
+
+    $(document).on("change", "#fiscal_year", function(){
+        var fy = $(this).val();
+        if (fy !="")
+        {
+            $("#date_from").val("07/01/"+fy.substr(0,4));
+            $("#date_to").val("06/30/"+fy.substr(5,4));
+        }
+    });
+
+    </script>

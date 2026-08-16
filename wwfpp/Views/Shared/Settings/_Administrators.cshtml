@@ -1,0 +1,139 @@
+﻿@using wwfpp.Services;
+@inject SettingsServices SettingsServices;
+@model wwfpp.Models.Request.EmployeeAdministratorViewModel;
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var PageTitle = "Administrators";
+    var Page_Tips = "Human Resource Manager and Reception will receive emails notification on every Leave approved. Head of Human Resources will not.<br>";  //Tool tip message on right side
+    var msg_please_wait = "";
+    var Page_Mode = PageTitle;
+    ViewData["Title"] = "| " + PageTitle;
+    var Help_Tips = GblUtilities.HelpTips(Page_Tips);    
+    string ShowMsg = GblUtilities.MsgDisplay(Context.Request.Query["msg"].ToString());/*success|fail|error'*/
+}
+@Html.AntiForgeryToken()
+@Html.Hidden("ilaka", "/Settings/Administrators")
+<h2 class="titlebig"><span name="header" id="header">@Page_Mode</span> @Html.Raw(Help_Tips)</h2>
+@Html.Hidden("mode", (string)ViewBag.mode)
+<partial name="_ConstantValues" view-data='new ViewDataDictionary(ViewData) { { "NoteKey", "RequiredField" } }' />
+
+<div id="message_header"><p id="loading" class="loading displaynone">@msg_please_wait</p></div>
+<div id="message_header">@Html.Raw(ShowMsg)</div>
+
+<div class="form-group row p-1">
+    @Html.HiddenFor(m => m.id) <!-- Needed for Edit -->
+    <label class="col-lg-12 col-form-label-sm bg-lpink">Select Administrative employees for emailing</label>
+
+    <div class="row">
+        <div class="col-lg-3 col-form-label-sm">Country Representative<span class="text-danger">*</span></div>
+        <div class="col-lg-9"> @Html.DropDownListFor(m => m.cra, (SelectList)ViewBag.EmployeeList, "-- Select --", new { @class = "form-select" })</div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-3 col-form-label-sm"> A.I. Country Representative<span class="text-danger">*</span></div>
+        <div class="col-lg-9"> @Html.DropDownListFor(m => m.acr, (SelectList)ViewBag.EmployeeList, "-- Select --", new { @class = "form-select" })</div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-3 col-form-label-sm">Head of Operations<span class="text-danger">*</span></div>
+        <div class="col-lg-9"> @Html.DropDownListFor(m => m.doo, (SelectList)ViewBag.EmployeeList, "-- Select --", new { @class = "form-select" }) </div>
+    </div>
+    <div class="row">
+        <div class="col-lg-3 col-form-label-sm">Head of Finance & Administration<span class="text-danger">*</span></div>
+        <div class="col-lg-9">@Html.DropDownListFor(m => m.faa, (SelectList)ViewBag.EmployeeList, "-- Select --", new { @class = "form-select" })</div>
+    </div>
+    <div class="row">
+        <div class="col-lg-3 col-form-label-sm">Head of Accounts<span class="text-danger">*</span></div>
+        <div class="col-lg-9">@Html.DropDownListFor(m => m.aca, (SelectList)ViewBag.EmployeeList, "-- Select --", new { @class = "form-select" }) </div>
+    </div>
+    <div class="row">
+        <div class="col-lg-3 col-form-label-sm">Head of Human Resources<span class="text-danger">*</span></div>
+        <div class="col-lg-9"> @Html.DropDownListFor(m => m.hra, (SelectList)ViewBag.EmployeeList, "-- Select --", new { @class = "form-select" }) </div>
+    </div>
+    <div class="row">
+        <div class="col-lg-3 col-form-label-sm">Human Resource Manager<span class="text-danger">*</span></div>
+        <div class="col-lg-9">@Html.DropDownListFor(m => m.ahr, (SelectList)ViewBag.EmployeeList, "-- Select --", new { @class = "form-select" }) </div>
+    </div>
+    <div class="row">
+        <div class="col-lg-3 col-form-label-sm">Front Desk Asistant<span class="text-danger">*</span></div>
+        <div class="col-lg-9">@Html.DropDownListFor(m => m.rca, (SelectList)ViewBag.EmployeeList, "-- Select --", new { @class = "form-select" }) </div>
+    </div>    
+
+    <label class="col-lg-12 col-form-label-sm bg-lpink">Select Administrative employees for emailing</label>
+
+    <div class="row">
+        <div class="col-lg-3 col-form-label-sm">Person 1</div>
+        <div class="col-lg-9">@Html.DropDownListFor(m => m.t_t_a_1, (SelectList)ViewBag.EmployeeList, "-- Select --", new { @class = "form-select" }) </div>
+    </div>
+    <div class="row">
+        <div class="col-lg-3 col-form-label-sm">Person 2</div>
+        <div class="col-lg-9"> @Html.DropDownListFor(m => m.t_t_a_2, (SelectList)ViewBag.EmployeeList, "-- Select --", new { @class = "form-select" })</div>
+    </div>
+    <div class="row">
+        <div class="col-lg-3 col-form-label-sm">Person 3</div>
+        <div class="col-lg-9">@Html.DropDownListFor(m => m.t_t_a_3, (SelectList)ViewBag.EmployeeList, "-- Select --", new { @class = "form-select" }) </div>
+    </div>
+    <div class="row">
+        <div class="col-lg-3 col-form-label-sm">Person 4</div>
+        <div class="col-lg-9"> @Html.DropDownListFor(m => m.t_t_a_4, (SelectList)ViewBag.EmployeeList, "-- Select --", new { @class = "form-select" })</div>
+    </div>
+    <div class="row">
+        <div class="col-lg-3 col-form-label-sm">Person 5</div>
+        <div class="col-lg-9">@Html.DropDownListFor(m => m.t_t_a_5, (SelectList)ViewBag.EmployeeList, "-- Select --", new { @class = "form-select" }) </div>
+    </div>
+
+
+    <label class="col-lg-12 col-form-label-sm bg-lpink">Select Administrative employees for emailing</label>
+
+    <div class="row">
+        <div class="col-lg-3 col-form-label-sm">Person 1<span class="text-danger">*</span></div>
+        <div class="col-lg-9">@Html.DropDownListFor(m => m.t_a_s_1, (SelectList)ViewBag.EmployeeList, "-- Select --", new { @class = "form-select" }) </div>
+    </div>
+    <div class="row">
+        <div class="col-lg-3 col-form-label-sm">Person 2</div>
+        <div class="col-lg-9"> @Html.DropDownListFor(m => m.t_a_s_2, (SelectList)ViewBag.EmployeeList, "-- Select --", new { @class = "form-select" })</div>
+    </div>
+    <div class="row">
+        <div class="col-lg-3 col-form-label-sm">Person 3</div>
+        <div class="col-lg-9">@Html.DropDownListFor(m => m.t_a_s_3, (SelectList)ViewBag.EmployeeList, "-- Select --", new { @class = "form-select" }) </div>
+    </div>
+    <div class="row">
+        <div class="col-lg-3 col-form-label-sm">Person 4</div>
+        <div class="col-lg-9"> @Html.DropDownListFor(m => m.t_a_s_4, (SelectList)ViewBag.EmployeeList, "-- Select --", new { @class = "form-select" })</div>
+    </div>
+    <div class="row">
+        <div class="col-lg-3 col-form-label-sm">Person 5</div>
+        <div class="col-lg-9">@Html.DropDownListFor(m => m.t_a_s_5, (SelectList)ViewBag.EmployeeList, "-- Select --", new { @class = "form-select" }) </div>
+    </div>
+
+</div>
+@if (ViewBag.apern == "true" || ViewBag.epern == "true" )
+{
+    <div class="form-group row p-1">
+        <label class="col-sm-4 col-form-label">&nbsp;</label>
+        <div class="col-sm-8">
+            <button type="reset" name="btnReset" id="btnReset" class="button btn-secondary">Reset</button>
+            <button type="button" name="btnSave" id="btnSave" class="button btn-primary">Save</button>
+        </div>
+    </div>
+
+    @section scripts
+    {
+        <script>
+            var ilaka = document.getElementById('ilaka').value;
+            $(document).off("click", "#btnSave").on("click", "#btnSave", function () {
+                if ( checkInput( 'txt', 'cra', 'Country Representative is required.', 'message') == false ) {return false;}
+                if ( checkInput( 'txt', 'acr', 'A.I. Country Representative is required.', 'message') == false ) {return false;}
+                if ( checkInput( 'txt', 'doo', 'Director of Operations is required.', 'message') == false ) {return false;}
+                if ( checkInput( 'txt', 'faa', 'Sr. F & A Manager is required.', 'message') == false ) {return false;}
+                if ( checkInput( 'txt', 'aca', 'Account Officer is required.', 'message') == false ) {return false;}
+                if ( checkInput( 'txt', 'hra', 'Sr. HR Officer is required.', 'message') == false ) {return false;}
+                if ( checkInput( 'txt', 'ahr', 'Human Resource Manager is required.', 'message') == false ) {return false;}
+                if ( checkInput( 'txt', 'rca', 'Front Desk Assistant is required.', 'message') == false ) {return false;}
+                if ( checkInput( 'txt', 't_a_s_1', 'Travel advance settlement verifier person 1 is required.', 'message') == false ) {return false;}
+            submitSaveUpdate(ilaka);
+            });
+        </script>
+    }
+}
+

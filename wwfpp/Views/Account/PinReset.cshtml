@@ -1,0 +1,107 @@
+﻿@using Microsoft.AspNetCore.Http;
+@inject IHttpContextAccessor HttpContextAccessor;
+@model PinResetRequestViewModel;
+@{
+    Layout = "~/Views/Shared/_LayoutLogin.cshtml";
+    ViewData["Title"] = "| Reset PIN";
+
+    var msg_please_wait = "";
+    var resetpin = @TempData["msg"] ?? "";
+    var Id = @TempData["Id"];
+    var user_id = @TempData["user_id"];
+    var token = @TempData["Token"];
+    var UserName = @TempData["UserName"];
+       
+    string ShowMsg = GblUtilities.MsgDisplay(Context.Request.Query["msg"].ToString()); /*success|fail|error'*/
+}
+<form name="frm" id="frm" onsubmit="return false">
+    @Html.AntiForgeryToken()
+    <div id="wrapper">
+        <div id="main-login">
+            <div id="center">
+                <div id="message_header-1"><p id="loading" class="loading displaynone">@msg_please_wait</p></div>
+                <div id="message_header">@Html.Raw(ShowMsg)</div>
+                
+                <div id="divResetForgotPre">
+                    @if (string.Equals(resetpin.ToString(), "ResetPin", StringComparison.OrdinalIgnoreCase))
+                    {
+                            <div id="message_header-2"><p id="note" class="note">Please enter your details below to reset password.<br>@Lang.Pincode_policy</p></div>
+                    }
+                    else
+                    {
+                            <div id="message_header-2"><p id="note" class="error">@Lang.msg_pin_reset_expired</p></div>
+                    }
+                    <div id="login-box-1"><img src=@Url.Content("~/images/logo-big.gif") width="197" height="203" /></div>
+                    <div id="login-box-3">
+                        <h2>Reset Pin</h2>
+                        @if (string.Equals(resetpin.ToString(), "ResetPin", StringComparison.OrdinalIgnoreCase))
+                        {
+                            <h3>User Name:&nbsp;@Html.TextBox("txtun", @UserName, new { @class = "textarea-login", maxlength = "20", @readonly = "readonly", style = "width:150px;" })
+                                @Html.Hidden("Id", @Id) @Html.Hidden("user_id", @user_id) @Html.Hidden("tk", @token)
+                            </h3>
+                            <h3>New Pin:&nbsp;@Html.Password("npin", null, new { @class = "textarea-login", maxlength = "20", style = "width:150px;" })</h3>
+                            <h3>Retype Pin:&nbsp;@Html.Password("cpin", null, new { @class = "textarea-login", maxlength = "20", style = "width:150px;" })</h3>
+                            <div>
+                                <div id="divCaptcha">
+                                    <h3>
+                                        <img name="cvscaptcha" id="cvscaptcha" width="200" height="50" style="border:1px solid #000;" src="@Url.Action("GenerateCaptcha", "Account")"><br>
+                                        Captcha: [ <a href="#" id="refreshCaptcha" title="Can't read the image? Click to generate new one."><font size="3">&#x21bb;</font></a> ]
+                                        @Html.TextBox("txtcaptcha", null, new { @class = "textbox", maxlength = "6", @readonly = "readonly", style = "width:50px;" })
+                                    </h3>
+                                </div>
+                            </div>
+                            <div>
+                                <h3>Pin Strength: &nbsp;<span id="pin_strength_color"></span>&nbsp;<span id="pin_strength_text">&nbsp;</span> </h3>
+                            </div>
+                            <div>
+                                <h4>
+                                    <button type="button" class="login-button" name="btnPinReset" id="btnPinReset">Update</button>
+                                </h4>
+                            </div>
+                        }
+                        else
+                        {
+                            <div>
+                                <h4>
+                                    <button type="button" class="login-button-4" name="btnreturnlogin" id="btnreturnlogin" data-url="@Url.Action("Login", "Account")">Login</button>
+                                    <button type="button" class="login-button-4" name="btnforpin" id="btnforpin" data-url="@Url.Action("PinForgot", "Account")">Forgot Pin</button>
+                                </h4>
+                            </div>
+                        }
+
+                    </div>
+                </div>
+
+                <div id="divResetForgotPos" class="displaynone">
+                    <div id="message_header-2">
+                        <p id="note" class="success">
+                            @Lang.msg_suc_forgot_pin
+                        </p>
+                    </div>
+                    <div id="login-box-1"><img src=@Url.Content("~/images/logo-big.gif") width="197" height="203" /></div>
+                    <div id="login-box-3">
+                        <h2>Reset Pin</h2>
+                        <div>
+                            <h4>
+                                <button type="button" class="login-button-4" name="btnreturnlogin" id="btnreturnlogin" data-url="@Url.Action("Login", "Account")">Login</button>
+                            </h4>
+                        </div>
+                    </div>
+                </div>
+
+            </div><!-- center -->
+        </div><!-- main-login -->
+    </div><!-- wrapper -->
+
+</form>
+<script>
+    var postforwardurl = '@Url.Action("PinReset", "Account")';
+    document.addEventListener("DOMContentLoaded", function () {const npin = document.getElementById("npin");if (npin) {npin.addEventListener("keyup", function (e) {e.preventDefault();CheckPinStrength(e.target.value);});}});
+    document.addEventListener("DOMContentLoaded", function () {const btnforpin = document.getElementById("btnforpin");if (btnforpin) {btnforpin.addEventListener("click", function (e) {e.preventDefault();top.location.href = btnforpin.dataset.url;});}});
+</script>
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+    <script src=@Url.Content("~/js/Account/pinreset-qXlaJMJuM.js") defer></script>
+}

@@ -1,0 +1,74 @@
+﻿@using wwfpp.Models.Attendance
+@model List<ReportDailyAttendanceMainViewModel>
+@{
+    int cnt = 0;
+}
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th class="bg-gray">Report Title:</th>
+            <th>@ViewBag.ReportTitle</th>
+        </tr>
+        @if (!string.IsNullOrWhiteSpace(@ViewBag.DutyStation))
+        {
+            <tr>
+                <th class="bg-gray">Duty Station:</th>
+                <th>@ViewBag.DutyStation</th>
+            </tr>
+        }
+        @if (!string.IsNullOrWhiteSpace(@ViewBag.EmployeeType))
+        {
+            <tr>
+                <th class="bg-gray">Employee Type:</th>
+                <th>@ViewBag.EmployeeType</th>
+            </tr>
+        }
+        @if (!string.IsNullOrWhiteSpace(@ViewBag.ReportType))
+        {
+            <tr>
+                <th class="bg-gray">Report Type:</th>
+                <th>@ViewBag.ReportType</th>
+            </tr>
+        }
+        @if (!string.IsNullOrWhiteSpace(@ViewBag.InOutDate))
+        {
+            <tr>
+                <th class="bg-gray">Date:</th>
+                <th>@ViewBag.InOutDate</th>
+            </tr>
+        }
+    </thead>
+</table>
+<table class="table table-bordered">
+    <thead>
+        <tr class="bg-gray">
+            <th>SN</th>
+            <th>Employee</th>
+            <th>Remarks</th>
+            <th>Narration</th>
+            <th>Status</th>
+        </tr>
+    </thead>
+    <tbody>
+    @if (Model == null || !Model.Any())
+    {
+        <tr>
+            <td colspan="8" class="text-center">No records found.</td>
+        </tr>
+    }
+    else
+    {
+        @foreach (var item in Model)
+        {
+            cnt++;
+            <tr>
+                <td>@cnt</td>
+                <td>@item.employee</td>
+                <td>@item.remarks</td>
+                <td>@item.narration</td>
+                <td>@item.status</td>
+            </tr>
+        }
+      }
+    </tbody>
+</table>

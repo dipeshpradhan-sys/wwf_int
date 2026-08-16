@@ -1,0 +1,55 @@
+﻿@using Microsoft.AspNetCore.Http;
+@inject IHttpContextAccessor HttpContextAccessor;
+@model PinForgotRequestViewModel;
+@{
+    Layout = "~/Views/Shared/_LayoutLogin.cshtml";
+    ViewData["Title"] = "| Forgot Pin";
+    var msg_please_wait = "";
+    string ShowMsg = GblUtilities.MsgDisplay(Context.Request.Query["msg"].ToString());    /*fgtpinsuccess|fgtpinfail|error' it is handdled on js*/
+}
+
+<form name="frm" id="frm" onsubmit="return false">
+    @Html.AntiForgeryToken()
+    <div id="wrapper">
+        <div id="main-login">
+            <div id="center">
+                <div id="message_header-1"><p id="loading" class="loading displaynone">@msg_please_wait</p></div>
+                <div id="message_header">@Html.Raw(ShowMsg)</div>
+                <div id="message_header-2"><p id="note" class="note">Please enter your details below for Pin Code recovery.</p></div>
+
+                <div id="login-box-1"><img src=@Url.Content("~/images/logo-big.gif") width="197" height="203" /></div>
+                <div id="login-box-3">
+                    <h2>Forgot Pin</h2>
+                    <h3>User Name:&nbsp;@Html.TextBox("txtun", null, new { @class = "textarea-login", maxlength = "20", style = "width:150px;" })</h3>
+                    <h3>Password:&nbsp;@Html.Password("txtpw", null, new { @class = "textarea-login", maxlength = "20", style = "width:150px;" })</h3>
+                    <div>
+                        <div id="divCaptcha">
+                            <h3>
+                                <img name="cvscaptcha" id="cvscaptcha" width="200" height="50" style="border:1px solid #000;" src="@Url.Action("GenerateCaptcha", "Account")"><br></>
+                                Captcha: [ <a href="#" id="refreshCaptcha" title="Can't read the image? Click to generate new one."><font size="3">&#x21bb;</font></a> ]
+                                @Html.TextBox("txtcaptcha", null, new { @class = "textbox", maxlength = "6", style = "width:50px;" })
+                            </h3>
+                        </div>
+                    </div>
+                    <br>
+                    <h4>
+                        <button type="button" class="login-button" name="btnPinForgot" id="btnPinForgot">Submit</button>
+                        <button type="button" class="login-button" name="btnreturnlogin" id="btnreturnlogin" data-url="@Url.Action("Login", "Account")">Cancel</button>
+                    </h4>
+
+                </div>
+
+            </div><!-- center -->
+        </div><!-- main-login -->
+    </div><!-- wrapper -->
+
+</form>
+<script>
+    var postforwardurl = '@Url.Action("PinForgot", "Account")';
+</script>
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+    <script src=@Url.Content("~/js/Account/pinforgot-qXlQmLRmu.js") defer></script>
+}

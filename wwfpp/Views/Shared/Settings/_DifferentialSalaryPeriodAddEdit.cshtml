@@ -1,0 +1,47 @@
+﻿@using wwfpp.Services
+@inject SettingsServices SettingsServices
+@model wwfpp.Models.Settings.DifferentialSalaryPeriodViewModel
+@{
+    string mode = ViewBag.mode;
+}
+<!-- (A) HTML DIALOG BOX -->
+<partial name="_ConstantValues" view-data='new ViewDataDictionary(ViewData) { { "NoteKey", "RequiredField" } }' />
+@Html.HiddenFor(m => m.fiscal_year)
+<div class="form-group row p-1">
+    <label class="col-lg-12 col-form-label-lg">Fiscal Year<span class="text-danger">*</span> @Model.fiscal_year_abb</label>
+    <label class="col-lg-12 col-form-label-lg">Year<span class="text-danger">*</span></label>
+    <div class="row">
+        <div class="col-lg-4">
+            @Html.DropDownList("sal_year", (SelectList)ViewBag.SalYear, "--Select--", new { @class = "form-control", style = "width:200px;" })
+        </div>
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Month<span class="text-danger">*</span></label>
+    <div class="col-lg-12">
+        @Html.DropDownList("sal_month", (SelectList)ViewBag.SalMonth, "--Select--", new { @class = "form-control", style = "width:200px;" })
+    </div>
+</div>
+
+@if (mode == "add" && ViewBag.apern == "true")
+{
+    <script>renderModalButtons("modal-button-list", "Save");</script>
+}
+else if (mode == "edit" && ViewBag.epern == "true")
+{
+    <script>renderModalButtons("modal-button-list", "Edit");</script>
+}
+else
+{
+    <script>renderModalCloseButton("modal-button-list")</script>
+}
+<script>
+    $(document).off("click", "#btnSave").on("click", "#btnSave", function () {
+        var btn = $(this);
+        if (btn.text() == "Edit") {$("#ModalID .modal-title").text("Update");btn.text("Update");$("#btnC").text("Cancel");return;}
+        if (btn.text() === "Update" || btn.text() === "Save") {
+            if ( checkInput( 'cmb', 'sal_year', 'Year is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'cmb', 'sal_month', 'Month is required.', 'modal-message') == false ) {return false;}
+            submitSaveUpdate('@Url.Content("~/Settings/DifferentialSalaryPeriod")');
+        }
+    });
+</script>

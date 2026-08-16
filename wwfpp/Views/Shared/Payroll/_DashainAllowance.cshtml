@@ -1,0 +1,267 @@
+﻿@using Microsoft.AspNetCore.Http;
+@inject IHttpContextAccessor HttpContextAccessor;
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var PageTitle = "Dashain Allowance Distribution";
+    var Page_Tips = "";  //Tool tip message on right side
+    var msg_please_wait = "";
+    var Page_Mode = PageTitle;
+    ViewData["Title"] = "| " + PageTitle;
+    var Help_Tips = GblUtilities.HelpTips(Page_Tips);
+    /*success|fail|error'*/
+    string ShowMsg = GblUtilities.MsgDisplay(Context.Request.Query["msg"].ToString());
+}
+@Html.AntiForgeryToken()
+<h2 class="titlebig"><span name="header" id="header">@Page_Mode</span> @Html.Raw(Help_Tips)</h2>
+@Html.Hidden("mode", "")
+<div id="message_header"><p id="loading" class="loading displaynone">@msg_please_wait</p></div>
+<div id="message_header">@Html.Raw(ShowMsg)</div>
+
+<div class="d-flex align-items-center">
+    <label class="me-2"><b>Fiscal Year:</b></label>
+    @Html.DropDownList("FiscalYearFilter", (SelectList)ViewBag.FiscalYearList,
+        new { @class = "form-select me-4", style = "width:150px;" })
+
+    <label for="SalYear"><b>Year:&nbsp;&nbsp;</b></label><span id="salYear">@ViewBag.SalYear</span>
+   &nbsp;&nbsp;&nbsp;
+    <label for="SalMonth"><b>Month:&nbsp;&nbsp;</b></label><span id="salMonth">@ViewBag.SalMonth</span>
+</div>
+<!-- Controls row under the header -->
+@if (ViewBag.epern == "true")
+{
+    <div id="saveSection" class="p-0 bg-white rounded mb-3" style="display:none;">
+        <div class="row align-items-center">
+            <!-- Right side: Buttons -->
+            <div class="col-auto ms-auto">
+                <button type="button" name="btnSave" id="btnSave" class="button btn-primary">Save</button>
+            </div>
+        </div>
+    </div>
+    <div class="p-0 bg-white rounded mb-3">
+        <div class="row align-items-center">
+            <!-- Right side: Buttons -->
+            <div class="col-auto ms-auto d-flex gap-2">
+                <div id="exportSection" style="display:none;">
+                    <button type="button" name="btnExport" id="btnExport" class="button btn-primary">Export</button>
+                </div>
+                <div id="costCenterSection" style="display:none;">
+                    <button type="button" name="btnCostCenter" id="btnCostCenter" class="button btn-primary">Cost Center Distribution</button>
+                </div>
+                <div id="clearSection" style="display:none;">
+                    <button type="button" name="btnClear" id="btnClear" class="button btn-primary">Clear</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+}
+<div id="message_header"><p id="process-message" class="note"></p></div>
+<!-- DataTable -->
+<div class="form-group p-2">
+    <table id="tblData" class="display compact nowrap" style="width:100%">
+        <thead>
+            <tr style="background-color:silver; height:40px;">
+                <th style="width:1%;">SN</th>
+                <th style="width:20%;">Employee Name</th>
+                <th style="width:15%;">Employee ID</th>
+                <th style="width:20%;">Dashain Amount</th>
+                <th style="width:28%;">Remarks</th>
+            </tr>
+        </thead>
+    </table>
+</div>
+<div id="citTypeTemplate" style="display:none;">@Html.Hidden("cur_year", (int)ViewBag.SalYear)</div>
+@section scripts
+{
+    <script>
+        var ilaka = "/Payroll/DashainAllowance";
+        var selectedIds = new Set();
+        var hideviewaction = "yes";
+        var table;
+        $(document).ready(function ()
+        {
+            loadDashainMessageAndReload();
+            IsAllDashainZero();
+
+            // run again whenever fiscal year dropdown changes
+            $("#FiscalYearFilter").on("change", function () {
+                loadDashainMessageAndReload();
+                IsAllDashainZero();
+            });
+            GetAllDataSN(ilaka, "emp_id", [
+                { data: "fullName", name: "FullName", autoWidth: false, render: function (data, type, row) {return '<span style="white-space:normal;">' + data + '</span>';}},
+                { data: "emp_code", name: "emp_code", autoWidth: false, render: function (data, type, row) {return '<span style="white-space:normal;">' + data + '</span>';}},
+                { data: "dashain_amount", name: "dashain_amount", autoWidth: false, render: function (data, type, row, meta) { return '<input type="number" name="dashain_amount' + meta.row + '" id="dashain_amount' + meta.row + '" value="' + data + '" class="form-control dashain-amount-input" style = "width:190px;", maxlength = "10" readonly><input type="hidden" name="emp_id' + meta.row + '" id="emp_id' + meta.row + '" value="' + row.emp_id + '"><input type="hidden" name="sal_year' + meta.row + '" id="sal_year' + meta.row + '" value="' + row.sal_year + '"><input type="hidden" name="sal_month' + meta.row + '" id="sal_month' + meta.row + '" value="' + row.sal_month + '"><input type="hidden" name="fiscal_year' + meta.row + '" id="fiscal_year' + meta.row + '" value="' + row.fiscal_year + '">'; } },
+                { data: "remarks", name: "Remarks", autoWidth: false, render: function(data, type, row, meta) {return '<input type="text" name="remarks' + meta.row +'" id="remarks' + meta.row +'" value="' + data + '" class="form-control remarks-input" style = "width:190px;", maxlength = "250">';}},
+            ],
+            {
+                fiscalYearFilter: "FiscalYearFilter",
+            });
+            $(document).one('init.dt', '#tblData', function () {
+                var api = $('#tblData').DataTable();   // re-fetch the API object
+                api.page.len(-1).draw();               // set page length to "All"
+            });
+            $('#tblData_filter').hide();
+            $('#tblData_length').hide();
+        });
+
+        function collectExtraFields() {
+            var extraSettings = [];
+            $("#tblData tbody tr").each(function () {
+                var row = $(this);
+                extraSettings.push({
+                    emp_id: row.find("input[name^='emp_id']").val(),
+                    dashain_amount: parseFloat(row.find("input[name^='dashain_amount']").val()),
+                    remarks: row.find("input[name^='remarks']").val(),
+                    sal_year: row.find("input[name^='sal_year']").val(),
+                    sal_month: row.find("input[name^='sal_month']").val(),
+                    fiscal_year: row.find("input[name^='fiscal_year']").val()
+
+                });
+            });
+            return extraSettings;
+        }
+        //$(document).on('blur', '.dashain_amount-input', function () { OnlyNumericCtrl(this); });
+        $(document).off("click", "#btnSave").on("click", "#btnSave", function () {$("#mode").val("update");updateDataJSON(ilaka+"Save");});
+        $(document).off("click", "#btnExport").on("click", "#btnExport", function () {dashainAllowanceExport();});
+        $(document).off("click", "#btnCostCenter").on("click", "#btnCostCenter", function () { dashainAllowanceExportCCD();});
+        $(document).off("click", "#btnClear").on("click", "#btnClear", function () { dashainAllowanceClear();});
+        $("#StatusFilter").off("change").on("change", function () {const statusV = $(this).val();if (!statusV) {return;}const $myButton =  $("#btnSave");if ($myButton.length){if (statusV === "A" ){$myButton.show();$('#tblData_length').hide();table.page.len(-1).draw();} else {$myButton.hide();$('#tblData_length').show();table.page.len(10).draw();}}table.draw();});
+
+        function loadDashainMessageAndReload() {
+            $.ajax({
+                url: ilaka+'blnMessage',
+                type: 'POST',
+                data: {
+                    FiscalYearFilter: $("#FiscalYearFilter").val(),
+                    __RequestVerificationToken: $('input[name="__RequestVerificationToken"]').val()
+                },
+                success: function(res) {
+                    if (res.success) {
+                        if (res.blnShow) {
+                            showSuccess("Dashain Allowance for the fiscal year has already been processed","process-message");
+                        } else {
+                            showError("Dshain Allowance for the fiscal year has not processed yet","process-message");
+                        }
+                    }
+                }
+            })
+        }
+
+        function IsAllDashainZero() {
+            $.ajax({
+                url: ilaka+'CheckEligibility',
+                type: 'POST',
+                data: {
+                    FiscalYearFilter: $("#FiscalYearFilter").val(),
+                    __RequestVerificationToken: $('input[name="__RequestVerificationToken"]').val()
+                },
+                success: function(response) {
+                    $("#saveSection").hide();
+                    $("#exportSection").hide();
+                    $("#costCenterSection").hide();
+                    $("#clearSection").hide();
+                    if(response.blnShow == false){
+                        if(response.is_all_dashain_a_zero === "Y"){
+                            $("#saveSection").show();
+                        }
+                        $("#exportSection").hide();
+                        $("#costCenterSection").hide();
+                        $("#clearSection").hide();
+                    }else{
+                        $("#saveSection").hide();
+                        $("#exportSection").show();
+                        $("#costCenterSection").show();
+                        var FiscalYearActive = '@ViewBag.FiscalYearActive';
+                        if (FiscalYearFilter === FiscalYearActive)
+                        {
+                            $("#clearSection").show();
+                        }
+                        else{
+                            $("#clearSection").hide();
+                        }
+                    }
+                }
+            });
+        }
+        function dashainAllowanceClear() {
+            if (!confirm(msg_are_you_sure_to_clear)) {return;}
+            $.ajax({
+                url: ilaka+'Clear',
+                type: 'POST',
+                data: {
+                    fiscalYear: $("#FiscalYearFilter").val(),
+                    period: 1,
+                    __RequestVerificationToken: $('input[name="__RequestVerificationToken"]').val()
+                },
+                success: function (res) {
+                    if (res.success) {
+                        showSuccess("Dashain Allowance Cleared Scuccessfully");
+                        $("#tblData").DataTable().ajax.reload();
+                    } else {
+                        showError(err_in_process + res.message);
+                        $("#tblData").DataTable().ajax.reload();
+                    }
+                },
+                error: function (xhr, status, error) {
+                    showError(err_in_process + error);
+                }
+            });
+        }
+
+        function dashainAllowanceExport() {
+            $.ajax({
+                url: ilaka+'Export',
+                type: 'POST',
+                data: {
+                    fiscalYear: $("#FiscalYearFilter").val(),
+                    period: 1,
+                    __RequestVerificationToken: $('input[name="__RequestVerificationToken"]').val()
+                },
+                success: function (res) {
+                    if (res.status === "success") {
+                        var link = document.createElement('a');
+                        link.href = 'data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,' + res.fileContent;
+                        link.download = res.fileName;
+                        link.click();
+
+                        showSuccess("Dashain Allowance exported successfully");
+                        $("#tblData").DataTable().ajax.reload();
+                    } else {
+                        showError(err_in_process + res.message);
+                    }
+                },
+                error: function (xhr, status, error) {
+                    showError(err_in_process +error);
+                }
+            });
+        }
+        function dashainAllowanceExportCCD() {
+            $.ajax({
+                url: ilaka+'CCD',
+                type: 'POST',
+                data: {
+                    fiscalYear: $("#FiscalYearFilter").val(),
+                    period: 1,
+                    __RequestVerificationToken: $('input[name="__RequestVerificationToken"]').val()
+                },
+                success: function (res) {
+                    if (res.status === "success") {
+                        var link = document.createElement('a');
+                        link.href = 'data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,' + res.fileContent;
+                        link.download = res.fileName;
+                        link.click();
+
+                        showSuccess("Dashain Allowance CCD Exported scuccessfully");
+                        $("#tblData").DataTable().ajax.reload();
+                    } else {
+                        showError(err_in_process + res.message);
+                    }
+                },
+                error: function (xhr, status, error) {
+                    showError(err_in_process +error);
+                }
+            });
+        }
+    </script>
+}

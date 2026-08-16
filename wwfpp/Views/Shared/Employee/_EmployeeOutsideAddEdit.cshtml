@@ -1,0 +1,164 @@
+﻿@using wwfpp.Services
+@inject SettingsServices SettingsServices
+@model wwfpp.Models.Employee.EmployeeOutsideViewModel
+@{
+    string? mode = ViewBag.mode;
+    string? DATE_FORMAT = ViewBag.DATE_FORMAT;
+    string? join_date = Model.join_date.ToString();
+    string? s_join_date = SettingsServices.DateformatToDt(join_date ?? string.Empty);
+    string? end_date = Model.end_date.ToString();
+    string? s_end_date = SettingsServices.DateformatToDt(end_date ?? string.Empty);
+    string? deactivated_date = Model.deactivated_date.ToString();
+    string? s_deactivated_date = SettingsServices.DateformatToDt(deactivated_date ?? string.Empty);
+    string? effective_date = Model.effective_date.ToString();
+    string? s_effective_date = SettingsServices.DateformatToDt(effective_date ?? string.Empty);
+    string? dob = Model.dob.ToString();
+    string? s_dob = SettingsServices.DateformatToDt(dob ?? string.Empty);
+}
+<partial name="_ConstantValues" view-data='new ViewDataDictionary(ViewData) { { "NoteKey", "RequiredField" } }' />
+@Html.HiddenFor(m => m.emp_id)
+<div class="form-group row p-1">
+
+    <label class="col-lg-12 col-form-label-lg">Employee ID<span class="text-danger">*</span></label>
+    <div class="col-lg-12">
+        <input type="text" class="form-control" asp-for="emp_code" id="emp_code" value='@ViewBag.EmpCode' autocomplete="Employee ID" placeholder="Employee ID" />
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Salutation</label>
+    <div class="col-lg-12">
+        <input type="text" class="form-control" asp-for="title" name="title" id="title" autocomplete="Title" placeholder="" maxlength="20"/>
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">First Name<span class="text-danger">*</span></label>
+    <div class="col-lg-12">
+        <input type="text" class="form-control" asp-for="firstname" name="firstname" id="firstname" autocomplete="First Name" placeholder="" maxlength="30"  />
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Middle Name</label>
+    <div class="col-lg-12">
+        <input type="text" class="form-control" asp-for="middlename" name="middlename" id="middlename" autocomplete="Middle Name" placeholder="" maxlength="30" />
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Last Name<span class="text-danger">*</span></label>
+    <div class="col-lg-12">
+        <input type="text" class="form-control" asp-for="lastname" name="lastname" id="lastname" autocomplete="Last Name" placeholder="" maxlength="30" />
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Gender<span class="text-danger">*</span></label>
+    <div class="col-lg-12">
+        @Html.DropDownListFor(m => m.gender, (SelectList)ViewBag.Gender, new { @class = "form-select", style = "width:300px;" })
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Date of Birth<span class="text-danger">*</span>&nbsp;(@DATE_FORMAT)</label>
+    <div class="row">
+        <div class="col-lg-4">@Html.TextBox("dob", s_dob, new { @class = "form-control", maxlength = "10" })</div>
+        <div class="col-lg-8"><button type="button" name="btnDobDate" id="btnDobDate" Value="" class="button bg-sky">Date...</button></div>
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Email<span class="text-danger">*</span></label>
+    <div class="col-lg-12">
+        <input type="text" class="form-control" asp-for="e_mail" name="e_mail" id="e_mail" autocomplete="Email" placeholder="" maxlength="50" />
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Address<span class="text-danger">*</span></label>
+    <div class="col-lg-12">
+        <input type="text" class="form-control" asp-for="address" name="address" id="address" autocomplete="Address" placeholder="" maxlength="255"/>
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Phone</label>
+    <div class="col-lg-12">
+        <input type="text" class="form-control" asp-for="phone" name="phone" id="phone" autocomplete="Phone" placeholder="" maxlength="15" />
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Mobile</label>
+    <div class="col-lg-12">
+        <input type="text" class="form-control" asp-for="mobile" name="mobile" id="mobile" autocomplete="Mobile" placeholder="" maxlength="15"/>
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">PAN Number</label>
+    <div class="col-lg-12">
+        <input type="text" class="form-control" asp-for="pan_no" name="pan_no" id="pan_no" autocomplete="Pan Number" placeholder="" maxlength="20" />
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Duty Station<span class="text-danger">*</span></label>
+    <div class="col-lg-12">
+        @Html.DropDownListFor(m => m.duty_station_id, (SelectList)ViewBag.DutyStation, "--Select --", new { @class = "form-select", style = "width:300px;" })
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Join Date<span class="text-danger">*</span>&nbsp;(@DATE_FORMAT)</label>
+    <div class="row">
+        <div class="col-lg-4">@Html.TextBox("join_date", s_join_date, new { @class = "form-control", maxlength = "10" })</div>
+        <div class="col-lg-8"><button type="button" name="btnStartDate" id="btnStartDate" class="button bg-sky">Date...</button></div>
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">End Date<span class="text-danger">*</span>&nbsp;(@DATE_FORMAT)</label>
+    <div class="row">
+        <div class="col-lg-4">@Html.TextBox("end_date", s_end_date, new { @class = "form-control", maxlength = "10" })</div>
+        <div class="col-lg-8"><button type="button" name="btnEndDate" id="btnEndDate" class="button bg-sky">Date...</button></div>
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Employee Status<span class="text-danger">*</span></label>
+    <div class="col-lg-12">
+        @Html.DropDownListFor(m => m.emp_status, (SelectList)ViewBag.Status, new { @class = "form-select", style = "width:400px;" })
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Remarks</label>
+    <div class="col-lg-12">
+        @Html.TextAreaFor(m => m.remarks, new { @class = "form-control", rows = "4", cols = "50", maxlength = "500" })
+    </div>
+    <label class="col-lg-12 col-form-label-lg">Effective Date&nbsp;(@DATE_FORMAT)</label>
+    <div class="row">
+        <div class="col-lg-4">@Html.TextBox("effective_date", s_effective_date, new { @class = "form-control", maxlength = "10" })</div>
+        <div class="col-lg-8"><button type="button" name="btnEffDate" id="btnEffDate" class="button bg-sky">Date...</button></div>
+    </div>
+    @if (!string.IsNullOrWhiteSpace(Model.deactivated_date.ToString()))
+    {
+        <label class="col-lg-12 col-form-label-lg">Deactivated Date:</label>
+        <div class="col-lg-12">
+            @Html.TextBox("deactivated_date", s_deactivated_date, new { @class = "form-control", rows = "4", cols = "50", maxlength = "10", @Readonly = "readonly" })
+        </div>
+    }
+</div>
+
+
+@if (mode == "add" && ViewBag.apern == "true")
+{
+    <script>renderModalButtons("modal-button-list", "Save");</script>
+}
+else if (mode == "edit" && ViewBag.epern == "true" && Model.emp_status == "A")
+{
+    <script>renderModalButtons("modal-button-list", "Edit");</script>
+}
+else
+{
+    <script>renderModalCloseButton("modal-button-list")</script>
+}
+    <script>
+    $(document).off("click", "#btnSave").on("click", "#btnSave", function () {
+        var btn = $(this);
+        if (btn.text() == "Edit") {$("#ModalID .modal-title").text("Update");btn.text("Update");$("#btnC").text("Cancel");return;}  
+        if (btn.text() === "Update" || btn.text() === "Save") {
+            if (checkInput('txt', 'emp_code', 'Employee ID is required.', 'modal-message') == false) { return false; }
+            if (checkInput('txt', 'firstname', 'First Name is required.', 'modal-message') == false ) {return false;}
+            if (checkInput('txt', 'lastname', 'Last Name is required.', 'modal-message') == false ) {return false;}
+            if (checkInput('cmb', 'gender', 'Select Gender.', 'modal-message') == false ) {return false;}
+            if (checkInput('txt', 'dob', 'Date of Birth is required.', 'modal-message') == false ) {return false;}
+            if (checkInput('email', 'e_mail', 'Valid Email is required.', 'modal-message') == false) { return false; }
+            if (checkInput('txt', 'address', 'Address is required.', 'modal-message') == false) { return false; }
+            if (checkInput('txt', 'join_date', 'Join Date is required.', 'modal-message') == false) { return false; }
+            if (checkInput('cmb', 'duty_station_id', 'Select Duty Station.', 'modal-message') == false ) {return false;}
+            if (chkSpace($("#end_date").val() !== "")){
+                if (isStartDateGreater($("#end_date").val(), $("#end_date").val())) { showError("End Date is greater than Join Date.", "modal-message") }
+            }
+            submitSaveUpdate("/Employee/EmployeeOutside");
+        }
+    });
+    $(document).off('blur', '#dob').on('blur', '#dob', function() { convert_date(dob, 'modal-message'); });
+    $(document).off('blur', '#join_date').on('blur', '#join_date', function() { convert_date(join_date, 'modal-message'); });
+    $(document).off('blur', '#end_date').on('blur', '#end_date', function() { convert_date(end_date, 'modal-message'); });
+    $(document).off('blur', '#effective_date').on('blur', '#effective_date', function() { convert_date(effective_date, 'modal-message'); });
+    $(document).off('click', '#btnDobDate').on('click', '#btnDobDate', function() { show_calendar('frm.dob'); });
+    $(document).off('click', '#btnStartDate').on('click', '#btnStartDate', function() { show_calendar('frm.join_date'); });
+    $(document).off('click', '#btnEndDate').on('click', '#btnEndDate', function() { show_calendar('frm.end_date'); });
+    $(document).off('click', '#btnEffDate').on('click', '#btnEffDate', function() { show_calendar('frm.effective_date'); });
+    </script>

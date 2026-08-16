@@ -1,0 +1,84 @@
+﻿@using Microsoft.AspNetCore.Http;
+@inject IHttpContextAccessor HttpContextAccessor;
+@model List<wwfpp.Models.Employee.EmployeeInsuranceViewModel>
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var PageTitle = "Employee Insurance";
+    var Page_Tips = "";  //Tool tip message on right side
+    var msg_please_wait = "";
+    var Page_Mode = PageTitle;
+    ViewData["Title"] = "| " + PageTitle;
+    var Help_Tips = GblUtilities.HelpTips(Page_Tips);    
+    string ShowMsg = GblUtilities.MsgDisplay(Context.Request.Query["msg"].ToString());/*success|fail|error'*/
+}
+@Html.AntiForgeryToken()
+@Html.Hidden("ilaka", "/Employee/Insurance")
+<h2 class="titlebig"><span name="header" id="header">@Page_Mode</span> @Html.Raw(Help_Tips)</h2>
+@Html.Hidden("mode", "")
+@Html.Hidden("Id", "")
+<div id="message_header"><p id="loading" class="loading displaynone">@msg_please_wait</p></div>
+<div id="message_header">@Html.Raw(ShowMsg)</div>
+
+<div class="row">
+    <div class="col-lg-3"><label class="col-lg-12 col-form-label-lg">Employee Status: &nbsp;</label></div>
+    <div class="col-lg-9">
+        @Html.DropDownList("EmployeeStatusFilter", (SelectList)ViewBag.EmployeeStatusFilter, "-- Both --", new { @class = "form-select", style = "width:150px;" })
+    </div>
+</div>
+<div class="p-0 bg-white rounded mb-3">
+    <div class="row align-items-center">
+        <div class="col-auto ms-auto">
+            @Html.Raw(ViewBag.ViewButtons)
+        </div>
+    </div>
+</div>
+@if (Model == null)
+{
+    <div id="message_header"><p class="note">No record(s) found.</p></div>
+}
+else
+{
+    <div class="form-group p-2">
+        <table id="tblData" class="display compact nowrap" style="width:100%">
+            <thead>
+                <tr style="height: 40px; align-items: center;color:white;" class="bg-secondary bg-opacity-27">
+                    <th width="1%"><input type="checkbox" id="selectAll"></th>
+                    <th width="24%">Employee</th>
+                    <th width="30%">Insurance Company</th>
+                    <th width="15%">Insurance Type</th>
+                    <th width="10%">Valid Date</th>
+                    <th width="10%">Policy Number</th>
+                    <th width="10%">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
+    </div>
+
+    @await Html.PartialAsync("_SharedModal", new wwfpp.Models.ModalViewModel { ModalId = "ModalID", DialogClass = "modal-lg", BodyId = "ModalBody" })
+
+    @section scripts
+    {
+        <script>
+            var ilaka = document.getElementById('ilaka').value;
+            var selectedIds = new Set();
+            var table;
+            $(document).ready(function () {
+                GetAllData(ilaka, "emp_ins_id", [
+                    { data: "employee", name: "employee", autoWidth: false },
+                    { data: "ins_company", name: "ins_company", autoWidth: false },
+                    { data: "ins_type", name: "ins_type", autoWidth: false },
+                    { data: "ins_valid_date", name: "ins_valid_date", autoWidth: false, render: function (data, type, row) { if (type === 'display' || type === 'filter') { return moment(data).format(my_format); } return data; } },
+                    { data: "policy_no", name: "policy_no", autoWidth: false },
+                ],
+                    {
+                        FilterValue1: "EmployeeStatusFilter"
+                    }
+                );
+            });
+            $(document).on("click", "#tblData .button", function () { ViewData($(this).data("id")); });
+            $(document).off('click', '#btnC').on('click', '#btnC', function () { modalCloseCancel($(this)); });
+        </script>
+    }
+}

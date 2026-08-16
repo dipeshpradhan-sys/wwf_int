@@ -1,0 +1,61 @@
+﻿@model wwfpp.Models.Admin.ApplicationSettingsViewModel
+@{
+    string mode = ViewBag.mode;
+}
+<!-- (A) HTML DIALOG BOX -->
+<partial name="_ConstantValues" view-data='new ViewDataDictionary(ViewData) { { "NoteKey", "RequiredField" } }' />
+    @Html.HiddenFor(m => m.option_id) <!-- Needed for Edit -->
+    <div class="form-group row p-1">
+    
+        <label class="col-lg-12 col-form-label-lg">Option Name<span class="text-danger">*</span></label>
+        <div class="col-lg-12">
+        @Html.TextBoxFor(m => m.option_name, new { @class = "form-control", maxlength = "50" })
+        </div>
+        
+        <label class="col-lg-12 col-form-label-lg">Option Value<span class="text-danger">*</span></label>
+        <div class="col-lg-12">
+        @Html.TextBoxFor(m => m.option_value, new { @class = "form-control", maxlength = "50" })
+        </div>
+        
+        <label class="col-lg-12 col-form-label-lg">Auto Load?<span class="text-danger">*</span></label>
+        <div class="col-lg-12">
+        @Html.DropDownListFor(m => m.autoload, (SelectList)ViewBag.AutoLoad, "--Select--", new
+        {
+            @class = "form-select",
+            style = "width:300px;"
+        })
+        </div>
+
+        <label class="col-lg-12 col-form-label-lg">Option Note</label>
+        <div class="col-lg-12">
+        @Html.TextAreaFor(m => m.option_note, new { @class = "form-control", rows = "4", cols = "50", maxlength = "500" })
+        </div>
+    </div>
+
+@if (string.Equals(mode, "add", StringComparison.OrdinalIgnoreCase) && string.Equals(ViewBag.apern, "true", StringComparison.OrdinalIgnoreCase))
+{ 
+    <script>renderModalButtons("modal-button-list", "Save");</script>
+}
+else if (string.Equals(mode, "edit", StringComparison.OrdinalIgnoreCase) && string.Equals(ViewBag.epern, "true", StringComparison.OrdinalIgnoreCase))
+{ 
+    <script>renderModalButtons("modal-button-list", "Edit");</script>
+}
+else
+{
+    <script>renderModalCloseButton("modal-button-list")</script>
+}
+    <script>
+    // Toggle between Edit and Update
+    $(document).off("click", "#btnSave").on("click", "#btnSave", function () {
+        var btn = $(this);
+        if (btn.text() == "Edit") {$("#ModalID .modal-title").text("Update");btn.text("Update");$("#btnC").text("Cancel");return;}  
+        if (btn.text() === "Update" || btn.text() === "Save") {
+            
+            if ( checkInput( 'txt', 'option_name', 'Option Name is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'txt', 'option_value', 'Option Value is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'cmb', 'autoload', 'Autoload  is required.', 'modal-message') == false ) {return false;}
+
+            submitSaveUpdate('@Url.Content("~/Admin/ApplicationSettings")');
+        }
+    });
+    </script>

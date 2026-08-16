@@ -1,0 +1,32 @@
+﻿<partial name="_ConstantValues" view-data='new ViewDataDictionary(ViewData) { { "NoteKey", "RequiredField" } }' />
+
+<div class="form-group row p-1">
+    <label class="col-lg-12 col-form-label-lg">Fiscal Year: @ViewBag.FiscalYearAbb</label>
+
+    <label class="col-lg-12 col-form-label-lg">Select CSV file (*.csv)<span class="text-danger">*</span>&nbsp;</label>
+    <div class="col-lg-12">
+        @Html.TextBox("file", "", new { type = "file" })
+    </div>
+    <div id="modal-error"></div>
+</div>
+
+@if (ViewBag.apern == "true" || ViewBag.epern == "true")
+{
+    <script>renderModalButtons("modal-button-list", "Upload");</script>
+}
+<script>
+
+    $(document).off("click", "#btnSave").on("click", "#btnSave", function () {
+        var btn = $(this);
+        if (btn.text().trim() === "Upload") {
+            if ($("#file").val() === "") {
+                showError('Fund Source Import file is required.', 'modal-message'); return false;
+            }
+            submitSaveUpdateUpload("/Employee/EmployeeFundSourceImport");
+        }
+    });
+    $(document).off("click", "#btnC").on("click", "#btnC", function() {
+        $('#tblData').DataTable().ajax.reload();
+        var modal = bootstrap.Modal.getInstance(document.getElementById("ModalID")); modal.hide();
+    });
+</script>

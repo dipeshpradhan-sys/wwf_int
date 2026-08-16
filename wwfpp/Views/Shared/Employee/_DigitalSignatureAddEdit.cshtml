@@ -1,0 +1,73 @@
+﻿@using wwfpp.Services
+@inject SettingsServices SettingsServices
+@model wwfpp.Models.Employee.DigitalSignatureViewModel
+@{
+    string? mode = ViewBag.mode;
+    string? upload_date = Model.upload_date.ToString();
+    string? s_upload_date = SettingsServices.DateformatToDt(upload_date ?? string.Empty);
+}
+<partial name="_ConstantValues" view-data='new ViewDataDictionary(ViewData) { { "NoteKey", "RequiredField" } }' />
+@Html.HiddenFor(m => m.emp_sign_id)
+
+@if (mode == "add")
+{
+    <label class="col-lg-12 col-form-label-lg">Employee<span class="text-danger">*</span></label>
+    <div class="col-lg-12">
+        @Html.DropDownListFor(m => m.emp_id, (SelectList)ViewBag.EmployeeList, "-- Select --", new { @class = "form-select" })
+    </div>
+}
+else
+{
+    string empStatus = Model.emp_status == "A" ? "Active" : "Inactive";
+    <label class="col-lg-12 col-form-label-lg">Employee:<span class="text-danger">*</span> @ViewBag.Employee [@empStatus] @Html.HiddenFor(m => m.emp_id)</label>
+    <div class="col-lg-12">&nbsp;</div>
+}
+<div class="form-group row p-1">
+    <label class="col-lg-12 col-form-label-lg">Signature<span class="text-danger">*</span>&nbsp;</label>
+    <label class="col-lg-12 col-form-label-sm">Note: The digital signature should be in jpg, jpeg, bmp or png format of Maximum Height = 100 px and Maximum Width = 250 px.</label>
+    <div class="col-lg-12">
+        @Html.TextBox("file", "", new { type = "file" })
+    </div>
+
+    @if (mode == "edit")
+    {
+        <div class="row">
+            <div class="col-lg-12 col-form-label-sm ">
+                @Html.Hidden("h_file_name", @Model.signature)
+            </div>
+        </div>
+        @if (Model.signature != "")
+        {
+            <label class="col-lg-12 col-form-label-sm">@Html.Raw(ViewBag.preview) <br>@ViewBag.fileSize | Upload Date: @s_upload_date | </label>
+        }
+    }
+</div>
+@if (mode == "add" && ViewBag.apern == "true")
+{
+    <script>renderModalButtons("modal-button-list", "Save");</script>
+}
+else if (mode == "edit" && ViewBag.epern == "true" && Model.emp_status == "A")
+{
+    <script>renderModalButtons("modal-button-list", "Edit");</script>
+}
+else
+{
+    <script>renderModalCloseButton("modal-button-list")</script>
+}
+<script>
+
+    $(document).off("click", "#btnSave").on("click", "#btnSave", function () {
+        var btn = $(this);
+        if (btn.text().trim() === "Edit") { $("#ModalID .modal-title").text("Update"); btn.text("Update"); $("#btnC").text("Cancel"); return; }
+        if (btn.text().trim() === "Update" || btn.text().trim() === "Save") {
+
+            if ($("#mode").val() === "add") {
+                if (checkInput('cmb', 'emp_id', 'Employee is required.', 'modal-message') == false) { return false; }
+            }
+            if ($("#file").val() === "") {
+                showError('Signature is required.', 'modal-message'); return false;
+            }
+            submitSaveUpdateUpload("/Employee/DigitalSignature");
+        }
+    });
+</script>

@@ -1,0 +1,49 @@
+﻿@using wwfpp.Services
+@inject SettingsServices SettingsServices
+@inject GlobalOptionServices globalOptionServices
+@model List<wwfpp.Models.Employee.EmployeeHistoryViewModel>
+@{
+    string? mode = ViewBag.mode;
+    string? DATE_FORMAT = ViewBag.DATE_FORMAT;
+}
+@Html.Hidden("ilaka", "/Employee/EmployeeHistory")
+@if (Model == null)
+{
+    <div id="message_header"><p class="note">No record(s) found.</p></div>
+}
+else
+{
+    <div class="form-group p-2">
+        <table id="tblDataExtra" class="display compact nowrap" style="width:100%">
+            <thead>
+                <tr style="height: 40px; align-items: center;color:gray;" class="bg-palewhite bg-opacity-27">
+                    <th width="100%">Updated History of <u>@ViewBag.EmployeeName</u></th>
+                </tr>
+            </thead>
+        </table>
+
+        <table id="tblData1" class="display compact nowrap" style="width:100%">
+            <thead>
+                <tr style="height: 40px; align-items: center;color:white;" class="bg-secondary bg-opacity-27">
+                    <th width="1%">SN</th>
+                    <th width="4%">Join Date<br>End date</th>
+                    <th width="5%">Marital Status</th>
+                    <th width="5%">Employee Type</th>
+                    <th width="10%">Department<br>Designation</th>
+                    <th width="5%">Salary</th>
+                    <th width="10%">Nos of Children<br>Child Education Allowance</th>
+                    <th width="10%">Status<br>Deactivated Date</th>
+                    <th width="5%">Effective Date</th>
+                    <th width="10%">Remote Area Allowance<br>Yearly RAA Exemption</th>
+                    <th width="10%">Job Family<br>Career Level</th>
+                    <th width="5%">Immidiate Manager<br>Line Director</th>
+                    <th width="15%">Remarks</th>
+                    <th width="5%">Updated By<br>Update Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                @Html.Raw(ViewBag.EmployeeHistoryHtml)
+            </tbody>
+        </table>
+    </div>      
+}

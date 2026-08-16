@@ -1,0 +1,168 @@
+﻿@using wwfpp.Services;
+@inject SettingsServices SettingsServices
+@model wwfpp.Models.Settings.LeavePaidClearedViewModelNew
+@if (Model == null)
+{
+    <div id="message_header"><p class="note">No record(s) found.</p></div>
+}
+else
+{
+   string textboxsize = "80px";
+   
+    string DATE_FORMAT = ViewBag.DATE_FORMAT;
+    string date_from = Model.date_from.ToString();
+    string s_date_from = SettingsServices.DateformatToDt(date_from);
+
+    string date_upto = Model.date_upto.ToString();
+    string s_date_upto = SettingsServices.DateformatToDt(date_upto);
+
+    @Html.HiddenFor(m => m.indv_leave_id)
+    @Html.HiddenFor(m => m.emp_id)
+    @Html.HiddenFor(m => m.submit_counter)
+    @if (Model.calculate != "Y" )
+    {
+    <div class="row">
+        <div class="col-lg-3 col-form-label-sm">Start Date: &nbsp;<span class="text-danger">*</span></div>
+        <div class="col-lg-3">&nbsp;@Html.TextBox("date_fromT", s_date_from, new { @class = "form-control", maxlength = "10", style = "width:120px;", @Readonly = "readonly" })</div>
+        <div class="col-lg-3 col-form-label-sm">End Date: &nbsp;<span class="text-danger">*</span></div>
+        <div class="col-lg-3">&nbsp;@Html.TextBox("date_uptoT", s_date_upto, new { @class = "form-control", maxlength = "10", style = "width:120px;", @Readonly = "readonly" })</div>
+    </div>
+    <div class="row">
+        <div class="col-lg-3 col-form-label-sm">Total Annual<br/>Leave Paid: &nbsp;<span class="text-danger">*</span></div>
+        <div class="col-lg-3">&nbsp;@Html.TextBoxFor(m => m.total_annual_leave, new { @class = "form-control", maxlength = "10", @Readonly = "readonly", style = "width:120px;text-align: right;" })</div>
+        <div class="col-lg-3 col-form-label-sm">Total Sick<br />Leave Paid: &nbsp;<span class="text-danger">*</span></div>
+        <div class="col-lg-3">&nbsp;@Html.TextBoxFor(m => m.total_sick_leave, new { @class = "form-control", maxlength = "10", @Readonly = "readonly", style = "width:120px;text-align: right;" })</div>
+    </div>
+    }
+     <div class="form-group p-2">
+        <table id="tblExtra" class="display compact nowrap" style="width:100%">
+            <thead>
+                <tr style="height: 50px; align-items: center;color:white;" class="bg-secondary bg-opacity-27">
+                    <th width="45%">&nbsp;Description</th>
+                    <th width="10%">Total</th>
+                    <th width="10%">Taken</th>
+                    <th width="10%">Paid</th>
+                    <th width="10%">Cleared</th>
+                    <th width="15%">Balance for next period</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.calculate == "Y")
+                {
+                <tr style="height: 50px; align-items: center;color:black;" class="bg-white bg-opacity-27">
+                    <th>&nbsp;Date From</th>
+                    <th>@Html.TextBox("date_from", s_date_from, new { @class = "form-control", maxlength = "0", @Readonly ="readonly", style ="width:130px;" })</th>
+                    <th>&nbsp;</th>
+                    <th>&nbsp;</th>
+                    <th>Date Upto</th>
+                    <th>@Html.TextBox("date_upto", s_date_upto, new { @class = "form-control", maxlength = "0", @Readonly ="readonly", style = "width:130px;" })</th>
+                </tr>       
+                <tr style="height: 2px; align-items: center;color:white;" class="bg-secondary bg-opacity-27">
+                    <th width="100%" colspan="6" style="height: 2px;"></th>
+                </tr>
+                }
+                <tr style="height: 50px; align-items: center;color:black;" class="bg-white bg-opacity-27">
+                    <th>&nbsp;Annual Leave Carry Forward</th>
+                    <th>@Html.TextBoxFor(m => m.annual_leave_caf, new { @class = "form-control", maxlength = "10", @Readonly = "readonly", style = "text-align: right;width:" + @textboxsize })</th>
+                    <th>@Html.TextBoxFor(m => m.annual_leave_caf_t, new { @class = "form-control", maxlength = "10", @Readonly = "readonly", style = "text-align: right;width:" + @textboxsize })</th>
+                    <th>@Html.TextBoxFor(m => m.annual_leave_caf_paid, new { @class = "form-control", maxlength = "10", style = "text-align: right;width:" + @textboxsize })</th>
+                    <th>@Html.TextBoxFor(m => m.annual_leave_caf_laps, new { @class = "form-control", maxlength = "10", style = "text-align: right;width:" + @textboxsize })</th>
+                    <th>@Html.TextBoxFor(m => m.annual_leave_caf_n, new { @class = "form-control", maxlength = "10", @Readonly = "readonly", style = "text-align: right;width:" + @textboxsize })</th>
+                </tr>
+                <tr style="height: 50px; align-items: center;color:black;" class="bg-white bg-opacity-27">
+                    <th>&nbsp;Annual Leave</th>
+                    <th>@Html.TextBoxFor(m => m.annual_leave, new { @class = "form-control", maxlength = "10", @Readonly = "readonly", style = "text-align: right;width:" + @textboxsize })</th>
+                    <th>@Html.TextBoxFor(m => m.annual_leave_t, new { @class = "form-control", maxlength = "10", @Readonly = "readonly", style = "text-align: right;width:" + @textboxsize })</th>
+                    <th>@Html.TextBoxFor(m => m.annual_leave_paid, new { @class = "form-control", maxlength = "10", style = "text-align: right;width:" + @textboxsize })</th>
+                    <th>@Html.TextBoxFor(m => m.annual_leave_laps, new { @class = "form-control", maxlength = "10", style = "text-align: right;width:" + @textboxsize })</th>
+                    <th>@Html.TextBoxFor(m => m.annual_leave_n, new { @class = "form-control", maxlength = "10", @Readonly = "readonly", style = "text-align: right;width:" + @textboxsize })</th>
+                </tr>
+                <tr style="height: 50px; align-items: center;color:black;" class="bg-white bg-opacity-27">
+                    <th>&nbsp;Sick Leave Carry Forward</th>
+                    <th>@Html.TextBoxFor(m => m.sick_leave_caf, new { @class = "form-control", maxlength = "10", @Readonly = "readonly", style = "text-align: right;width:" + @textboxsize })</th>
+                    <th>@Html.TextBoxFor(m => m.sick_leave_caf_t, new { @class = "form-control", maxlength = "10", @Readonly = "readonly", style = "text-align: right;width:" + @textboxsize })</th>
+                    <th>@Html.TextBoxFor(m => m.sick_leave_caf_paid, new { @class = "form-control", maxlength = "10", style = "text-align: right;width:" + @textboxsize })</th>
+                    <th>@Html.TextBoxFor(m => m.sick_leave_caf_laps, new { @class = "form-control", maxlength = "10", style = "text-align: right;width:" + @textboxsize })</th>
+                    <th>@Html.TextBoxFor(m => m.sick_leave_caf_n, new { @class = "form-control", maxlength = "10", @Readonly = "readonly", style = "text-align: right;width:" + @textboxsize })</th>
+                </tr>
+                <tr style="height: 50px; align-items: center;color:black;" class="bg-white bg-opacity-27">
+                    <th>&nbsp;Sick Leave</th>
+                    <th>@Html.TextBoxFor(m => m.sick_leave, new { @class = "form-control", maxlength = "10", @Readonly = "readonly", style = "text-align: right;width:" + @textboxsize })</th>
+                    <th>@Html.TextBoxFor(m => m.sick_leave_t, new { @class = "form-control", maxlength = "10", @Readonly = "readonly", style = "text-align: right;width:" + @textboxsize })</th>
+                    <th>@Html.TextBoxFor(m => m.sick_leave_paid, new { @class = "form-control", maxlength = "10", style = "text-align: right;width:" + @textboxsize })</th>
+                    <th>@Html.TextBoxFor(m => m.sick_leave_laps, new { @class = "form-control", maxlength = "10", style = "text-align: right;width:" + @textboxsize })</th>
+                    <th>@Html.TextBoxFor(m => m.sick_leave_n, new { @class = "form-control", maxlength = "10", @Readonly = "readonly", style = "text-align: right;width:" + @textboxsize })</th>
+                </tr>
+                <tr style="height: 50px; align-items: center;color:black;" class="bg-white bg-opacity-27">
+                    <th>&nbsp;Casual leave</th>
+                    <th>@Html.TextBoxFor(m => m.casual_leave, new { @class = "form-control", maxlength = "10", @Readonly = "readonly", style = "text-align: right;width:" + @textboxsize })</th>
+                    <th>@Html.TextBoxFor(m => m.casual_leave_t, new { @class = "form-control", maxlength = "10", @Readonly = "readonly", style = "text-align: right;width:" + @textboxsize })</th>
+                    <th>@Html.TextBoxFor(m => m.casual_leave_paid, new { @class = "form-control", maxlength = "10", style = "text-align: right;width:" + @textboxsize })</th>
+                    <th>@Html.TextBoxFor(m => m.casual_leave_laps, new { @class = "form-control", maxlength = "10", style = "text-align: right;width:" + @textboxsize })</th>
+                    <th>@Html.TextBoxFor(m => m.casual_leave_n, new { @class = "form-control", maxlength = "10", @Readonly = "readonly", style = "text-align: right;width:" + @textboxsize })</th>
+                </tr>
+                <tr style="height: 50px; align-items: center;color:black;" class="bg-white bg-opacity-27">
+                    <th>&nbsp;Other Leave</th>
+                    <th>@Html.TextBoxFor(m => m.other_leave, new { @class = "form-control", maxlength = "10", @Readonly = "readonly", style = "text-align: right;width:" + @textboxsize })</th>
+                    <th>@Html.TextBoxFor(m => m.other_leave_t, new { @class = "form-control", maxlength = "10", @Readonly = "readonly", style = "text-align: right;width:" + @textboxsize })</th>
+                    <th>@Html.TextBoxFor(m => m.other_leave_paid, new { @class = "form-control", maxlength = "10", style = "text-align: right;width:" + @textboxsize })</th>
+                    <th>@Html.TextBoxFor(m => m.other_leave_laps, new { @class = "form-control", maxlength = "10", style = "text-align: right;width:" + @textboxsize })</th>
+                    <th>@Html.TextBoxFor(m => m.other_leave_n, new { @class = "form-control", maxlength = "10", @Readonly = "readonly", style = "text-align: right;width:" + @textboxsize })</th>
+                </tr>
+                <tr style="height: 50px; align-items: center;color:black;" class="bg-white bg-opacity-27">
+                    <th>&nbsp;Maternity Leave</th>
+                    <th>@Html.TextBoxFor(m => m.maternity, new { @class = "form-control", maxlength = "10", @Readonly = "readonly", style = "text-align: right;width:" + @textboxsize })</th>
+                    <th>@Html.TextBoxFor(m => m.maternity_t, new { @class = "form-control", maxlength = "10", @Readonly = "readonly", style = "text-align: right;width:" + @textboxsize })</th>
+                    <th>@Html.TextBoxFor(m => m.maternity_paid, new { @class = "form-control", maxlength = "10", style = "text-align: right;width:" + @textboxsize })</th>
+                    <th>@Html.TextBoxFor(m => m.maternity_laps, new { @class = "form-control", maxlength = "10", style = "text-align: right;width:" + @textboxsize })</th>
+                    <th>@Html.TextBoxFor(m => m.maternity_n, new { @class = "form-control", maxlength = "10", @Readonly = "readonly", style = "text-align: right;width:" + @textboxsize })</th>
+                </tr>
+                <tr style="height: 50px; align-items: center;color:black;" class="bg-white bg-opacity-27">
+                    <th>&nbsp;Paternity Leave</th>
+                    <th>@Html.TextBoxFor(m => m.paternity, new { @class = "form-control", maxlength = "10", @Readonly = "readonly", style = "text-align: right;width:" + @textboxsize })</th>
+                    <th>@Html.TextBoxFor(m => m.paternity_t, new { @class = "form-control", maxlength = "10", @Readonly = "readonly", style = "text-align: right;width:" + @textboxsize })</th>
+                    <th>@Html.TextBoxFor(m => m.paternity_paid, new { @class = "form-control", maxlength = "10", style = "text-align: right;width:" + @textboxsize })</th>
+                    <th>@Html.TextBoxFor(m => m.paternity_laps, new { @class = "form-control", maxlength = "10", style = "text-align: right;width:" + @textboxsize })</th>
+                    <th>@Html.TextBoxFor(m => m.paternity_n, new { @class = "form-control", maxlength = "10", @Readonly = "readonly", style = "text-align: right;width:" + @textboxsize })</th>
+                </tr>
+                <tr style="height: 50px; align-items: center;color:black;" class="bg-white bg-opacity-27">
+                    <th>&nbsp;Mourning Leave</th>
+                    <th>@Html.TextBoxFor(m => m.mourning, new { @class = "form-control", maxlength = "10", @Readonly = "readonly", style = "text-align: right;width:" + @textboxsize })</th>
+                    <th>@Html.TextBoxFor(m => m.mourning_t, new { @class = "form-control", maxlength = "10", @Readonly = "readonly", style = "text-align: right;width:" + @textboxsize })</th>
+                    <th>@Html.TextBoxFor(m => m.mourning_paid, new { @class = "form-control", maxlength = "10", style = "text-align: right;width:" + @textboxsize })</th>
+                    <th>@Html.TextBoxFor(m => m.mourning_laps, new { @class = "form-control", maxlength = "10", style = "text-align: right;width:" + @textboxsize })</th>
+                    <th>@Html.TextBoxFor(m => m.mourning_n, new { @class = "form-control", maxlength = "10", @Readonly = "readonly", style = "text-align: right;width:" + @textboxsize })</th>
+                </tr>
+                <tr style="height: 50px; align-items: center;color:black;" class="bg-white bg-opacity-27">
+                    <th>&nbsp;Unpaid/Study Leave</th>
+                    <th>@Html.TextBoxFor(m => m.unpaid_study, new { @class = "form-control", maxlength = "10", @Readonly = "readonly", style = "text-align: right;width:" + @textboxsize })</th>
+                    <th>@Html.TextBoxFor(m => m.unpaid_study_t, new { @class = "form-control", maxlength = "10", @Readonly = "readonly", style = "text-align: right;width:" + @textboxsize })</th>
+                    <th>@Html.TextBoxFor(m => m.unpaid_study_paid, new { @class = "form-control", maxlength = "10", style = "text-align: right;width:" + @textboxsize })</th>
+                    <th>@Html.TextBoxFor(m => m.unpaid_study_laps, new { @class = "form-control", maxlength = "10", style = "text-align: right;width:" + @textboxsize })</th>
+                    <th>@Html.TextBoxFor(m => m.unpaid_study_n, new { @class = "form-control", maxlength = "10", @Readonly = "readonly", style = "text-align: right;width:" + @textboxsize })</th>
+                </tr>
+                <tr style="height: 10px; align-items: center;color:white;" class="bg-secondary bg-opacity-27">
+                    <th width="100%" colspan="6">&nbsp;</th>
+                </tr>
+                <tr style="height: 50px; align-items: center;color:black;" class="bg-white bg-opacity-27">
+                    <th>&nbsp;Remarks:</th>
+                    <th colspan="5">@Html.TextBoxFor(m => m.remarks, new { @class = "form-control", maxlength = "250" })</th>
+                </tr>
+                @if (Model.calculate == "Y")
+                {
+                <tr style="height: 50px; color:black;" class="bg-white bg-opacity-27">
+                    <th colspan="6" class="text-end">
+                        <div class="form-check d-inline-flex align-items-center right-content-end">
+                            @Html.CheckBoxFor(m => m.chkSave, new { @class = "form-check-input" })
+                            <label class="form-check-label ms-2" for="chkSave">
+                                Tick the checkbox to update above "Balance for next period" figures in leave settings
+                            </label>
+                        </div>
+                    </th>
+                </tr>
+                }
+            </tbody>
+        </table>
+
+    </div>
+}

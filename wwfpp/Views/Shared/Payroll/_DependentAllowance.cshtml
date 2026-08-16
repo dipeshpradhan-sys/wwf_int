@@ -1,0 +1,262 @@
+﻿@using Microsoft.AspNetCore.Http;
+@inject IHttpContextAccessor HttpContextAccessor;
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var PageTitle = "Dependent children allowance reimbursement";
+    var Page_Tips = "Note : <br/><br/><b>Clear</b> button will only reset all employees total allowance amount to 0 (zero) on employee allowance section.<br/><br/><b>Delete</b> button will reset all employees total allowance amount to 0 (zero) on employee allowance section and delete all saved allowance information from here for the fiscal year.";  //Tool tip message on right side
+    var msg_please_wait = "";
+    var Page_Mode = PageTitle;
+    ViewData["Title"] = "| " + PageTitle;
+    var Help_Tips = GblUtilities.HelpTips(Page_Tips);
+    /*success|fail|error'*/
+    string ShowMsg = GblUtilities.MsgDisplay(Context.Request.Query["msg"].ToString());
+}
+@Html.AntiForgeryToken()
+<h2 class="titlebig"><span name="header" id="header">@Page_Mode</span> @Html.Raw(Help_Tips)</h2>
+@Html.Hidden("mode", "")
+
+<div id="message_header"><p id="loading" class="loading displaynone">@msg_please_wait</p></div>
+<div id="message_header">@Html.Raw(ShowMsg)</div>
+
+<div class="d-flex align-items-center">
+    <label class="me-2">Fiscal Year:</label>
+    @Html.DropDownList("FiscalYearFilter", (SelectList)ViewBag.FiscalYearList,
+        new { @class = "form-select me-4", style = "width:150px;" })
+</div>
+
+<!-- Controls row under the header -->
+@if (ViewBag.apern == "true" || ViewBag.dpern == "true")
+{
+    <div id="saveSection" class="p-0 bg-white rounded mb-3" style="display:none;">
+        <div class="row align-items-center">
+            <!-- Right side: Buttons -->
+            <div class="col-auto ms-auto">
+                <button type="button" name="btnSave" id="btnSave" class="button btn-primary">Save</button>
+            </div>
+        </div>
+    </div>
+    <div id="deleteSection" class="p-0 bg-white rounded mb-3" style="display:none;">
+        <div class="row align-items-center">
+            <!-- Right side: Buttons -->
+            <div class="col-auto ms-auto">
+                <button type="button" name="btnClear" id="btnClear" class="button btn-primary" onclick="DependentAllowanceClear()">Clear</button>
+                <button type="button" name="btnClearAll" id="btnClearAll" class="button btn-primary" onclick="DependentAllowanceDelete()">Delete</button>
+                <button type="button" name="btnExport" id="btnExport" class="button btn-primary" onclick="DependentAllowanceExport()">Export</button>
+            </div>
+        </div>
+    </div>
+}
+<!-- DataTable -->
+@if (ViewBag.SettingMessage != null)
+{
+    <div id="message_header"><p class="note">Settings not defined yet.</p></div>
+}
+else
+{
+    <div class="form-group p-2">
+        <table id="tblData" class="display compact nowrap" style="width:100%">
+            <thead>
+                <tr style="height: 40px; align-items: center;color:white;" class="bg-secondary bg-opacity-27">
+                    <th width="20%">Employee Name </th>
+                    <th>Join Date</th>
+                    <th>Number of service year(s)</th>
+                    <th colspan="2">Amount</th>
+                </tr>
+                <tr style="height: 40px; align-items: center;color:white;" class="bg-secondary bg-opacity-27">
+                    <th width="20%">Dependent Name  </th>
+                    <th>Date of Birth</th>
+                    <th>Age (Year)</th>
+                    <th>Actual</th>
+                    <th>Paid</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Data dynamically injected here -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Modal for Add/Edit -->
+    @await Html.PartialAsync("_SharedModal", new wwfpp.Models.ModalViewModel { ModalId = "ModalID", DialogClass = "modal-lg", BodyId = "ModalBody", })
+
+    @section scripts
+    {
+        <script>
+            $(document).ready(function() {
+                table = $('#tblData').DataTable({
+                    processing: true,
+                    serverSide: true,
+                    ajax: {
+                        url: '/Payroll/DependentAllowanceList',
+                        type: 'POST',
+                        data: function(d) {
+                            d.fiscalYearFilter = $('#FiscalYearFilter').val();
+                        }
+                    },
+                    columns: [
+                        { data: "c_name", title: "Dependent Name" },
+                        { data: "date_of_birth", name: "date_of_birth", autoWidth: false, render: function(data, type, row) { if (type === 'display' || type === 'filter') { return moment(data).format(my_format); } return data; } },
+                        { data: "age", title: "Age (Year)" },
+                        {
+                            data: "amount_actual",
+                            name: "amount_actual",
+                            render: function(data, type, row) {
+                                if (data == null) return "";
+                                // Format with 2 decimals and thousands separator
+                                return parseFloat(data).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                            }
+                        },
+                        { data: "amount_paid", name: "amount_paid", autoWidth: false, render: function(data, type, row, meta) { return '<input type="number" name="amount_paid' + meta.row + '" id="amount_paid' + meta.row + '" value="' + data + '" class="form-control amount_paid-input" style = "width:90px;", maxlength = "10"><input type="hidden" name="amount_actual' + meta.row + '" id="amount_actual' + meta.row + '" value="' + row.amount_actual + '"><input type="hidden" name="emp_id' + meta.row + '" id="emp_id' + meta.row + '" value="' + row.emp_id + '"><input type="hidden" name="fiscal_year' + meta.row + '" id="fiscal_year' + meta.row + '" value="' + row.fiscalYearFilter + '"><input type="hidden" name="emp_dep_id' + meta.row + '" id="emp_dep_id' + meta.row + '" value="' + row.emp_dep_id + '"><input type="hidden" name="age_checking_date' + meta.row + '" id="age_checking_date' + meta.row + '" value="' + row.age_checking_date + '">'; } },
+                    ],
+                    rowGroup: {
+                        dataSrc: "fullName",
+                        startRender: function(rows, group) {
+                            var emp = rows.data()[0]; // first row for this employee
+                            var joinDateFormatted = emp.join_date
+                                ? moment(emp.join_date).format(my_format)
+                                : "";
+                            // Build a header row with multiple columns
+                            return $('<tr/>')
+                                .append('<td class="bg-light fw-bold">' + group + '(' + rows.count() + ' dependents)' + '</td>')
+                                .append('<td class="bg-light fw-bold">' + joinDateFormatted + '</td>')
+                                .append('<td class="bg-light fw-bold">' + (emp.service_age || '') + '</td>');
+                        }
+                    },
+                    order: [[1, 'asc']]
+                });
+                // Explicitly get the DataTable API object
+                table = $('#tblData').DataTable();
+
+                // Set page length to "All" after initialization
+                $(document).one('init.dt', '#tblData', function() {
+                    table.page.len(-1).draw();
+                });
+                table.on('draw.dt', function() {
+                    var blnShowSave = table.ajax.json().blnShow; // get from last JSON
+
+                    if (blnShowSave === true) {
+                        // Make ALL inputs readonly first
+                        $("#tblData input[type='text'], #tblData input[type='number']").prop("readonly", true);
+
+                        // Then explicitly allow only pre_leave_payable inputs to be editable
+                        $("#tblData input[name^='pr_pro_']").prop("readonly", false);
+
+                        $('#saveSection').show();
+                        $('#deleteSection').hide();
+                    } else {
+                        // Everything readonly when save is not allowed
+                        $("#tblData input[type='text'], #tblData input[type='number']").prop("readonly", true);
+
+                        $('#saveSection').hide();
+                        $('#deleteSection').show();
+                    }
+                });
+
+            });
+
+            function collectExtraFields() {
+                var extraSettings = [];
+                $("#tblData tbody tr").each(function() {
+                    var row = $(this);
+                    extraSettings.push({
+                        emp_id: row.find("input[name^='emp_id']").val(),
+                        emp_dep_id: row.find("input[name^='emp_dep_id']").val(),
+                        amount_actual: parseFloat(row.find("input[name^='amount_actual']").val()),
+                        amount_paid: parseFloat(row.find("input[name^='amount_paid']").val()),
+                        fiscal_year: row.find("input[name^='fiscal_year']").val(),
+                        age_checking_date: row.find("input[name^='age_checking_date']").val(),
+                    });
+                    //}
+                });
+                return extraSettings;
+            }
+            $(document).off("click", "#btnSave").on("click", "#btnSave", function() { $("#mode").val("update"); updateDataNoChk("/Payroll/DependentAllowanceSave"); });
+
+            function DependentAllowanceClear() {
+                if (!confirm(msg_are_you_sure_to_clear)) {
+                    return;
+                }
+                $.ajax({
+                    url: '/Payroll/DependentAllowanceClear',
+                    type: 'POST',
+                    data: {
+                        __RequestVerificationToken: $('input[name="__RequestVerificationToken"]').val()
+                    },
+                    success: function(res) {
+                        if (res.status === "success") {
+                            showMessageHeaderAlert(msg_dependent_allowance_cleared_scuccessfully, '50px', 'success');
+                        } else {
+                            showMessageHeaderAlert(err_in_process + res.message, '50px', 'error');
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        showMessageHeaderAlert(err_in_process + error, '50px', 'error');
+                    }
+                });
+            }
+
+            function DependentAllowanceDelete() {
+                if (!confirm(msg_are_you_sure_to_delete)) {
+                    return;
+                }
+                $.ajax({
+                    url: '/Payroll/DependentAllowanceDelete',
+                    type: 'POST',
+                    data: {
+                        fiscalYear: $("#FiscalYearFilter").val(),
+                        __RequestVerificationToken: $('input[name="__RequestVerificationToken"]').val()
+                    },
+                    success: function(res) {
+                        if (res.status === "updatesuccess") {
+                            showMessageHeaderAlert("", '50px', 'success');
+                            showMessageHeaderAlert(msg_update_success, '50px', 'success');
+                            $('#saveSection').show();
+                            $('#deleteSection').hide();
+                            $("#tblData").DataTable().ajax.reload();
+                            $("#tblData input[type='text'], #tblData input[type='number']").prop("readonly", false);
+                        } else {
+                            showMessageHeaderAlert("", '50px', 'success');
+                            showMessageHeaderAlert(msg_some_error_occcured_please_try_again + res.message, '50px', 'error');
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        showMessageHeaderAlert(err_in_process + error, '50px', 'error');
+                    }
+                });
+            }
+
+
+            function DependentAllowanceExport() {
+                $.ajax({
+                    url: '/Payroll/DependentAllowanceExport',
+                    type: 'POST',
+                    data: {
+                        fiscalYear: $("#FiscalYearFilter").val(),
+                        period: 1,
+                        __RequestVerificationToken: $('input[name="__RequestVerificationToken"]').val()
+                    },
+                    success: function(res) {
+                        if (res.status === "success") {
+                            var link = document.createElement('a');
+                            link.href = 'data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,' + res.fileContent;
+                            link.download = res.fileName;
+                            link.click();
+
+                            showMessageHeaderAlert(msg_export_scuccessfully, '50px', 'success');
+                            $("#tblData").DataTable().ajax.reload();
+                        } else {
+                            showMessageHeaderAlert(err_in_process + res.message, '50px', 'error');
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        showMessageHeaderAlert(
+                            err_in_process + error,
+                            '50px',
+                            'error'
+                        );
+                    }
+                });
+            }
+        </script>
+    }
+}

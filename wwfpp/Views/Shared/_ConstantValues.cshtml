@@ -1,0 +1,24 @@
+﻿@{
+    var noteKey = ViewData["NoteKey"]?.ToString();
+}
+
+@switch (noteKey)
+{
+    case "RequiredField":
+        <p class="normal red">* indicates required field</p>
+        break;
+
+    /*case "DateFormat":
+        <div class="text-muted small mb-2">
+            Dates must be in YYYY-MM-DD format
+        </div>
+        break;
+
+    case "CurrencyNote":
+        <div class="text-muted small mb-2">
+            Amounts must be entered in local currency
+        </div>
+        break;*/
+
+        // Add more cases as needed
+}

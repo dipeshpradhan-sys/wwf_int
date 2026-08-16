@@ -1,0 +1,182 @@
+﻿@using Microsoft.AspNetCore.Http;
+@inject IHttpContextAccessor HttpContextAccessor;
+
+@model LoginStepSetViewModel;
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+
+    var PageTitle = "Set Login Step";
+    var Page_Tips = Lang.lbl_multi_login_fixed + "<br/>[<i>" + Lang.lbl_multi_login_fixed_sub + "</i>]<br/><br/>" + Lang.lbl_multi_login_emotp + "<br/>[<i>" + Lang.lbl_multi_login_emotp_sub + "</i>]";  //Tool tip message on right side
+    var msg_please_wait = "";
+    var Btn_Val = "Save";   //if Add new  [Save] or [Submit]=if also email send | Update
+
+    var Page_Mode = PageTitle + "[ Add New ]"; // will switch on 
+    var Mode 	 = "add";   //to know if page is add new or edit and posted from hidden from here
+    var Btn_Edit = " Edit ";// on view page initial will [Edit] after clicking it will hide 
+    var Div_view = "block";
+    var Div_edit = "displaynone";
+    var Pern = ViewBag.apern;
+
+    string Sign_In_Type = ViewBag.Sign_In_Type;
+    var Show_Login_Type =  ViewBag.Show_Login_Type;
+    var Pin_Type = ViewBag.Pin_Type;
+
+    ViewData["Title"] = "| " + PageTitle;
+    var Help_Tips = GblUtilities.HelpTips(Page_Tips);    
+    string ShowMsg = GblUtilities.MsgDisplay(Context.Request.Query["msg"].ToString());/*success|fail|error'*/
+    var Id = ViewBag.Id;
+    var UserName = "";
+
+    if ( !string.IsNullOrWhiteSpace(Id.ToString()) )
+    {
+        Page_Mode = PageTitle + "[ View ]";
+        Mode      = "edit";
+        Btn_Val = "Update";		
+        Pern 	 = ViewBag.epern;
+
+        UserName = Context.Session.GetString("username");
+    }
+    var Lbl_Login_Type = "";
+    var Sel_Login_In_Type_s = $@"<option value = ""0"" >Single Factor Login</option>";
+    var Sel_Login_In_Type_f = $@"<option value = ""1"" >Two Factor Login (MTP)</option>";
+    var Sel_Login_In_Type_m = $@"<option value = ""2"" >Two Factor Login (OTP)</option>";
+    if (Show_Login_Type == "1")
+    {
+        Sel_Login_In_Type_f = $@"<option value = ""1"" selected >Two Factor Login (MTP)</option>";
+        Lbl_Login_Type = "Two Factor Login (UDP)";
+    }
+    else if (Show_Login_Type == "2")
+    {
+        Sel_Login_In_Type_m = $@"<option value = ""2""  selected >Two Factor Login (OTP)</option>";
+        Lbl_Login_Type = "Two Factor Login (OTP)";
+    }
+    else
+    {
+        Sel_Login_In_Type_s = $@"<option value = ""0"" selected >Single Factor Login</option>";
+        Lbl_Login_Type = "Single Factor Login";
+    }
+
+}
+@Html.AntiForgeryToken()
+<h2 class="titlebig"><span name="header" id="header">@Page_Mode</span> @Html.Raw(Help_Tips)</h2>
+
+<partial name="_ConstantValues" view-data='new ViewDataDictionary(ViewData) { { "NoteKey", "RequiredField" } }' />
+
+@Html.Hidden("mode", @Mode)
+@Html.Hidden("username", @UserName)
+<input type="hidden" id="Id" name="Id" value="@Id" />
+
+<div id="message_header"><p id="loading" class="loading displaynone">@msg_please_wait</p></div>
+<div id="message_header">@Html.Raw(ShowMsg)</div>
+
+<div id="div_view" class="@Div_view">
+    <div class="f-left w-100" >
+        <table width="100%" border="0" cellspacing="1" cellpadding="0" bgcolor="#b1b1b1">
+            <tr>
+                <td bgcolor="#ffffff" align="center" class="normal">
+                    <table width="100%"  border="0" cellpadding="4" cellspacing="2" class="normal_text">
+                        <tr bgcolor="#eeeeee" >
+                            <td class="title left w-20">User Name:<font color="red">*</font></td>
+                            <td class="normal left w-80">@UserName&nbsp;</td>
+                        </tr>
+                        <tr bgcolor="#eeeeee">
+                            <td class="title left">Login Step:<font color="red">*</font></td>
+                            <td class="normal left"><span id="Lbl_Login_Type">@Lbl_Login_Type</span>&nbsp;</td>
+                        </tr>
+
+                    </table>
+                </td>
+                </tr>
+        </table>   
+    </div>
+                
+    <div id="button-box">
+        <div id="button-box-right">
+            <h5>
+                @if (string.Equals(Pern, "true", StringComparison.OrdinalIgnoreCase))
+                {
+                    <button type="button" class="button bg-dgray" name="btni" id="btni" data-update="@($"{PageTitle} [ Update ]")">@Btn_Edit</button>
+                }
+            &nbsp;</h5>
+        </div>
+    </div>
+</div> <!--end div id="div-view"-->
+@if (string.Equals(Pern, "true", StringComparison.OrdinalIgnoreCase))
+{
+<div id = "div_edit"  class="@Div_edit">
+
+    <div class="f-left w-100">
+        <table width="100%" border="0" cellspacing="1" cellpadding="0" bgcolor="#b1b1b1">
+            <tr>
+                <td bgcolor="#ffffff" align="center" class="normal">
+                    <table width="100%" border="0" cellpadding="4" cellspacing="2" class="normal_text">
+                        <tr style="background-color:#eeeeee;">
+                            <td class="title left w-20">User Name:<font color=red>*</font></td>
+                            <td class="normal left w-80">@UserName &nbsp;</td>
+                        </tr>
+                            <tr style="background-color:#eeeeee;">
+                            <td class="title left">Login Step:<font color=red>*</font></td>
+                            <td class="normal left">
+                                <select name="signintype" id="signintype" class="select">
+                                    @Html.Raw(Sel_Login_In_Type_s)
+                                    @Html.Raw(Sel_Login_In_Type_f)
+                                    @Html.Raw(Sel_Login_In_Type_m)
+                                </select>
+                            </td>
+                        </tr>
+                            <tr style="background-color:#eeeeee;">
+                            <td class="title left">Password:<font color=red>*</font></td>
+                            <td class="normal left">@Html.Password("pwd", null, new { @class = "textbox", maxlength = "20", style = "width:150px;" })</td>
+                        </tr>
+                        <tr style="background-color:#eeeeee;" id="Pin_Tr" >
+                            <td class="title left w-20">Pin:<font color=red>*</font></td>
+                                <td class="normal left w-80">@Html.Password("npin", null, new { @class = "textbox", maxlength = "6", style = "width:150px;" })&nbsp;<span id="pin_validity" class="red"></span></td>
+                        </tr>
+                        <tr style="background-color:#eeeeee;" id="CPin_Tr" >
+                            <td class="title left">Confirm Pin:<font color=red>*</font></td>
+                                <td class="normal left w-80">@Html.Password("cpin", null, new { @class = "textbox", maxlength = "6", style = "width:150px;" })&nbsp;<span id="pin_con_validity" class="red"></span></td>
+                        </tr>
+                        <tr style="background-color:#eeeeee;" id = "Pin_Strength_Tr" >
+                            <td class="title left" height="25">Pin Strength:</td>
+                            <td class="normal left">
+                                <span id="pin_strength_color">&nbsp;</span>&nbsp;<span id="pin_strength_text"></span>
+                            </td>
+                        </tr>
+
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <div id="button-box">
+        <div id="button-box-right">
+            <h5>
+                    <button type="button" class="button bg-dgray" name="btnu" id="btnu">@Btn_Val</button>
+                    <button type="button" class="button bg-dgray" name="btnCancel" id="btnCancel" data-update="@($"{PageTitle} [ View ]")">Cancel</button>
+            </h5>
+        </div>
+    </div>    
+                
+                
+</div><!--end div id="div-edit"-->	
+}
+
+@if ( Pern == "true")
+{
+    <script>
+        var postbacktitle = "@PageTitle [ Update ]";//** page **/
+        var postforwardurl = '@Url.Action("LoginStepSet", "Account")';
+        document.addEventListener("DOMContentLoaded", function() {const btni = document.getElementById("btni");if (btni){btni.addEventListener("click", function(e) {e.preventDefault();editinformation(btni.dataset.update);ShowHideTrs(@Show_Login_Type);});}});
+        document.addEventListener("DOMContentLoaded", function () {const btnCancel = document.getElementById("btnCancel");if (btnCancel) {btnCancel.addEventListener("click", function (e) {e.preventDefault();editcancel(btnCancel.dataset.update);resetForm('frm');});}});
+        document.addEventListener("DOMContentLoaded", function () {const npin = document.getElementById("npin");if (npin) {npin.addEventListener("keyup", function (e) {e.preventDefault();CheckPinStrength(e.target.value);checkPin('npin');checkCPin('npin','cpin');});}});
+        document.addEventListener("DOMContentLoaded", function () {const cpin = document.getElementById("cpin");if (cpin) {cpin.addEventListener("keyup", function (e) {e.preventDefault();checkCPin('npin','cpin');});}});
+    </script>
+
+    @section Scripts {
+        @{
+            await Html.RenderPartialAsync("_ValidationScriptsPartial");
+        }
+        <script src=@Url.Content("~/js/Account/loginstepset-XlMuJqMJu.js") defer></script>
+    }
+}

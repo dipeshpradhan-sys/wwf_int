@@ -1,0 +1,104 @@
+﻿@using Microsoft.AspNetCore.Http;
+@inject IHttpContextAccessor HttpContextAccessor;
+@model List<wwfpp.Models.Payroll.SwfLoanViewModel>
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var PageTitle = "Employee Welfare Loan";
+    var Page_Tips = "This feature has been available since July 2012";  //Tool tip message on right side
+    var msg_please_wait = "";
+    var Page_Mode = PageTitle;
+    ViewData["Title"] = "| " + PageTitle;
+    var Help_Tips = GblUtilities.HelpTips(Page_Tips);
+    /*success|fail|error'*/
+    string ShowMsg = GblUtilities.MsgDisplay(Context.Request.Query["msg"].ToString());
+}
+@Html.AntiForgeryToken()
+@Html.Hidden("ilaka", "/Payroll/SWFLoan")
+<h2 class="titlebig"><span name="header" id="header">@Page_Mode</span> @Html.Raw(Help_Tips)</h2>
+@Html.Hidden("mode", "")
+@Html.Hidden("Id", "")
+
+<div id="message_header"><p id="loading" class="loading displaynone">@msg_please_wait</p></div>
+<div id="message_header">@Html.Raw(ShowMsg)</div>
+
+<div class="row">
+    <div class="col-lg-2"><label class="col-lg-12 col-form-label-lg">Employee Status : &nbsp;</label></div>
+    <div class="col-lg-10">
+        @Html.DropDownList("EmployeeStatusFilter", (SelectList)ViewBag.EmployeeStatusFilter, "-- Both --", new { @class = "form-select", style = "width:150px;" })
+    </div>
+</div>
+<div class="row">
+    <div class="col-lg-2"><label class="col-lg-12 col-form-label-lg">Loan Status : &nbsp;</label></div>
+    <div class="col-lg-10">
+        @Html.DropDownList("LoanStatusFilter", (SelectList)ViewBag.LoanStatusFilter, "-- Both --", new { @class = "form-select", style = "width:150px;" })
+    </div>
+</div>
+
+<div class="p-0 bg-white rounded mb-3">
+    <div class="row align-items-center">
+        <div class="col-auto ms-auto">
+            @Html.Raw(ViewBag.ViewButtons)
+        </div>
+    </div>
+</div>
+
+@if (Model == null)
+{
+    <div id="message_header"><p class="note">No record(s) found.</p></div>
+}
+else
+{
+    <div class="form-group p-2">
+        <table id="tblData" class="display compact nowrap" style="width:100%">
+            <thead>
+                <tr style="height: 40px; align-items: center;color:white;" class="bg-secondary bg-opacity-27">
+                    <th width="1%"><input type="checkbox" id="selectAll"></th>
+                    <th width="10%">Employee</th>
+                    <th width="10%">Year</th>
+                    <th width="10%">Month</th>
+                    <th width="10%">Loan Amount</th>
+                    <th width="10%">Interest</th>
+                    <th width="10%">Amount</th>
+                    <th width="10%" title = "No. of Installments">No. of Inst.</th>
+                    <th width="10%" title ="Monthly Installment">Monthly Inst.</th>
+                    <th width="10%">Loan Status</th>
+                    <th width="9%">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+
+            </tbody>
+        </table>
+    </div>
+
+    @await Html.PartialAsync("_SharedModal", new wwfpp.Models.ModalViewModel { ModalId = "ModalID", DialogClass = "modal-lg", BodyId = "ModalBody" })
+
+    @section scripts 
+    {
+        <script>
+            var ilaka = document.getElementById('ilaka').value;
+            var selectedIds = new Set();
+            var table;
+            $(document).ready(function () {
+                GetAllData(ilaka, "id", [
+                    { data: "employee", name: "employee", autoWidth: false },
+                    { data: "start_year", name: "start_year", autoWidth: false },
+                    { data: "start_month", name: "start_month", autoWidth: false, render: function(data, type, row) { if (!data || isNaN(data)) {return "";} return moment(data, "M").format("MMM"); } },
+                    { data: "amount", name: "amount", autoWidth: false },
+                    { data: "int_amount", name: "int_amount", autoWidth: false },
+                    { data: "total_loan", name: "total_loan", autoWidth: false },
+                    { data: "no_of_installment", name: "no_of_installment", autoWidth: false },
+                    { data: "month_installment", name: "month_installment", autoWidth: false },
+                    { data: "status", name: "status", autoWidth: false, render: function(data, type, row) {if (data === "A"){return "Active";} else {return "Passive";} }}
+                ],
+                    {
+                        FilterValue1: "EmployeeStatusFilter",
+                        FilterValue2: "LoanStatusFilter"
+                    }
+                );
+                $(document).on("click", "#tblData .button", function() { ViewData($(this).data("id")); });
+                $(document).off('click', '#btnC').on('click', '#btnC', function () {modalCloseCancel($(this));});
+            });
+        </script>
+    }
+}

@@ -1,0 +1,77 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest-all</AnalysisLevel>	
+    <AnalysisMode>All</AnalysisMode>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="wwwroot\documents\**" />
+    <Content Remove="wwwroot\documents\**" />
+    <EmbeddedResource Remove="wwwroot\documents\**" />
+    <None Remove="wwwroot\documents\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Models\Request\EmployeeAdministratorViewModel.cs" />
+    <Content Include="Models\Request\EmployeeLeaveHashViewModel.cs" />
+    <Content Include="Models\Request\EmployeeLeaveIndvCafwPaidLapsViewModel.cs" />
+    <Content Include="Models\Request\EmployeeLeaveIndvPaidClearedNewViewModel.cs" />
+    <Content Include="Models\Request\EmployeeLeaveIndvPaidClearedViewModel.cs" />
+    <Content Include="Models\Request\EmployeeLeaveIndvViewModel.cs" />
+    <Content Include="Models\Request\EmployeeOvertimeViewModel.cs" />
+    <Content Include="Models\Request\EmployeeTimesheetAppViewModel.cs" />
+    <Content Include="Models\Request\EmployeeTimesheetEditedViewModel.cs" />
+    <Content Include="Models\Request\EmployeeTimesheetMainViewModel.cs" />
+    <Content Include="Models\Request\EmployeeTimesheetSubHashViewModel.cs" />
+    <Content Include="Models\Request\EmployeeTimesheetSubViewModel.cs" />
+    <Content Include="Models\Request\EmployeeTravelCodesViewModel.cs" />
+    <Content Include="Models\Request\EmployeeTravelMainViewModel.cs" />
+    <Content Include="Models\Request\EmployeeTravelPrintedViewModel.cs" />
+    <Content Include="Models\Request\EmployeeTravelSettlementMainViewModel.cs" />
+    <Content Include="Models\Request\EmployeeTravelSettlementSubDocViewModel.cs" />
+    <Content Include="Models\Request\EmployeeTravelSettlementSubViewModel.cs" />
+    <Content Include="Models\Request\EmployeeTravelSubViewModel.cs" />
+    <Content Include="Models\Request\TravelParticularsViewModel.cs" />
+    <Content Include="Models\Request\YearlyAnnualLeaveCfViewModel.cs" />
+    <Content Include="Models\Request\YearlySickLeaveCfViewModel.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ClosedXML" Version="0.105.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.301">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.8" />
+    <PackageReference Include="QuestPDF" Version="2026.7.1" />
+    <PackageReference Include="System.Drawing.Common" Version="10.0.8" />
+    <PackageReference Include="System.Linq.Dynamic.Core" Version="1.7.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Models\Profile\" />
+    <Folder Include="Models\Report\" />
+    <Folder Include="Views\Shared\Reports\" />
+    <Folder Include="Views\Shared\Profile\" />
+    <Folder Include="Views\Shared\Request\" />
+    <Folder Include="wwwroot\images\" />
+    <Folder Include="wwwroot\js\Account\" />
+    <Folder Include="wwwroot\js\Admin\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="D:\MyWorks\web\_NET\current\wwf-pp-new\wwfpp\wwfpp\.editorconfig" />
+    <None Include="Models\Users\UserLevelViewModel.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EditorConfigFiles Remove="D:\MyWorks\web\_NET\current\wwf-pp-new\wwfpp\wwfpp\.editorconfig" />
+  </ItemGroup>
+
+</Project>

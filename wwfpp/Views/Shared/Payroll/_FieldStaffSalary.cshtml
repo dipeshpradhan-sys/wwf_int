@@ -1,0 +1,263 @@
+﻿@using Microsoft.AspNetCore.Http;
+@inject IHttpContextAccessor HttpContextAccessor;
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var PageTitle = "Field Staff Salary";
+    var Page_Tips = "If all values are 0 (zero) of the row while saving, the row will be deleted.";  //Tool tip message on right side
+    var msg_please_wait = "";
+    var Page_Mode = PageTitle;
+    var Pern = ViewBag.vpern;
+    ViewData["Title"] = "| " + PageTitle;
+    var Help_Tips = GblUtilities.HelpTips(Page_Tips);
+    /*success|fail|error'*/
+    string ShowMsg = GblUtilities.MsgDisplay(Context.Request.Query["msg"].ToString());
+}
+
+@Html.AntiForgeryToken()
+<h2 class="titlebig"><span name="header" id="header">@Page_Mode</span> @Html.Raw(Help_Tips)</h2>
+@Html.Hidden("mode", "")
+
+<div id="message_header"><p id="loading" class="loading displaynone">@msg_please_wait</p></div>
+
+<div class="row">
+    <div class="col-lg-2"><label class="col-lg-12 col-form-label-lg">Employee Status:</label></div>
+    <div class="col-lg-10">
+        @Html.DropDownList("EmployeeStatusFilter", (SelectList)ViewBag.EmployeeStatusFilter, new { @class = "form-select", style = "width:300px;" })
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-2"><label class="col-lg-12 col-form-label-lg">Year:</label></div>
+    <div class="col-lg-10">
+        @Html.DropDownList("YearFilter", (SelectList)ViewBag.YearDropDown, new { @class = "form-select", style = "width:300px;" })
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-2"><label class="col-lg-12 col-form-label-lg">Month:</label></div>
+    <div class="col-lg-10">
+        @Html.DropDownList("MonthFilter", (SelectList)ViewBag.MonthDropDown, new { @class = "form-select", style = "width:300px;" })
+    </div>
+</div>
+
+<div class="row"><span id="blnShow" class="normal red">@ViewBag.msg_cant_edit_salary_processed</span></div>
+
+<div class="p-0 bg-white rounded mb-3">
+    <div class="row align-items-center">
+        <div class="col-auto ms-auto">
+            @Html.Raw(ViewBag.ViewButtons)
+        </div>
+    </div>
+</div>
+
+<div class="form-group p-2">
+    <table id="tblData" class="display compact nowrap" style="width:100%">
+        <thead>
+            <tr style="background-color:silver; height:40px;">
+                <th></th>
+                <th>Employee</th>
+                <th colspan="5">Actual</th>
+                <th colspan="14">Addition</th>
+                <th colspan="7">Deduction</th>
+                <th colspan="4">Advances</th>
+                <th>Contribution</th>
+                <th colspan="3">Loan</th>
+                <th>Net</th>
+            </tr>
+            <tr style="background-color:silver; height:40px;">
+                <th width="1%"><input type="checkbox" id="selectAll"></th>
+                <th width="5%">Name (ID)</th>
+                <th width="5%">Basic Salary</th>
+                <th width="5%">PF Addition</th>
+                <th width="5%">PF Deduction</th>
+                <th width="5%">CIT Deduction</th>
+                <th width="5%">RAA</th>
+                <th width="5%">Basic Salary</th>
+                <th width="5%">PF</th>
+                <th width="5%">CEA</th>
+                <th width="5%">Performance</th>
+                <th width="5%">RAA</th>
+                <th width="5%">Overtime</th>
+                <th width="5%">Dashain</th>
+                <th width="5%">Gratuity</th>
+                <th width="5%">SSF</th>
+                <th width="5%">Annual Health Checkup</th>
+                <th width="5%">Insurance</th>
+                <th width="5%">Other</th>
+                <th width="5%">Medical/Insurance</th>
+                <th width="5%">Leave Encashment</th>
+                <th width="5%">PF</th>
+                <th width="5%">CIT</th>
+                <th width="5%">Gratuity</th>
+                <th width="5%">SSF</th>
+                <th width="5%">Annual Health Checkup</th>
+                <th width="5%">Prev. Year Excess/(Less) Tax</th>
+                <th width="5%">Income Tax</th>
+                <th width="5%">Personal</th>
+                <th width="5%">Travel</th>
+                <th width="5%">Program</th>
+                <th width="5%">Field</th>
+                <th width="5%">Welfare</th>
+                <th width="5%">PF</th>
+                <th width="5%">CIT</th>
+                <th width="5%">Welfare</th>
+                <th width="5%">Amount</th>
+            </tr>
+        </thead>
+    </table>
+</div>
+<div id="message_header">@Html.Raw(ShowMsg)</div>
+@if (ViewBag.epern == "true")
+{
+    <div class="form-group row p-1">
+        <label class="col-sm-4 col-form-label">&nbsp;</label>
+        <div class="col-sm-8">
+            <button type="reset" name="btnReset" id="btnReset" class="button btn-secondary">Reset</button>
+            <button type="button" name="btnSave" id="btnSave" class="button btn-primary">Save</button>
+        </div>
+    </div>
+}
+@await Html.PartialAsync("_SharedModal", new wwfpp.Models.ModalViewModel { ModalId = "ModalID", DialogClass = "modal-lg", BodyId = "ModalBody", })
+
+@section scripts
+{
+    <script>
+        var ilaka = "/Payroll/FieldStaffSalary";
+        var selectedIds = new Set();
+        var hideviewaction = "yes";
+        var table;
+        $(document).ready(function () {
+            GetAllData(ilaka, "emp_id", [
+                { data: "employee", name: "employee", autoWidth: false, render: function (data, type, row) { return data; } },
+                { data: "act_basic_salary", name: "act_basic_salary", autoWidth: false, render: function (data, type, row, meta) { return '<input type="number" name="act_basic_salary' + meta.row + '" id="act_basic_salary' + meta.row + '" value="' + data + '" class="form-control act-basic-salary-input" style = "width:90px; "min="0" max="9999999999" aria-label="Actual Basic Salary">'; } },
+                { data: "act_pf_a", name: "act_pf_a", autoWidth: false, render: function (data, type, row, meta) { return '<input type="number" name="act_pf_a' + meta.row + '" id="act_pf_a' + meta.row + '" value="' + data + '" class="form-control act-pf-a-input" style = "width:90px;" min="0" max="9999999999">'; } },
+                { data: "act_pf_d", name: "act_pf_d", autoWidth: false, render: function (data, type, row, meta) { return '<input type="number" name="act_pf_d' + meta.row + '" id="act_pf_d' + meta.row + '" value="' + data + '" class="form-control act-pf-d-input" style = "width:90px;" min="0" max="9999999999">'; } },
+                { data: "a_cit_d", name: "a_cit_d", autoWidth: false, render: function (data, type, row, meta) { return '<input type="number" name="a_cit_d' + meta.row + '" id="a_cit_d' + meta.row + '" value="' + data + '" class="form-control a-cit-d-input" style = "width:90px;" min="0" max="9999999999">'; } },
+                { data: "act_remote_area_all", name: "act_remote_area_all", autoWidth: false, render: function (data, type, row, meta) { return '<input type="number" name="act_remote_area_all' + meta.row + '" id="act_remote_area_all' + meta.row + '" value="' + data + '" class="form-control act-remote-area-all-input" style = "width:90px;" min="0" max="9999999999">'; } },
+                { data: "basic_salary", name: "basic_salary", autoWidth: false, render: function (data, type, row, meta) { return '<input type="number" name="basic_salary' + meta.row + '" id="basic_salary' + meta.row + '" value="' + data + '" class="form-control basic-salary-input" style = "width:90px;" min="0" max="9999999999">'; } },
+                { data: "pf_a", name: "pf_a", autoWidth: false, render: function (data, type, row, meta) { return '<input type="number" name="pf_a' + meta.row + '" id="pf_a' + meta.row + '" value="' + data + '" class="form-control pf-a-input" style = "width:90px;" min="0" max="9999999999">'; } },
+                { data: "children_edu_all", name: "children_edu_all", autoWidth: false, render: function (data, type, row, meta) { return '<input type="number" name="children_edu_all' + meta.row + '" id="children_edu_all' + meta.row + '" value="' + data + '" class="form-control children-edu-all-input" style = "width:90px;" min="0" max="9999999999">'; } },
+                { data: "performance_all", name: "performance_all", autoWidth: false, render: function (data, type, row, meta) { return '<input type="number" name="performance_all' + meta.row + '" id="performance_all' + meta.row + '" value="' + data + '" class="form-control performance-all-input" style = "width:90px;" min="0" max="9999999999">'; } },
+                { data: "remote_area_all", name: "remote_area_all", autoWidth: false, render: function (data, type, row, meta) { return '<input type="number" name="remote_area_all' + meta.row + '" id="remote_area_all' + meta.row + '" value="' + data + '" class="form-control remote-area-all-input" style = "width:90px;" min="0" max="9999999999">'; } },
+                { data: "overtime", name: "overtime", autoWidth: false, render: function (data, type, row, meta) { return '<input type="number" name="overtime' + meta.row + '" id="overtime' + meta.row + '" value="' + data + '" class="form-control overtime-input" style = "width:90px;" min="0" max="9999999999">'; } },
+                { data: "dashain_a", name: "dashain_a", autoWidth: false, render: function (data, type, row, meta) { return '<input type="number" name="dashain_a' + meta.row + '" id="dashain_a' + meta.row + '" value="' + data + '" class="form-control dashain-a-input" style = "width:90px;" min="0" max="9999999999">'; } },
+                { data: "gratuity", name: "gratuity", autoWidth: false, render: function (data, type, row, meta) { return '<input type="number" name="gratuity' + meta.row + '" id="gratuity' + meta.row + '" value="' + data + '" class="form-control gratuity-input" style = "width:90px;" min="0" max="9999999999">'; } },
+                { data: "ssf", name: "ssf", autoWidth: false, render: function (data, type, row, meta) { return '<input type="number" name="ssf' + meta.row + '" id="ssf' + meta.row + '" value="' + data + '" class="form-control ssf-input" style = "width:90px;" min="0" max="9999999999">'; } },
+                { data: "annual_health_checkup_add", name: "annual_health_checkup_add", autoWidth: false, render: function (data, type, row, meta) { return '<input type="number" name="annual_health_checkup_add' + meta.row + '" id="annual_health_checkup_add' + meta.row + '" value="' + data + '" class="form-control annual-health-checkup-add-input" style = "width:90px;" min="0" max="9999999999">'; } },
+                { data: "insurance", name: "insurance", autoWidth: false, render: function (data, type, row, meta) { return '<input type="number" name="insurance' + meta.row + '" id="insurance' + meta.row + '" value="' + data + '" class="form-control insurance-input" style = "width:90px;" min="0" max="9999999999">'; } },
+                { data: "others", name: "others", autoWidth: false, render: function (data, type, row, meta) { return '<input type="number" name="others' + meta.row + '" id="others' + meta.row + '" value="' + data + '" class="form-control others-input" style = "width:90px;" min="0" max="9999999999">'; } },
+                { data: "medical_expense_reimburse_total", name: "medical_expense_reimburse_total", autoWidth: false, render: function (data, type, row, meta) { return '<input type="number" name="medical_expense_reimburse_total' + meta.row + '" id="medical_expense_reimburse_total' + meta.row + '" value="' + data + '" class="form-control medical-expense-reimburse-total-input" style = "width:90px;" min="0" max="9999999999">'; } },
+                { data: "leave_encash", name: "leave_encash", autoWidth: false, render: function (data, type, row, meta) { return '<input type="number" name="leave_encash' + meta.row + '" id="leave_encash' + meta.row + '" value="' + data + '" class="form-control leave-encash-input" style = "width:90px;" min="0" max="9999999999">'; } },
+                { data: "pf_d", name: "pf_d", autoWidth: false, render: function (data, type, row, meta) { return '<input type="number" name="pf_d' + meta.row + '" id="pf_d' + meta.row + '" value="' + data + '" class="form-control pf-d-input" style = "width:90px;" min="0" max="9999999999">'; } },
+                { data: "cit_d", name: "cit_d", autoWidth: false, render: function (data, type, row, meta) { return '<input type="number" name="cit_d' + meta.row + '" id="cit_d' + meta.row + '" value="' + data + '" class="form-control cit-d-input" style = "width:90px;" min="0" max="9999999999">'; } },
+                { data: "gratuity_ded", name: "gratuity_ded", autoWidth: false, render: function (data, type, row, meta) { return '<input type="number" name="gratuity_ded' + meta.row + '" id="gratuity_ded' + meta.row + '" value="' + data + '" class="form-control gratuity-ded-input" style = "width:90px;" min="0" max="9999999999">'; } },
+                { data: "ssf_ded", name: "ssf_ded", autoWidth: false, render: function (data, type, row, meta) { return '<input type="number" name="ssf_ded' + meta.row + '" id="ssf_ded' + meta.row + '" value="' + data + '" class="form-control ssf-ded-input" style = "width:90px;" min="0" max="9999999999">'; } },
+                { data: "annual_health_checkup_ded", name: "annual_health_checkup_ded", autoWidth: false, render: function (data, type, row, meta) { return '<input type="number" name="annual_health_checkup_ded' + meta.row + '" id="annual_health_checkup_ded' + meta.row + '" value="' + data + '" class="form-control annual-health-checkup_ded-input" style = "width:90px;" min="0" max="9999999999">'; } },
+                { data: "pre_access_tax", name: "pre_access_tax", autoWidth: false, render: function (data, type, row, meta) { return '<input type="number" name="pre_access_tax' + meta.row + '" id="pre_access_tax' + meta.row + '" value="' + data + '" class="form-control pre-access-tax-input" style = "width:90px;" min="0" max="9999999999">'; } },
+                { data: "incometax_d", name: "incometax_d", autoWidth: false, render: function (data, type, row, meta) { return '<input type="number" name="incometax_d' + meta.row + '" id="incometax_d' + meta.row + '" value="' + data + '" class="form-control incometax-d-input" style = "width:90px;" min="0" max="9999999999">'; } },
+                { data: "tel_per_adv", name: "tel_per_adv", autoWidth: false, render: function (data, type, row, meta) { return '<input type="number" name="tel_per_adv' + meta.row + '" id="tel_per_adv' + meta.row + '" value="' + data + '" class="form-control tel-per-adv-input" style = "width:90px;" min="0" max="9999999999">'; } },
+                { data: "travel_prog_adv", name: "travel_prog_adv", autoWidth: false, render: function (data, type, row, meta) { return '<input type="number" name="travel_prog_adv' + meta.row + '" id="travel_prog_adv' + meta.row + '" value="' + data + '" class="form-control travel-prog-adv-input" style = "width:90px;" min="0" max="9999999999">'; } },
+                { data: "pr_adv", name: "pr_adv", autoWidth: false, render: function (data, type, row, meta) { return '<input type="number" name="pr_adv' + meta.row + '" id="pr_adv' + meta.row + '" value="' + data + '" class="form-control pr-adv-input" style = "width:90px;" min="0" max="9999999999">'; } },
+                { data: "fd_adv", name: "fd_adv", autoWidth: false, render: function (data, type, row, meta) { return '<input type="number" name="fd_adv' + meta.row + '" id="fd_adv' + meta.row + '" value="' + data + '" class="form-control fd-adv-input" style = "width:90px;" min="0" max="9999999999">'; } },
+                { data: "welfare_fund", name: "welfare_fund", autoWidth: false, render: function (data, type, row, meta) { return '<input type="number" name="welfare_fund' + meta.row + '" id="welfare_fund' + meta.row + '" value="' + data + '" class="form-control welfare-fund-input" style = "width:90px;" min="0" max="9999999999">'; } },
+                { data: "adv_pf_loan", name: "adv_pf_loan", autoWidth: false, render: function (data, type, row, meta) { return '<input type="number" name="adv_pf_loan' + meta.row + '" id="adv_pf_loan' + meta.row + '" value="' + data + '" class="form-control adv-pf-loan-input" style = "width:90px;" min="0" max="9999999999">'; } },
+                { data: "adv_cit_loan", name: "adv_cit_loan", autoWidth: false, render: function (data, type, row, meta) { return '<input type="number" name="adv_cit_loan' + meta.row + '" id="adv_cit_loan' + meta.row + '" value="' + data + '" class="form-control adv-cit-loan-input" style = "width:90px;" min="0" max="9999999999">'; } },
+                { data: "wl_adv", name: "wl_adv", autoWidth: false, render: function (data, type, row, meta) { return '<input type="number" name="wl_adv' + meta.row + '" id="wl_adv' + meta.row + '" value="' + data + '" class="form-control wl-adv-input" style = "width:90px;" min="0" max="9999999999">'; } },
+                { data: "net_in_hand", name: "net_in_hand", autoWidth: false, render: function (data, type, row, meta) { return '<input type="number" name="net_in_hand' + meta.row + '" id="net_in_hand' + meta.row + '" value="' + data + '" class="form-control net-in-hand-input" style = "width:90px;" min="0" max="9999999999">'; } }
+            ],
+                {
+                    Status: "EmployeeStatusFilter",
+                    Year: "YearFilter",
+                    Month: "MonthFilter"
+                }
+            );
+        });
+        $(document).on("blur", "input[type=number]", function () {
+            let val = $(this).val();
+            if (val < 0 || val.length > 10) {
+                showError("Invalid input: must be positive and up to 10 digits.");
+                $(this).val(""); // reset
+            }
+        });
+        $(document).off("click", "#btnSave").on("click", "#btnSave", function () { $("#mode").val("update"); updateDataJSON(ilaka + "Save"); });
+        $(document).off('click', '#btnDownLoadFormat').on('click', '#btnDownLoadFormat', function () { postdata(ilaka + 'DownloadFormat'); });
+        $(document).off('click', '#btnImport').on('click', '#btnImport', function () {
+            $("#modal-message").text("").hide();
+            $("#ModalBody").html("");
+            var _year = $("#YearFilter").val();
+            var _month = $("#MonthFilter").val();
+            $.get(ilaka + "Import", { sal_year: _year, sal_month: _month }, function (data) {
+                $("#ModalBody").html(data);
+                $("#ModalID .modal-title").text("Import");
+                var modal = new bootstrap.Modal(document.getElementById("ModalID"));
+                modal.show();
+            }).fail(function (xhr) { showError("Error occured while loading record(s): " + xhr.responseText); });
+        });
+        function collectExtraFields() {
+            var extraSettings = [];
+            $("#tblData tbody tr").each(function () {
+                var row = $(this);
+                var id = row.find("input.row-checkbox:checked").val();
+                if (selectedIds.has(id)) {
+                    extraSettings.push({
+                        emp_id: parseInt(id, 10),
+                        sal_year: $("#YearFilter").val() || 0,
+                        sal_month: $("#MonthFilter").val() || 0,
+                        act_basic_salary: row.find("input[name^='act_basic_salary']").val(),
+                        act_pf_a: row.find("input[name^='act_pf_a']").val(),
+                        act_pf_d: row.find("input[name^='act_pf_d']").val(),
+                        a_cit_d: row.find("input[name^='a_cit_d']").val(),
+                        act_remote_area_all: row.find("input[name^='act_remote_area_all']").val(),
+                        basic_salary: row.find("input[name^='basic_salary']").val(),
+                        pf_a: row.find("input[name^='pf_a']").val(),
+                        children_edu_all: row.find("input[name^='children_edu_all']").val(),
+                        performance_all: row.find("input[name^='performance_all']").val(),
+                        remote_area_all: row.find("input[name^='remote_area_all']").val(),
+                        overtime: row.find("input[name^='overtime']").val(),
+                        dashain_a: row.find("input[name^='dashain_a']").val(),
+                        gratuity: row.find("input[name^='gratuity']").val(),
+                        ssf: row.find("input[name^='ssf']").val(),
+                        annual_health_checkup_add: row.find("input[name^='annual_health_checkup_add']").val(),
+                        annual_health_checkup_add: row.find("input[name^='annual_health_checkup_add']").val(),
+                        insurance: row.find("input[name^='insurance']").val(),
+                        others: row.find("input[name^='others']").val(),
+                        medical_expense_reimburse_total: row.find("input[name^='medical_expense_reimburse_total']").val(),
+                        leave_encash: row.find("input[name^='leave_encash']").val(),
+                        pf_d: row.find("input[name^='pf_d']").val(),
+                        cit_d: row.find("input[name^='cit_d']").val(),
+                        gratuity_ded: row.find("input[name^='gratuity_ded']").val(),
+                        ssf_ded: row.find("input[name^='ssf_ded']").val(),
+                        annual_health_checkup_ded: row.find("input[name^='annual_health_checkup_ded']").val(),
+                        pre_access_tax: row.find("input[name^='pre_access_tax']").val(),
+                        incometax_d: row.find("input[name^='incometax_d']").val(),
+                        tel_per_adv: row.find("input[name^='tel_per_adv']").val(),
+                        travel_prog_adv: row.find("input[name^='travel_prog_adv']").val(),
+                        pr_adv: row.find("input[name^='pr_adv']").val(),
+                        fd_adv: row.find("input[name^='fd_adv']").val(),
+                        welfare_fund: row.find("input[name^='welfare_fund']").val(),
+                        adv_pf_loan: row.find("input[name^='adv_pf_loan']").val(),
+                        adv_cit_loan: row.find("input[name^='adv_cit_loan']").val(),
+                        wl_adv: row.find("input[name^='wl_adv']").val(),
+                        net_in_hand: row.find("input[name^='net_in_hand']").val()
+                    });
+                }
+            });
+            return extraSettings;
+        }
+        $(document).off("click", "#btnExport").on("click", "#btnExport", function () {
+            var btn = $(this);
+            if (btn.text().trim() === "Export") {
+                if (checkInput('cmb', 'YearFilter', 'Year is required.', 'modal-message') == false) { return false; }
+                if (checkInput('cmb', 'MonthFilter', 'Month is required.', 'modal-message') == false) { return false; }
+                if (confirm(msg_are_you_sure_to_perform_this_action) == false) { return false; }
+                var formData = $("#frm").serialize();
+                $.post("/Payroll/FieldStaffSalaryExport", formData).done(function (data) {
+                    if (data.status === "success") {
+                        showSuccess(msg_data_exported_success, "modal-message");
+                        window.location = data.url; // triggers download
+                    } else { showError(data.message, "modal-message"); }
+                }).fail(function (xhr) { showError(xhr.responseText, "modal-message"); });
+            }
+        });
+    </script>
+}

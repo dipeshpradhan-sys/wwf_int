@@ -1,0 +1,4135 @@
+﻿using Azure.Core;
+using ClosedXML.Excel;
+using DocumentFormat.OpenXml.Bibliography;
+using DocumentFormat.OpenXml.Drawing.Charts;
+using DocumentFormat.OpenXml.Office2016.Drawing.ChartDrawing;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using System.Globalization;
+using System.Linq.Dynamic.Core;
+using System.Runtime.Intrinsics.X86;
+using System.Text;
+using wwfpp.Data;
+using wwfpp.EmailServices;
+using wwfpp.Helpers;
+using wwfpp.Models;
+using wwfpp.Models.Payroll;
+using wwfpp.Services;
+
+using static GblUtilities;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
+using static System.Runtime.InteropServices.JavaScript.JSType;
+
+namespace wwfpp.Controllers
+{
+    public class PayrollController : Controller
+    {
+        private readonly AppDbContext _context;
+        private readonly AppSettings _appSettings;
+        private readonly SessionHelper _sessionHelper;
+        private readonly EmailService _emailService;
+        private readonly GlobalOptionServices _globalOptionServices;
+        private readonly EmployeeServices _employeeServices;
+        private readonly SettingsServices _settingsServices;
+        private readonly AccountServices _accountServices;
+        private readonly PayrollServices _payrollServices;
+        private readonly PaySlipManager _paySlipManager;
+        private readonly IWebHostEnvironment _webHostEnvironment;
+        public PayrollController(
+            AppDbContext context,
+            IOptions<AppSettings> appSettings,
+            SessionHelper sessionHelper,
+            EmailService emailService,
+            GlobalOptionServices globalOptionServices,
+            EmployeeServices employeeServices,
+            SettingsServices settingsServices,
+            AccountServices accountServices,
+            PayrollServices payrollServices,
+            PaySlipManager paySlipManager,
+            IWebHostEnvironment webHostEnvironment
+        )
+        {
+            _context = context;
+            _appSettings = appSettings.Value; // unwrap IOptions<AppSettings>
+            _sessionHelper = sessionHelper;
+            _emailService = emailService;
+            _globalOptionServices = globalOptionServices;
+            _employeeServices = employeeServices;
+            _settingsServices = settingsServices;
+            _accountServices = accountServices;
+            _payrollServices = payrollServices;
+            _paySlipManager = paySlipManager;
+            _webHostEnvironment = webHostEnvironment;
+        }
+
+        /********************************************************************************************************************/
+        /********************************************************************************************************************/
+        /********************************************************************************************************************/
+        /********************************************************************************************************************/
+        /********************************************************************************************************************/
+        /********************************************************************************************************************/
+        /********************************************************************************************************************/
+        /********************************************************************************************************************/
+        #region 10916 SWF LOAN
+        [HttpGet]
+        public IActionResult SWFLoan()
+        {
+            string PageId = "10916";
+            #region FOR PERMISSION
+            var perm = _accountServices.GetMenuPermission(PageId);
+            if (perm.vpern == "false") { return RedirectToAction("PermissionDenied", "Home"); }
+            ViewBag.apern = perm.apern;
+            ViewBag.epern = perm.epern;
+            ViewBag.dpern = perm.dpern;
+            #endregion FOR END PERMISSION
+
+            var Records = (from emp in _context.tbl_employee
+                           join lft in _context.tbl_employee_swf_loan
+                           on emp.emp_id equals lft.emp_id
+                           orderby lft.start_year descending, lft.start_month descending
+                           select new SwfLoanViewModel
+                           {
+                               emp_id = lft.emp_id ?? 0,
+                               start_year = lft.start_year,
+                               start_month = lft.start_month,
+                               amount = lft.amount,
+                               int_amount = lft.int_amount,
+                               total_loan = lft.amount + lft.int_amount,
+                               no_of_installment = lft.no_of_installment,
+                               status = lft.status,
+                               remarks = lft.remarks,
+                               firstname = emp.firstname,
+                               middlename = emp.middlename,
+                               lastname = emp.lastname,
+                               employee = $"{emp.firstname} {emp.middlename} {emp.lastname} ({emp.emp_code})",
+                               emp_status = emp.emp_status
+                           }).ToList();
+            ViewBag.EmployeeStatusFilter = StatusActivePassive("AD", "A");
+            ViewBag.LoanStatusFilter = StatusActivePassive("AP", "A");
+            ViewBag.ViewButtons = _accountServices.getAddEditDeleteAccess("Payroll/_SWFLoan", "ADD|DEL", PageId, Records.Count);
+            return PartialView("Payroll/_SWFLoan", Records);
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SWFLoanList([FromForm] MultipleCostumFilterRequest request)
+        {
+            var (pageSize, skip, draw, sortColumn, sortColumnDir, searchValue) = DataTableHelper.GetParameters(Request);
+
+            var EmployeeStatusFilter = request.FilterValue1;
+            var LoanStatusFilter = request.FilterValue2;
+
+            var query = from emp in _context.tbl_employee
+                        join lft in _context.tbl_employee_swf_loan
+                        on emp.emp_id equals lft.emp_id
+                        select new SwfLoanViewModel
+                        {
+                            id = lft.id,
+                            emp_id = lft.emp_id ?? 0,
+                            start_year = lft.start_year,
+                            start_month = lft.start_month,
+                            amount = lft.amount,
+                            int_amount = lft.int_amount,
+                            no_of_installment = lft.no_of_installment,
+                            total_loan = (lft.amount ?? 0) + (lft.int_amount ?? 0),
+                            month_installment = Math.Round(((lft.amount ?? 0) + (lft.int_amount ?? 0)) / (lft.no_of_installment ?? 0), 2),
+                            status = lft.status,
+                            remarks = lft.remarks,
+                            firstname = emp.firstname,
+                            middlename = emp.middlename,
+                            lastname = emp.lastname,
+                            employee = $"{emp.firstname} {emp.middlename} {emp.lastname} ({emp.emp_code})",
+                            emp_status = emp.emp_status
+                        };
+            if (!string.IsNullOrEmpty(EmployeeStatusFilter))
+            {
+                query = query.Where(d => d.emp_status == EmployeeStatusFilter);
+            }
+            if (!string.IsNullOrEmpty(LoanStatusFilter))
+            {
+                query = query.Where(d => d.status == LoanStatusFilter);
+            }
+            if (!string.IsNullOrEmpty(sortColumn) && !string.IsNullOrEmpty(sortColumnDir))
+            {
+                if (sortColumn == "employee")
+                {
+                    if (sortColumnDir == "asc")
+                    {
+                        query = query.OrderBy(d => d.firstname).ThenBy(d => d.middlename).ThenBy(d => d.lastname);
+                    }
+                    else
+                    {
+                        query = query.OrderByDescending(d => d.firstname).ThenByDescending(d => d.middlename).ThenByDescending(d => d.lastname);
+                    }
+                }
+                else
+                {
+                    if (sortColumn != "month_installment") { query = query.OrderBy(sortColumn + " " + sortColumnDir); }
+                }
+            }
+            if (!string.IsNullOrWhiteSpace(searchValue))
+            {
+                query = query.Where(a =>
+                    a.firstname != null && a.firstname.Contains(searchValue) ||
+                    a.middlename != null && a.middlename.Contains(searchValue) ||
+                    a.lastname != null && a.lastname.Contains(searchValue) ||
+                    a.remarks != null && a.remarks.Contains(searchValue)
+                );
+            }
+            var data = query.ToList();
+
+            int totalRecord = data.Count();
+            if (pageSize == -1) { pageSize = totalRecord; }
+            var cData = data.Skip(skip).Take(pageSize).ToList();
+            var jsonData = new
+            {
+                draw,
+                recordsFiltered = totalRecord,
+                recordsTotal = totalRecord,
+                data = cData
+            };
+            return new JsonResult(jsonData);
+        }
+        public IActionResult SWFLoanAddEdit(string id, string mode)
+        {
+            string PageId = "10916";
+            #region FOR PERMISSION
+            var perm = _accountServices.GetMenuPermission(PageId);
+            if (perm.vpern == "false") { return RedirectToAction("PermissionDenied", "Home"); }
+            ViewBag.apern = perm.apern;
+            ViewBag.epern = perm.epern;
+            ViewBag.dpern = perm.dpern;
+            #endregion FOR END PERMISSION
+            ViewBag.Status = StatusActivePassive("AP", "A");
+            ViewBag.YearDropDown = _settingsServices.GetYears(DateTime.Now.Year);
+            ViewBag.MonthDropDown = _settingsServices.GetMonths(DateTime.Now.Month);
+
+            ViewBag.mode = mode;
+            ViewBag.DATE_FORMAT = _appSettings.DATE_FORMAT;
+            SwfLoanViewModel model;
+
+            model = new SwfLoanViewModel();
+            if (mode == "add")
+            {
+                ViewBag.EmployeeList = _payrollServices.GetEmployeeNotHavingActiveSWFLoan();
+                return PartialView("Payroll/_SWFLoanAddEdit", model);
+            }
+            else if (mode == "edit")
+            {
+                if (id == null)
+                {
+                    return Json(new { success = false, message = Lang.msg_error });
+                }
+                else
+                {
+                    var sw = (from emp in _context.tbl_employee
+                              join e in _context.tbl_employee_swf_loan
+                              on emp.emp_id equals e.emp_id
+                              where e.id == id.ToString()
+                              select new
+                              {
+                                  e.id,
+                                  e.emp_id,
+                                  e.start_year,
+                                  e.start_month,
+                                  e.amount,
+                                  e.int_amount,
+                                  e.no_of_installment,
+                                  e.status,
+                                  e.remarks,
+                                  total_loan = Math.Round((e.amount ?? 0) + (e.int_amount ?? 0), 2),
+                                  employee = $"{emp.firstname} {emp.middlename} {emp.lastname} ({emp.emp_code})",
+                                  emp.emp_status
+                              }).FirstOrDefault();
+                    if (sw == null) { return Json(new { success = false, message = Lang.msg_error }); }
+
+                    model = new SwfLoanViewModel
+                    {
+                        id = sw.id,
+                        emp_id = sw.emp_id ?? 0,
+                        start_year = sw.start_year,
+                        start_month = sw.start_month,
+                        amount = Math.Round(sw.amount ?? 0, 2),
+                        int_amount = Math.Round(sw.int_amount ?? 0, 2),
+                        no_of_installment = sw.no_of_installment,
+                        status = sw.status,
+                        remarks = sw.remarks,
+                        total_loan = sw.total_loan,
+                        month_installment = Math.Round(((sw.amount ?? 0) + (sw.int_amount ?? 0)) / (sw.no_of_installment ?? 0), 2),
+                        employee = sw.employee,
+                        emp_status = sw.emp_status
+                    };
+
+                    decimal totalLoan = sw.total_loan;
+                    DateTime fiscal = new DateTime(Convert.ToInt32(sw.start_year), Convert.ToInt32(sw.start_month), 1);
+                    decimal totalBulkPaid = _payrollServices.GetSwfLoanBulkPaid(id);
+                    decimal totalMonltyPaid = _payrollServices.GetSwfLoanPaidHistory(sw.emp_id ?? 0, fiscal, totalLoan, sw.id);
+                    decimal totalPaid = totalMonltyPaid + totalBulkPaid;
+                    decimal totalDue = totalLoan - totalPaid;
+
+                    ViewBag.TotalPaid = Math.Round(totalPaid, 2);
+                    ViewBag.TotalDue = Math.Round(totalDue, 2);
+
+                    var result = (from settle in _context.tbl_employee_swf_loan_direct_settle
+                                  where settle.swf_loan_id == id.ToString()
+                                  select new
+                                  {
+                                      s_amount = (decimal?)settle.amount,
+                                      settle.s_date,
+                                      s_remarks = settle.remarks
+                                  }).FirstOrDefault();
+                    if (result != null)
+                    {
+                        model.paid_amount = Math.Round(result.s_amount ?? 0, 2);
+                        model.s_remarks = result.s_remarks;
+                        model.s_date = result.s_date;
+                    }
+                    return PartialView("Payroll/_SWFLoanAddEdit", model);
+
+                }
+            }
+            else
+            {
+                return Json(new { success = false, message = Lang.msg_error });
+            }
+        }
+
+        public JsonResult SWFLoanSave(SwfLoanViewModel model)
+        {
+            ModelState.Remove("id");
+
+            if (!ModelState.IsValid)
+            {
+                return Json(new { status = "invalid", message = Lang.msg_error_invalid });
+            }
+            string? mode = Request.Form["mode"];
+            int? emp_id = model.emp_id ?? 0;
+            string? start_year = model.start_year;
+            string? start_month = model.start_month;
+            decimal? amount = model.amount ?? 0;
+            decimal? int_amount = model.int_amount;
+            int? no_of_installment = model.no_of_installment;
+            string? status = model.status;
+            string? remarks = model.remarks;
+
+            DateTime givenDate = new DateTime(int.Parse(start_year), int.Parse(start_month), 1);
+
+            string? fiscalYear = _settingsServices.GetFiscalYearByDate(givenDate);
+
+            // ADD NEW
+            if (mode == "add")
+            {
+                //check if the data is exits on another record
+                var isData = _context.tbl_employee_swf_loan
+                        .FirstOrDefault(u => u.emp_id == emp_id && u.start_year == start_year && u.start_month == start_month
+                        );
+                if (isData != null)
+                {
+                    return Json(new { status = "false", message = Lang.msg_record_exist_other });
+                }
+
+                var newId = Guid.NewGuid().ToString();
+                var DataSave = new tbl_employee_swf_loan
+                {
+                    id = newId,
+                    emp_id = emp_id,
+                    start_year = start_year,
+                    start_month = start_month,
+                    amount = amount,
+                    int_amount = int_amount,
+                    no_of_installment = no_of_installment,
+                    status = status,
+                    remarks = remarks,
+                    fiscal_year = fiscalYear
+                };
+                _ = _context.tbl_employee_swf_loan.Add(DataSave);
+                _ = _context.SaveChanges();
+
+                return Json(new { status = "success", message = Lang.msg_added_success });
+            }
+            else if (mode == "edit")
+            {
+                string? swfId = Request.Form["id"];
+
+                // Fetch the existing record first
+                var DataUpdate = _context.tbl_employee_swf_loan
+                    .FirstOrDefault(h => h.id.ToString() == swfId && h.start_year == start_year && h.start_month == start_month);
+
+                if (DataUpdate == null)
+                {
+                    return Json(new { status = "notfound", message = Lang.msg_no_record_found });
+                }
+
+                DataUpdate.id = swfId;
+                DataUpdate.emp_id = emp_id;
+                DataUpdate.start_year = start_year;
+                DataUpdate.start_month = start_month;
+                DataUpdate.amount = amount;
+                DataUpdate.int_amount = int_amount;
+                DataUpdate.no_of_installment = no_of_installment;
+                DataUpdate.status = status;
+                DataUpdate.remarks = remarks;
+                DataUpdate.fiscal_year = fiscalYear;
+
+                _ = _context.tbl_employee_swf_loan.Update(DataUpdate);
+                _ = _context.SaveChanges();
+
+                return Json(new { status = "success", message = Lang.msg_update_success, id = DataUpdate.id });
+            }
+            else
+            {
+                return Json(new { status = "invalid", message = Lang.msg_error_invalid });
+            }
+        }
+        public async Task<IActionResult> SWFLoanDelete([FromBody] DeleteRequest request)
+        {
+            // Validate input
+            if (request?.SelectedIds == null || !request.SelectedIds.Any())
+            {
+                return BadRequest(new { status = false, message = Lang.msg_no_record_selected });
+            }
+
+            // Delete from tbl_employee_swf_loan
+            var loansToDelete = _context.tbl_employee_swf_loan
+                .Where(r => request.SelectedIds.Contains(r.id))
+                .ToList();
+
+            if (!loansToDelete.Any())
+            {
+                return NotFound(new { status = "false", message = Lang.msg_no_record_found });
+            }
+
+            // Delete from tbl_employee_swf_loan_direct_settle (linked by swf_loan_id)
+            var settleToDelete = _context.tbl_employee_swf_loan_direct_settle
+                .Where(r => request.SelectedIds.Contains(r.swf_loan_id ?? string.Empty))
+                .ToList();
+
+            // Remove both sets
+            _context.tbl_employee_swf_loan_direct_settle.RemoveRange(settleToDelete);
+            _context.tbl_employee_swf_loan.RemoveRange(loansToDelete);
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                status = "success",
+                deletedCount = loansToDelete.Count + settleToDelete.Count,
+                message = Lang.msg_delete_success.Replace("[<DELETED-ROWS>]", (loansToDelete.Count + settleToDelete.Count).ToString())
+            });
+        }
+
+        public async Task<IActionResult> SwfLoanTotal(int? employeeID)
+        {
+            // Sum loan amounts and interest from tbl_employee_swf_loan
+            var totalLoanAmount = _context.tbl_employee_swf_loan
+                .Where(l => l.emp_id == employeeID)
+                .Sum(l => (decimal?)l.amount) ?? 0;
+
+            var totalInterestAmount = _context.tbl_employee_swf_loan
+                .Where(l => l.emp_id == employeeID)
+                .Sum(l => (decimal?)l.int_amount) ?? 0;
+
+            // Sum paid amounts from tbl_employee_swf_loan_direct_settle
+            var totalPaidAmount = (from settle in _context.tbl_employee_swf_loan_direct_settle
+                                   join loan in _context.tbl_employee_swf_loan
+                                       on settle.swf_loan_id equals loan.id
+                                   where loan.emp_id == employeeID
+                                   select (decimal?)settle.amount).Sum() ?? 0;
+
+            // Calculate due
+            var totalDue = (totalLoanAmount + totalInterestAmount) - totalPaidAmount;
+
+            // Pass values to ViewBag
+            ViewBag.TotalLoan = totalLoanAmount;
+            ViewBag.TotalInterest = totalInterestAmount;
+            ViewBag.TotalPaid = totalPaidAmount;
+            ViewBag.TotalDue = totalDue;
+
+            return PartialView("Payroll/_SwfLoanTotal", "");
+        }
+        [HttpPost]
+        public async Task<IActionResult> SWFLoanSettlementSave(string? id, decimal? s_amount, DateTime? s_date, string? s_remarks)
+        {
+            var recordsToDelete = await _context.tbl_employee_swf_loan_direct_settle
+                .Where(r => r.swf_loan_id == id)
+                    .ToListAsync().ConfigureAwait(false);
+
+            if (recordsToDelete.Any())
+            {
+                _context.tbl_employee_swf_loan_direct_settle.RemoveRange(recordsToDelete);
+                await _context.SaveChangesAsync();
+            }
+            var newId = Guid.NewGuid().ToString();
+            var DataSave = new tbl_employee_swf_loan_direct_settle
+            {
+                id = newId,
+                amount = s_amount,
+                s_date = s_date,
+                remarks = s_remarks,
+                swf_loan_id = id
+            };
+            _context.tbl_employee_swf_loan_direct_settle.Add(DataSave);
+            _context.SaveChanges();
+
+            return Json(new { status = "success", message = Lang.msg_update_success });
+
+        }
+        public async Task<IActionResult> SWFLoanSettlementDelete(string? id)
+        {
+            var recordsToDelete = await _context.tbl_employee_swf_loan_direct_settle
+                .Where(r => r.swf_loan_id == id.ToString())
+                .ToListAsync().ConfigureAwait(false);
+            if (!recordsToDelete.Any())
+            {
+                return Json(new { status = "error", message = Lang.msg_no_record_found });
+            }
+
+            _context.tbl_employee_swf_loan_direct_settle.RemoveRange(recordsToDelete);
+            var deletedCount = await _context.SaveChangesAsync();
+
+            return Json(new { status = "success", message = Lang.msg_delete_success.Replace("[<DELETED-ROWS>]", deletedCount.ToString()) });
+        }
+
+
+        #endregion
+        /********************************************************************************************************************/
+        #region 10906 OVERTIME BULK
+        [HttpGet]
+        public IActionResult OvertimeBulk()
+        {
+            string PageId = "10906";
+            #region FOR PERMISSION
+            var perm = _accountServices.GetMenuPermission(PageId);
+            if (perm.vpern == "false") { return RedirectToAction("PermissionDenied", "Home"); }
+            ViewBag.apern = perm.apern;
+            ViewBag.epern = perm.epern;
+            ViewBag.dpern = perm.dpern;
+            #endregion FOR END PERMISSION
+
+            ViewBag.StatusFilter = StatusActivePassive("AD", "A");
+            ViewBag.YearDropDown = _settingsServices.GetYears(DateTime.Now.Year);
+            ViewBag.MonthDropDown = _settingsServices.GetMonths(DateTime.Now.Month);
+            return PartialView("Payroll/_OvertimeBulk", "");
+        }
+        [HttpPost]
+        public async Task<IActionResult> OvertimeBulkList([FromForm] DataFilterRequest request)
+        {
+            var (pageSize, skip, draw, sortColumn, sortColumnDir, searchValue) = DataTableHelper.GetParameters(Request);
+            var statusFilter = request.Status;
+            int yearFilter = request.Year ?? 0;
+            int monthFilter = request.Month ?? 0;
+
+            // First day of the selected month/year
+            DateTime currentPeriod = new DateTime(yearFilter, monthFilter, 1);
+            DateTime startDate = currentPeriod.AddMonths(-1);
+            DateTime endDate = DateTime.Now;
+
+            string fiscalYear = _settingsServices.GetFiscalYearByDate(currentPeriod);
+            double appTimes = 1.5;
+            int appSetting = 8;
+            int dhrs = 22 * 8; //176 ours
+            if (!string.IsNullOrWhiteSpace(fiscalYear))
+            {
+                appSetting = Convert.ToInt32(_settingsServices.GetHourSettings("normal_working_hrs", fiscalYear));
+                dhrs = Convert.ToInt32(_settingsServices.GetHourSettings("working_hrs_per_pay_period", fiscalYear));
+            }
+
+            //check if salary is already processed
+            bool blnShow = false;
+            var sal = await _context.tbl_employee_salary
+                .Where(d => d.sal_year == yearFilter && d.sal_month == monthFilter)
+                .FirstOrDefaultAsync().ConfigureAwait(false);
+            if (sal != null) { blnShow = true; }
+
+            // Overtime employees
+            var overtimeEmployees = (
+                from e in _context.tbl_employee
+                join ot in _context.tbl_employee_overtime
+                    on e.emp_id equals ot.emp_id
+                where e.emp_status == statusFilter
+                      && ot.sal_year == yearFilter
+                      && ot.sal_month == monthFilter
+                select new
+                {
+                    e.emp_id,
+                    FullName = $"{e.firstname} {e.middlename} {e.lastname} ({e.emp_code})",
+                    e.emp_code,
+                    e.gender,
+                    e.join_date,
+                    e.end_date,
+                    salary = (decimal?)e.salary,
+                    Times = (double?)ot.times,
+                    PeriodHours = (int?)ot.pay_period_total_working_hrs,
+                    Rate = (decimal?)ot.rate,
+                    Hrs = (double?)ot.hrs,
+                    Difference = (decimal?)ot.ot_diff,
+                    Remarks = ot.remarks ?? "",
+                    e.emp_status
+                }
+            ).ToList();
+
+            List<dynamic> rawData;
+            if (overtimeEmployees.Any())
+            {
+                rawData = overtimeEmployees.Cast<dynamic>().ToList();
+            }
+            else
+            {
+                // Precompute overtime hours lookup
+                var otHoursLookup = _context.tbl_employee_overtime_request
+                    .Where(h => h.app_status == "A"
+                                && h.is_paid == "N"
+                                && h.ot_date >= startDate
+                                && h.ot_date <= endDate)
+                    .GroupBy(h => h.emp_id ?? 0)
+                    .Select(g => new { EmpId = g.Key, TotalHours = g.Sum(x => x.total_hours) })
+                    .ToDictionary(x => x.EmpId, x => x.TotalHours ?? 0);
+
+                // Case B: No overtime records → show all eligible employees
+                var eligibleEmployees = (
+                    from e in _context.tbl_employee
+                    where e.emp_status == statusFilter
+                          && _context.tbl_employee_overtime_settings
+                               .Any(s => s.emp_id == e.emp_id && s.is_get_overtime == "Y")
+                    select new
+                    {
+                        e.emp_id,
+                        FullName = $"{e.firstname} {e.middlename} {e.lastname} ({e.emp_code})",
+                        e.emp_code,
+                        e.gender,
+                        e.join_date,
+                        e.end_date,
+                        salary = (decimal?)e.salary,
+                        Times = (double?)appTimes,
+                        PeriodHours = dhrs,
+                        Rate = (decimal?)0,
+                        Hrs = (double?)(otHoursLookup.ContainsKey(e.emp_id) ? otHoursLookup[e.emp_id] : 0),
+                        Difference = (decimal?)0,
+                        Remarks = "",
+                        e.emp_status
+                    }
+                ).ToList();
+
+                rawData = eligibleEmployees.Cast<dynamic>().ToList();
+            }
+            // Search filter
+            if (!string.IsNullOrEmpty(searchValue))
+            {
+                rawData = rawData
+                    .Where(e => e.FullName.Contains(searchValue) || e.gender.Contains(searchValue))
+                    .ToList();
+            }
+
+            // Sorting
+            if (!string.IsNullOrEmpty(sortColumn) && !string.IsNullOrEmpty(sortColumnDir))
+            {
+                rawData = rawData.AsQueryable().OrderBy($"{sortColumn} {sortColumnDir}").ToList();
+            }
+
+            var data = rawData.ToList();
+            int recordsTotal = data.Count;
+            if (pageSize == -1) { pageSize = recordsTotal; }
+            var cData = data.Skip(skip).Take(pageSize).ToList();
+
+            var isDiffMonth = await _context.tbl_salary_differential_month
+                .Where(d => d.sal_year == yearFilter && d.sal_month == monthFilter)
+                .FirstOrDefaultAsync().ConfigureAwait(false);
+
+            var jsonData = new
+            {
+                draw,
+                recordsFiltered = recordsTotal,
+                recordsTotal,
+                totalRecordSub = yearFilter > 0 && monthFilter > 0
+                    ? _context.tbl_employee_overtime.Count(h => h.sal_year == yearFilter && h.sal_month == monthFilter)
+                    : 0,
+                blnShow,
+                data = cData.Select(x => new
+                {
+                    x.emp_id,
+                    x.FullName,
+                    x.emp_code,
+                    gender = x.gender == "M" ? "Male" : "Female",
+                    join_date = x.join_date?.ToString("dd-MMM-yyyy"),
+                    end_date = x.end_date?.ToString("dd-MMM-yyyy"),
+                    BasicSalary = x.salary,
+                    x.Times,
+                    x.PeriodHours,
+                    x.Rate,
+                    x.Hrs,
+                    Amount = (x.Rate * (decimal)(x.Hrs ?? 0)),
+                    x.Difference,
+                    Total = ((x.Rate * (decimal)(x.Hrs ?? 0)) + x.Difference),
+                    x.Remarks,
+                    isDiffMonth = isDiffMonth != null ? "Y" : "N"
+                })
+            };
+
+            return new JsonResult(jsonData);
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public JsonResult OvertimeBulkSave(int Year, int Month, IFormCollection form)
+        {
+            string PageId = "10903";
+            #region FOR PERMISSION
+            var perm = _accountServices.GetMenuPermission(PageId);
+            ViewBag.apern = perm.apern;
+            ViewBag.epern = perm.epern;
+            #endregion FOR END PERMISSION
+
+            if (perm.apern != "true" && perm.epern != "true") { return Json(new { status = "invalid", message = "Not Authorized User" }); }
+            int submitBy = Convert.ToInt32(HttpContext.Session.GetString("emp_id"));
+            var submitDate = DateTime.Now;
+            bool hasDataToSave = false;
+
+            // First pass: check if any employee has amt or otDiff > 0
+            foreach (var key in form.Keys)
+            {
+                if (key.StartsWith("empid_"))
+                {
+                    var empIdStr = key.Replace("empid_", "");
+                    if (!int.TryParse(empIdStr, out int empId)) continue;
+
+                    string amtStr = form[$"amount_{empId}"].ToString();
+                    decimal amt = string.IsNullOrWhiteSpace(amtStr) ? 0 : Convert.ToDecimal(amtStr);
+
+                    string diffStr = form[$"difference_{empId}"].ToString();
+                    decimal otDiff = string.IsNullOrWhiteSpace(diffStr) ? 0 : Convert.ToDecimal(diffStr);
+
+                    if (amt != 0 || otDiff != 0)
+                    {
+                        hasDataToSave = true;
+                        break; // no need to check further
+                    }
+                }
+            }
+            if (!hasDataToSave)
+            {
+                return Json(new { success = false, message = Lang.msg_employee_overtime_bulk_error_save });
+            }
+            // Step 1: Clear existing overtime records for this year/month
+            var existing = _context.tbl_employee_overtime
+                .Where(o => o.sal_year == Year && o.sal_month == Month);
+            _context.tbl_employee_overtime.RemoveRange(existing);
+
+            var requestsToReset = _context.tbl_employee_overtime_request
+                .Where(r => r.app_status == "A"
+                         && r.is_paid == "Y"
+                         && r.paid_month == Month
+                         && r.paid_year == Year
+                         && !_context.tbl_employee_overtime.Any(o => o.emp_id == r.emp_id));
+            foreach (var req in requestsToReset)
+            {
+                req.is_paid = "N";
+            }
+            // Step 2: Insert new overtime records
+            foreach (var key in form.Keys)
+            {
+                if (key.StartsWith("empid_"))
+                {
+                    var empIdStr = key.Replace("empid_", "");
+                    if (!int.TryParse(empIdStr, out int empId)) { continue; }
+
+                    string basicSalaryStr = form[$"basic_salary_{empId}"].ToString();
+                    decimal basicSalary = string.IsNullOrWhiteSpace(basicSalaryStr) ? 0 : Convert.ToDecimal(basicSalaryStr);
+
+                    string dhrsStr = form[$"periodHours_{empId}"].ToString();
+                    decimal dhrs = string.IsNullOrWhiteSpace(dhrsStr) ? 0 : Convert.ToDecimal(dhrsStr);
+
+                    string timesStr = form[$"times_{empId}"].ToString();
+                    decimal times = string.IsNullOrWhiteSpace(timesStr) ? 0 : Convert.ToDecimal(timesStr);
+
+                    string rateStr = form[$"rate_{empId}"].ToString();
+                    decimal rate = string.IsNullOrWhiteSpace(rateStr) ? 0 : Convert.ToDecimal(rateStr);
+
+                    string hrsStr = form[$"hrs_{empId}"].ToString();
+                    decimal hrs = string.IsNullOrWhiteSpace(hrsStr) ? 0 : Convert.ToDecimal(hrsStr);
+
+                    string amtStr = form[$"amount_{empId}"].ToString();
+                    decimal amt = string.IsNullOrWhiteSpace(amtStr) ? 0 : Convert.ToDecimal(amtStr);
+
+                    string diffStr = form[$"difference_{empId}"].ToString();
+                    decimal otDiff = string.IsNullOrWhiteSpace(diffStr) ? 0 : Convert.ToDecimal(diffStr);
+
+                    string remarks = form[$"remarks_{empId}"].ToString();
+
+                    if (amt == 0 && otDiff == 0) continue;
+                    var maxId = _context.tbl_employee_overtime.Max(e => (int?)e.ot_id) ?? 0;
+                    var newId = maxId + 1;
+
+                    var overtime = new tbl_employee_overtime
+                    {
+                        ot_id = newId,
+                        emp_id = empId,
+                        sal_year = Year,
+                        sal_month = Month,
+                        basic_salary = basicSalary,
+                        times = (double)times,
+                        rate = rate,
+                        hrs = (double)hrs,
+                        remarks = remarks,
+                        submit_date = submitDate,
+                        submit_by = submitBy,
+                        ot_diff = otDiff,
+                        pay_period_total_working_hrs = (int)dhrs
+                    };
+
+                    _ = _context.tbl_employee_overtime.Add(overtime);
+
+                    var requests = _context.tbl_employee_overtime_request
+                        .Where(r => r.emp_id == empId
+                                 && r.app_status == "A"
+                                 && r.is_paid == "N"
+                                 && r.ot_date >= submitDate.AddMonths(-1)
+                                 && r.ot_date <= submitDate);
+
+                    foreach (var req in requests)
+                    {
+                        req.is_paid = "Y";
+                        req.paid_month = Month;
+                        req.paid_year = Year;
+                        req.paid_day = 15;
+                    }
+                }
+            }
+            _ = _context.SaveChanges();
+            return Json(new { success = true, message = Lang.msg_update_success });
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult OvertimeBulkClear(int Year, int Month)
+        {
+            var existing = _context.tbl_employee_overtime
+                .Where(o => o.sal_year == Year && o.sal_month == Month);
+
+            _context.tbl_employee_overtime.RemoveRange(existing);
+            _ = _context.SaveChanges();
+            _context.ChangeTracker.Clear();
+
+            // Reset overtime request table
+            var requests = _context.tbl_employee_overtime_request
+                .Where(r => r.app_status == "A"
+                         && r.is_paid == "Y"
+                         && r.paid_month == Month
+                         && r.paid_year == Year
+                         && !_context.tbl_employee_overtime.Any(o => o.emp_id == r.emp_id));
+
+            foreach (var req in requests)
+            {
+                req.is_paid = "N";
+            }
+
+            _ = _context.SaveChanges();
+            return Json(new { success = true, message = Lang.msg_clear_success });
+        }
+        #endregion
+        /********************************************************************************************************************/
+        #region 10903 EMPLOYEE DASHAIN ALLOWANCE
+        private object IsAllDashainZero(string? FiscalYearFilter)
+        {
+            var fiscalYearFilter = FiscalYearFilter;
+            var (SalYear, SalMonth, Show) = _payrollServices.GetDashainAllowanceYearMonth(fiscalYearFilter ?? string.Empty);
+
+            var sal_year = SalYear;
+            var sal_month = SalMonth;
+            bool exists = (from e in _context.tbl_employee
+                           where e.emp_status == "A" &&
+                                 _context.tbl_employee_salary_extra_settings
+                                     .Any(s => s.emp_id == e.emp_id && s.is_get_dashain == "Y")
+                           join sal in _context.tbl_employee_salary
+                               on e.emp_id equals sal.emp_id
+                           where sal.sal_year == sal_year
+                              && sal.sal_month == sal_month
+                              && sal.is_dashain == "Y"
+                           select sal).Any();
+
+            return new
+            {
+                canSaveButton = exists ? "Y" : "N"
+            };
+        }
+        private void SetInsertAccrualFundSource(string parmId, int parmEmpId, string parmFiscalYear, DateTime parmStartFiscalDate, DateTime parmEndFiscalDate, string parmInsertTable, short? parmPeriod)
+        {
+            var exists = _context.tbl_employee_dashain_allowance_emp_wise.Any(x => x.id == parmId && x.counter == parmPeriod);
+
+            if (!exists) return;
+
+            var fundSources = _context.tbl_employee_fund_source
+                .Where(fs => fs.emp_id == parmEmpId
+                             && fs.start_date >= parmStartFiscalDate
+                             && fs.start_date <= parmEndFiscalDate
+                             && _context.tbl_fund_source
+                                 .Where(f => f.fund_status == "A" && f.expiry_date > DateTime.Now)
+                                 .Select(f => f.fund_id)
+                                 .Contains(fs.fund_id))
+                .Select(fs => new { fs.fund_id, fs.annual_hrs })
+                .ToList();
+
+            int fnCnt = 0;
+            foreach (var fs in fundSources)
+            {
+                fnCnt++;
+                int? fnFundId = fs.fund_id;
+                double fnAnnualHrs = fs.annual_hrs ?? 0;
+
+                if (fnFundId != 0)
+                {
+                    string fsid = parmId + fnCnt;
+
+                    var newRecord = new tbl_employee_dashain_allowance_fund_wise
+                    {
+                        id = fsid,
+                        emp_id = parmEmpId,
+                        fiscal_year = parmFiscalYear,
+                        fund_id = fnFundId,
+                        hours = fnAnnualHrs,
+                        submit_date = DateTime.Now,
+                        counter = parmPeriod
+                    };
+
+                    _ = _context.Set<tbl_employee_dashain_allowance_fund_wise>().Add(newRecord);
+                }
+            }
+            _context.SaveChanges();
+        }
+        [HttpGet]
+        public IActionResult DashainAllowance()
+        {
+            string PageId = "10903";
+            #region FOR PERMISSION
+            var perm = _accountServices.GetMenuPermission(PageId);
+            if (perm.vpern == "false") { return RedirectToAction("PermissionDenied", "Home"); }
+            ViewBag.apern = perm.apern;
+            ViewBag.epern = perm.epern;
+            ViewBag.dpern = perm.dpern;
+            #endregion FOR END PERMISSION
+
+            string? FiscalYearActive = HttpContext.Session.GetString("fiscal_year");
+            ViewBag.FiscalYearActive = FiscalYearActive;
+            ViewBag.FiscalYearList = _settingsServices.GetFiscalYears(FiscalYearActive ?? string.Empty);
+            var (SalYear, SalMonth, Show) = _payrollServices.GetDashainAllowanceYearMonth(FiscalYearActive ?? string.Empty);
+
+            ViewBag.SalYear = SalYear;
+            ViewBag.SalMonth = CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(SalMonth);
+
+            return PartialView("Payroll/_DashainAllowance", "");
+        }
+        [HttpPost]
+        public async Task<IActionResult> DashainAllowanceList([FromForm] DataFilterRequest request)
+        {
+            var (pageSize, skip, draw, sortColumn, sortColumnDir, searchValue) = DataTableHelper.GetParameters(Request);
+            var fiscalYearFilter = request.FiscalYearFilter;
+            ViewBag.FiscalYearFilter = fiscalYearFilter;
+            var (SalYear, SalMonth, Show) = _payrollServices.GetDashainAllowanceYearMonth(fiscalYearFilter ?? string.Empty);
+
+            bool blnShow = Show;
+
+            IQueryable<object> query;
+
+            if (!blnShow)
+            {
+                query = from e in _context.tbl_employee
+                        where e.emp_status == "A" &&
+                              _context.tbl_employee_salary_extra_settings
+                                  .Any(s => s.emp_id == e.emp_id && s.is_get_dashain == "Y")
+                        orderby e.firstname, e.middlename, e.lastname
+                        select new
+                        {
+                            e.emp_id,
+                            FullName = e.firstname + " " + e.middlename + " " + e.lastname,
+                            e.emp_code,
+                            dashain_amount = e.salary,
+                            remarks = string.Empty,
+                            fiscal_year = fiscalYearFilter,
+                            sal_year = SalYear,
+                            sal_month = SalMonth,
+                            e.emp_status
+                        };
+            }
+            else
+            {
+                query = from e in _context.tbl_employee
+                        join d in _context.tbl_employee_dashain_allowance_emp_wise
+                            on e.emp_id equals d.emp_id
+                        where d.fiscal_year == fiscalYearFilter && d.counter == 1
+                        orderby e.firstname, e.middlename, e.lastname
+                        select new
+                        {
+                            e.emp_id,
+                            FullName = e.firstname + " " + e.middlename + " " + e.lastname,
+                            e.emp_code,
+                            d.dashain_amount,
+                            d.remarks,
+                            d.fiscal_year,
+                            sal_year = SalYear,
+                            sal_month = SalMonth,
+                            e.emp_status
+                        };
+            }
+            // Apply search filter
+            if (!string.IsNullOrEmpty(searchValue))
+            {
+                query = query.Where(e => EF.Functions.Like((string)e.GetType().GetProperty("FullName").GetValue(e), $"%{searchValue}%")
+                                    || EF.Functions.Like((string)e.GetType().GetProperty("emp_code").GetValue(e), $"%{searchValue}%"));
+            }
+            var data = await query.ToListAsync();
+            int recordsTotal = data.Count;
+            if (pageSize == -1) { pageSize = recordsTotal; }
+            var cData = data.Skip(skip).Take(pageSize).ToList();
+
+            var jsonData = new
+            {
+                draw,
+                recordsFiltered = recordsTotal,
+                recordsTotal,
+                data = cData,
+                salYear = SalYear,
+                salMonth = SalMonth,
+                blnShow
+            };
+            return new JsonResult(jsonData);
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult DashainAllowanceblnMessage(string? FiscalYearFilter)
+        {
+            var fiscalYearFilter = FiscalYearFilter;
+            var (SalYear, SalMonth, Show) = _payrollServices.GetDashainAllowanceYearMonth(fiscalYearFilter ?? string.Empty);
+            return Json(new { success = true, message = Lang.msg_clear_success, blnShow = Show });
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public JsonResult DashainAllowanceCheckEligibility(string? FiscalYearFilter)
+        {
+            var (SalYear, SalMonth, Show) = _payrollServices.GetDashainAllowanceYearMonth(FiscalYearFilter ?? string.Empty);
+
+            bool blnShow = Show;
+            var result = IsAllDashainZero(FiscalYearFilter);
+            var canSaveButton = (result as dynamic).canSaveButton;
+            return Json(new
+            {
+                blnShow,
+                is_all_dashain_a_zero = canSaveButton
+            });
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public JsonResult DashainAllowanceSave([FromBody] DashainAllowancListeViewModel model)
+        {
+            string PageId = "10903";
+            #region FOR PERMISSION
+            var perm = _accountServices.GetMenuPermission(PageId);
+            ViewBag.apern = perm.apern;
+            ViewBag.epern = perm.epern;
+            #endregion FOR END PERMISSION
+
+            if (perm.apern != "true" && perm.epern != "true") { return Json(new { status = "invalid", message = "Not Authorized User" }); }
+            if (!ModelState.IsValid) { return Json(new { status = "error", message = Lang.msg_error_invalid }); }
+            if (model?.Fields == null || !model.Fields.Any()) { return Json(new { status = "error", message = "No employees received." }); }
+            double? total_hours = 0;
+            foreach (var update in model.Fields)
+            {
+                var fiscalPeriod = _context.tbl_fiscal_year.FirstOrDefault(c => c.fiscal_year == update.fiscal_year);
+                var start_fiscal_date = fiscalPeriod?.date_from;
+                var end_fiscal_date = fiscalPeriod?.date_to;
+
+                var totalHours = (
+                    from f in _context.tbl_employee_fund_source
+                    where f.emp_id == update.emp_id
+                          && f.start_date >= start_fiscal_date
+                          && f.start_date <= end_fiscal_date
+                          && _context.tbl_fund_source.Any(fs =>
+                                fs.fund_id == f.fund_id &&
+                                fs.fund_status == "A" &&
+                                fs.expiry_date > DateTime.Now)
+                    select f.annual_hrs
+                ).Sum();
+                total_hours = totalHours > 0 ? totalHours : 0;
+                var existing = _context.tbl_employee_dashain_allowance_emp_wise
+                    .FirstOrDefault(x => x.emp_id == update.emp_id && x.fiscal_year == update.fiscal_year && x.counter == 1);
+
+                var nextId = UniqueID();
+                var newRow = new tbl_employee_dashain_allowance
+                {
+                    id = nextId,
+                    fiscal_year = update.fiscal_year,
+                    sal_year = Convert.ToInt32(update.sal_year),
+                    sal_month = Convert.ToInt32(update.sal_month),
+                    submit_date = System.DateTime.Now,
+                    counter = 1
+                };
+                _context.tbl_employee_dashain_allowance.Add(newRow);
+                _context.SaveChanges();
+
+                var newRowEmpWise = new tbl_employee_dashain_allowance_emp_wise
+                {
+                    id = nextId.ToString(),
+                    fiscal_year = update.fiscal_year,
+                    emp_id = update.emp_id,
+                    dashain_amount = Convert.ToDecimal(update.dashain_amount),
+                    total_hours = Convert.ToDouble(update.total_hours),
+                    remarks = update.remarks,
+                    counter = 1
+                };
+                _context.tbl_employee_dashain_allowance_emp_wise.Add(newRowEmpWise);
+                _context.SaveChanges();
+
+                SetInsertAccrualFundSource(nextId, update.emp_id, update.fiscal_year, Convert.ToDateTime(start_fiscal_date), Convert.ToDateTime(end_fiscal_date), "tbl_employee_dashain_allowance_fund_wise", 1);
+            }
+            return Json(new { status = "success", message = Lang.msg_update_success });
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<JsonResult> DashainAllowanceClear(string? fiscalYear, int? period)
+        {
+            _ = await _context.Database.ExecuteSqlRawAsync("DELETE FROM tbl_employee_dashain_allowance WHERE fiscal_year = {0} AND counter = {1}", fiscalYear, period).ConfigureAwait(false);
+            _ = await _context.Database.ExecuteSqlRawAsync("DELETE FROM tbl_employee_dashain_allowance_emp_wise WHERE fiscal_year = {0} AND counter = {1}", fiscalYear, period).ConfigureAwait(false);
+            _ = await _context.Database.ExecuteSqlRawAsync("DELETE FROM tbl_employee_dashain_allowance_fund_wise WHERE fiscal_year = {0} AND counter = {1}", fiscalYear, period).ConfigureAwait(false);
+
+            return Json(new
+            {
+                status = "success",
+                message = "clearsuccess",
+                fiscal_year = fiscalYear,
+                period
+            });
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult DashainAllowanceExport(string fiscalYear, int period)
+        {
+            // Get Organization name
+            var OrgName = _globalOptionServices.OptionServices["op_org_name"];
+
+            // Get sal_year and sal_month from allowance table
+            var allowance = _context.tbl_employee_dashain_allowance
+                .FirstOrDefault(x => x.fiscal_year == fiscalYear && x.counter == period);
+
+            string salYear = allowance?.sal_year?.ToString() ?? "";
+            string salMonth = allowance?.sal_month?.ToString() ?? "";
+
+            // Query employee allowance records
+            var records = (from e in _context.tbl_employee
+                           join d in _context.tbl_employee_dashain_allowance_emp_wise
+                               on e.emp_id equals d.emp_id
+                           where d.fiscal_year == fiscalYear && d.counter == period
+                           orderby e.firstname, e.middlename, e.lastname
+                           select new
+                           {
+                               e.emp_id,
+                               e.emp_code,
+                               FullName = e.firstname + " " + e.middlename + " " + e.lastname,
+                               d.dashain_amount,
+                               d.remarks
+                           }).ToList();
+
+            using (var workbook = new XLWorkbook())
+            {
+                var ws = workbook.Worksheets.Add("DashainAllowance");
+
+                int row = 1;
+                ws.Cell(row++, 1).Value = "Organization: " + OrgName; // replace with actual org name
+                ws.Cell(row++, 1).Value = "Fiscal Year: " + fiscalYear;
+                ws.Cell(row++, 1).Value = "Year: " + salYear;
+                ws.Cell(row++, 1).Value = "Month: " + salMonth;
+                ws.Cell(row++, 1).Value = "Staff Statement of Dashain";
+
+                row++;
+                // Header
+                ws.Cell(row, 1).Value = "Serial Number";
+                ws.Cell(row, 2).Value = "Employee Name";
+                ws.Cell(row, 3).Value = "Employee ID";
+                ws.Cell(row, 4).Value = "Amount";
+                ws.Cell(row, 5).Value = "Remarks";
+                ws.Row(row).Style.Font.Bold = true;
+                row++;
+
+                decimal total = 0;
+                int serial = 1;
+                foreach (var r in records)
+                {
+                    ws.Cell(row, 1).Value = serial++;
+                    ws.Cell(row, 2).Value = r.FullName;
+                    ws.Cell(row, 3).Value = r.emp_code;
+                    ws.Cell(row, 4).Value = r.dashain_amount;
+                    ws.Cell(row, 5).Value = r.remarks;
+                    total += r.dashain_amount ?? 0;
+                    row++;
+                }
+
+                // Total row
+                ws.Cell(row, 1).Value = "Total";
+                ws.Range(row, 1, row, 3).Merge();
+                ws.Cell(row, 4).Value = total;
+
+                // Auto-fit columns
+                ws.Columns().AdjustToContents();
+
+                // Return file
+                using (var stream = new System.IO.MemoryStream())
+                {
+                    workbook.SaveAs(stream);
+                    var content = Convert.ToBase64String(stream.ToArray());
+
+                    return Json(new
+                    {
+                        status = "success",
+                        fileName = $"employee_dashain_allowance_export_{fiscalYear.Split('/')[1]}.xlsx",
+                        fileContent = content
+                    });
+                }
+            }
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult DashainAllowanceCCD(string fiscalYear, int period)
+        {
+            // Get Organization name
+            var OrgName = _globalOptionServices.OptionServices["op_org_name"];
+
+            // Get sal_year and sal_month
+            var allowance = _context.tbl_employee_dashain_allowance
+                .FirstOrDefault(x => x.fiscal_year == fiscalYear && x.counter == period);
+
+            string salYear = allowance?.sal_year?.ToString() ?? "";
+            string salMonth = allowance?.sal_month?.ToString() ?? "";
+
+            // Query employee allowance records
+            var records = (from e in _context.tbl_employee
+                           join d in _context.tbl_employee_dashain_allowance_emp_wise
+                               on e.emp_id equals d.emp_id
+                           where d.fiscal_year == fiscalYear && d.counter == period
+                           orderby e.firstname, e.middlename, e.lastname
+                           select new
+                           {
+                               e.emp_id,
+                               e.emp_code,
+                               FullName = e.firstname + " " + e.middlename + " " + e.lastname,
+                               d.dashain_amount,
+                               d.total_hours
+                           }).ToList();
+
+            using (var workbook = new XLWorkbook())
+            {
+                var ws = workbook.Worksheets.Add("DashainAllowanceCCD");
+
+                int row = 1;
+                ws.Cell(row++, 1).Value = "Organization: " + OrgName; // replace with actual org name
+                ws.Cell(row++, 1).Value = "Fiscal Year: " + fiscalYear;
+                ws.Cell(row++, 1).Value = "Year: " + salYear;
+                ws.Cell(row++, 1).Value = "Month: " + salMonth;
+                ws.Cell(row++, 1).Value = "Staff Statement of Dashain with Fund Source Allocated";
+
+                row++;
+                // Header
+                ws.Cell(row, 1).Value = "Serial Number";
+                ws.Cell(row, 2).Value = "Employee Name";
+                ws.Cell(row, 3).Value = "Employee ID";
+                ws.Cell(row, 4).Value = "Fund Source";
+                ws.Cell(row, 5).Value = "Hours";
+                ws.Cell(row, 6).Value = "Amount";
+                ws.Row(row).Style.Font.Bold = true;
+                row++;
+
+                string sbtype_gl = "B";
+                int serial = 1;
+                foreach (var r in records)
+                {
+                    var staffType = _context.tbl_employee_salary_extra_settings
+                        .FirstOrDefault(x => x.emp_id == r.emp_id);
+                    string staff_type = "";
+                    if (staffType != null) { staff_type = staffType.staff_type; }
+                    string gl_code = _payrollServices.GetGLCode(staff_type, sbtype_gl);
+
+                    ws.Cell(row, 1).Value = serial++;
+                    ws.Cell(row, 2).Value = r.FullName;
+                    ws.Cell(row, 3).Value = r.emp_code;
+                    ws.Cell(row, 4).Value = ""; // fund source code will be filled below
+                    ws.Cell(row, 5).Value = r.total_hours;
+                    ws.Cell(row, 6).Value = r.dashain_amount;
+                    row++;
+
+                    // Now query fund-wise allocations
+                    var fundWise = _context.tbl_employee_dashain_allowance_fund_wise
+                        .Where(f => f.emp_id == r.emp_id && f.fiscal_year == fiscalYear && f.counter == period)
+                        .ToList();
+
+                    foreach (var f in fundWise)
+                    {
+                        if (f.hours == 0) { continue; }
+
+                        string? fundSource = _context.tbl_fund_source
+                            .Where(fs => fs.fund_id == f.fund_id)
+                            .Select(fs => fs.fund_source)
+                            .FirstOrDefault();
+
+                        string fund_source = string.IsNullOrWhiteSpace(fundSource) ? "" : fundSource;
+                        fund_source = fund_source.Length > 21 ? fund_source.Substring(0, 21) : fund_source;
+                        // Build GL code logic (simplified)
+                        string append_0000 = "";
+                        int sal_year = Convert.ToInt32(salYear);
+                        int sal_month = Convert.ToInt32(salMonth);
+                        DateTime selDate = new DateTime(sal_year, sal_month, 1);
+                        DateTime chkDate = new DateTime(2016, 3, 15);
+                        if (selDate > chkDate)
+                        {
+                            append_0000 = "00000-";
+                        }
+                        string glFundSourceCode = $"{gl_code}-{fund_source}-{append_0000}{r.emp_code}";
+
+                        decimal amount = r.total_hours != 0
+                            ? Math.Round(((r.dashain_amount ?? 0m) * (decimal)(f.hours ?? 0d)) / (decimal)r.total_hours, 2)
+                            : 0m;
+
+                        ws.Cell(row, 4).Value = glFundSourceCode;
+                        ws.Cell(row, 5).Value = f.hours;
+                        ws.Cell(row, 6).Value = amount;
+                        row++;
+                    }
+                }
+
+                ws.Columns().AdjustToContents();
+
+                using (var stream = new System.IO.MemoryStream())
+                {
+                    workbook.SaveAs(stream);
+                    var content = Convert.ToBase64String(stream.ToArray());
+                    return Json(new
+                    {
+                        status = "success",
+                        fileName = $"employee_dashain_allowance_ccd_{fiscalYear.Split('/')[1]}.xlsx",
+                        fileContent = content
+                    });
+                }
+            }
+        }
+        #endregion
+        /********************************************************************************************************************/
+        #region 10917 WELFARE INTEREST
+        [HttpGet]
+        public IActionResult WelfareInterest()
+        {
+            string PageId = "10917";
+            #region FOR PERMISSION
+            var perm = _accountServices.GetMenuPermission(PageId);
+            if (perm.vpern == "false") { return RedirectToAction("PermissionDenied", "Home"); }
+            ViewBag.apern = perm.apern;
+            ViewBag.epern = perm.epern;
+            #endregion FOR END PERMISSION
+
+            ViewBag.EmployeeStatusFilter = StatusActivePassive("AD", "A");
+            ViewBag.YearDropDown = _settingsServices.GetYears(DateTime.Now.Year);
+            ViewBag.MonthDropDown = _settingsServices.GetMonths(DateTime.Now.Month);
+            ViewBag.ViewButtons = _accountServices.getAddEditDeleteAccess("Payroll/WelfareInterest", "DOWNLOAD-FORMAT|IMPORT|EXPORT", PageId, 1);
+            return PartialView("Payroll/_WelfareInterest", "");
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> WelfareInterestList([FromForm] DataFilterRequest request)
+        {
+            var (pageSize, skip, draw, sortColumn, sortColumnDir, searchValue) = DataTableHelper.GetParameters(Request);
+
+            string EmployeeStatusFilter = request.Status;
+            int yearFilter = request.Year ?? 0;
+            int monthFilter = request.Month ?? 0;
+
+            var query = from emp in _context.tbl_employee
+                        where emp.emp_status == EmployeeStatusFilter
+                        join lft in _context.tbl_employee_welfare_interest
+                              .Where(x => x.wl_year == yearFilter && x.wl_month == monthFilter)
+                              on emp.emp_id equals lft.emp_id into leftJoin
+                        from lft in leftJoin.DefaultIfEmpty()   // LEFT OUTER JOIN
+                        orderby emp.emp_status, emp.firstname, emp.middlename, emp.lastname
+                        select new
+                        {
+                            emp.emp_id,
+                            emp.firstname,
+                            emp.middlename,
+                            emp.lastname,
+                            emp.emp_status,
+                            employee = $"{emp.firstname} {emp.middlename} {emp.lastname} ({emp.emp_code})",
+                            wl_amount = lft.wl_amount ?? 0
+                        };
+
+            // Search filter
+            if (!string.IsNullOrEmpty(searchValue))
+            {
+                query = query.Where(e =>
+                e.firstname.Contains(searchValue) ||
+                e.middlename.Contains(searchValue) ||
+                e.lastname.Contains(searchValue)
+                );
+            }
+
+            if (!string.IsNullOrEmpty(sortColumn) && !string.IsNullOrEmpty(sortColumnDir))
+            {
+                if (sortColumn == "employee")
+                {
+                    if (sortColumnDir == "asc")
+                    {
+                        query = query.OrderBy(d => d.firstname).ThenBy(d => d.middlename).ThenBy(d => d.lastname);
+                    }
+                    else
+                    {
+                        query = query.OrderByDescending(d => d.firstname).ThenByDescending(d => d.middlename).ThenByDescending(d => d.lastname);
+                    }
+                }
+                else
+                {
+                    query = query.OrderBy(sortColumn + " " + sortColumnDir);
+                }
+            }
+
+            var data = query.ToList();
+            int totalRecord = data.Count();
+            if (pageSize == -1) { pageSize = totalRecord; }
+            var cData = data.Skip(skip).Take(pageSize).ToList();
+
+            var jsonData = new
+            {
+                draw,
+                recordsFiltered = totalRecord,
+                recordsTotal = totalRecord,
+                data = cData
+            };
+            return new JsonResult(jsonData);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public JsonResult WelfareInterestSave([FromBody] WelfareInterestListViewModel model)
+        {
+            string PageId = "10917";
+            #region FOR PERMISSION
+            var perm = _accountServices.GetMenuPermission(PageId);
+            ViewBag.apern = perm.apern;
+            ViewBag.epern = perm.epern;
+            #endregion FOR END PERMISSION
+
+            _ = ModelState.Remove("id");
+            if (perm.apern != "true" && perm.epern != "true") { return Json(new { status = "invalid", message = "Not Authorized User" }); }
+            if (!ModelState.IsValid) { return Json(new { status = "error", message = Lang.msg_error_invalid }); }
+            if (model?.Fields == null || !model.Fields.Any()) { return Json(new { status = "error", message = "No employees received." }); }
+
+            foreach (var item in model.Fields)
+            {
+                if (!item.emp_id.HasValue || !item.wl_year.HasValue || !item.wl_month.HasValue) { continue; }
+
+                var existing = _context.tbl_employee_welfare_interest
+                .Where(a => a.emp_id == item.emp_id
+                            && a.wl_year == item.wl_year
+                            && a.wl_month == item.wl_month)
+                .ToList();
+
+                if (existing.Count > 0)
+                {
+                    _context.tbl_employee_welfare_interest.RemoveRange(existing);
+                    _ = _context.SaveChanges();
+                    _context.ChangeTracker.Clear();
+                }
+                if (item.wl_amount > 0)
+                {
+                    var newRec = new tbl_employee_welfare_interest
+                    {
+                        id = UniqueID(),
+                        emp_id = item.emp_id,
+                        wl_year = item.wl_year.Value,
+                        wl_month = item.wl_month.Value,
+                        wl_amount = item.wl_amount.GetValueOrDefault(),
+                        submit_date = DateTime.Now,
+                        wl_fiscal_year = "",
+                        wl_emp_week = 0
+                    };
+                    _ = _context.tbl_employee_welfare_interest.Add(newRec);
+                    _ = _context.SaveChanges();
+                    _context.ChangeTracker.Clear();
+                }
+            }
+            return Json(new { status = "success", message = Lang.msg_update_success });
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public ActionResult WelfareInterestDownloadFormat()
+        {
+            var sb = new StringBuilder();
+            var header = new List<string> { "Employee Name", "Employee ID", "Amount" };
+            _ = sb.AppendLine(string.Join(",", header));
+
+            var employees = _context.tbl_employee
+                .Where(emp => emp.emp_id != 0 && emp.emp_status == "A")
+                .OrderBy(emp => emp.firstname)
+                .ThenBy(emp => emp.middlename)
+                .ThenBy(emp => emp.lastname)
+                .Select(emp => new
+                {
+                    emp.emp_id,
+                    emp.emp_code,
+                    employee = $"{emp.firstname} {emp.middlename} {emp.lastname}"
+                })
+                .ToList();
+            if (employees.Count > 0)
+            {
+                foreach (var record in employees)
+                {
+                    string emp_code = EscapeCSV(record.emp_code ?? "");
+                    string employee = EscapeCSV(record.employee ?? "");
+                    var NewValue = new List<string> { employee, emp_code, "0" };
+                    _ = sb.AppendLine(string.Join(",", NewValue));
+                }
+            }
+            else
+            {
+                _ = sb.AppendLine($"No record(s) found");
+            }
+            byte[] bytes = Encoding.UTF8.GetBytes(sb.ToString());
+            return File(bytes, "text/csv", "WelfareInterestDownloadedFormat.csv");
+        }
+        [HttpGet]
+        public IActionResult WelfareInterestImport(string? wl_year, string? wl_month)
+        {
+            string PageId = "10917";
+            #region FOR PERMISSION
+            var perm = _accountServices.GetMenuPermission(PageId);
+            if (perm.vpern == "false") { return RedirectToAction("PermissionDenied", "Home"); }
+            ViewBag.apern = perm.apern;
+            ViewBag.epern = perm.epern;
+            #endregion FOR END PERMISSION
+
+            short wlYear;
+            short wlMonth;
+            string wlMonthName = "";
+            if (string.IsNullOrWhiteSpace(wl_year) || string.IsNullOrWhiteSpace(wl_month))
+            {
+                wlYear = 0;
+                wlMonth = 0;
+            }
+            else
+            {
+                wlYear = Convert.ToInt16(wl_year);
+                wlMonth = Convert.ToInt16(wl_month);
+                wlMonthName = MonthName(wlMonth);
+            }
+            ViewBag.wl_year = wlYear;
+            ViewBag.wl_month = wlMonth;
+            ViewBag.WlMonthName = wlMonthName;
+            return PartialView("Payroll/_WelfareInterestImport");
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> WelfareInterestImportSave(IFormFile file)
+        {
+            if (file == null || file.Length == 0) { return Json(new { status = "error", message = Lang.NO_FILE_UPLOADED }); }
+            if (!FileValidator.ForCsv(file)) { return Json(new { status = "error", message = "There is problem with File." }); }
+
+            string? SelYear = Request.Form["wl_year"];
+            string? SelMonth = Request.Form["wl_month"];
+
+            if (string.IsNullOrEmpty(SelYear) || string.IsNullOrEmpty(SelMonth)) { return Json(new { status = "error", message = "Not valid year and/or month" }); }
+
+            short wlYear = Convert.ToInt16(SelYear);
+            short wlMonth = Convert.ToInt16(SelMonth);
+
+            if (wlYear < 1 || wlMonth < 1) { return Json(new { status = "error", message = "Not valid year and/or month" }); }
+            var errors = new List<string>();
+
+            using var reader = new StreamReader(file.OpenReadStream());
+            var headerLine = await reader.ReadLineAsync().ConfigureAwait(false);
+            headerLine = headerLine.Replace("\r", "", StringComparison.OrdinalIgnoreCase)
+                                   .Replace("\n", "", StringComparison.OrdinalIgnoreCase)
+                                   .Replace("\"", "", StringComparison.OrdinalIgnoreCase);
+            var headers = headerLine.Split(',').Select(h => h.Trim('"')).ToList();
+
+            while (!reader.EndOfStream)
+            {
+                var line = await reader.ReadLineAsync();
+                if (string.IsNullOrWhiteSpace(line)) { continue; }
+
+                if (line != null)
+                {
+                    line = line.Replace("\"", "", StringComparison.OrdinalIgnoreCase);
+                    var values = line.Split(',').Select(v => v.Trim('"')).ToList();
+                    string empCode = values[1];
+                    string employeeCode = _employeeServices.GetValidEmpCode(empCode);
+                    var emp = _context.tbl_employee.FirstOrDefault(e => e.emp_code == employeeCode); // INSTEAD OF THIS SECTION paymgr.getIDByEmpCode(s_emp_code)
+
+                    if (emp == null || emp.emp_status != "A")
+                    {
+                        errors.Add("> " + Lang.INACTIVE_EMPLOYEE.Replace("<[EMP-CODE]>", employeeCode, StringComparison.OrdinalIgnoreCase));
+                        continue;
+                    }
+
+                    var existing = _context.tbl_employee_welfare_interest
+                    .Where(a => a.emp_id == emp.emp_id
+                                && a.wl_year == wlYear
+                                && a.wl_month == wlMonth)
+                    .ToList();
+
+                    if (existing.Any())
+                    {
+                        _context.tbl_employee_welfare_interest.RemoveRange(existing);
+                        _ = _context.SaveChanges();
+                        _context.ChangeTracker.Clear();
+                    }
+                    double wl_amount = Convert.ToDouble(values[2]);
+                    if (wl_amount > 0)
+                    {
+                        var newRec = new tbl_employee_welfare_interest
+                        {
+                            id = UniqueID(),
+                            emp_id = emp.emp_id,
+                            wl_year = wlYear,
+                            wl_month = wlMonth,
+                            wl_amount = wl_amount,
+                            submit_date = DateTime.Now,
+                            wl_fiscal_year = "",
+                            wl_emp_week = 0
+                        };
+                        _ = _context.tbl_employee_welfare_interest.Add(newRec);
+                        _ = _context.SaveChanges();
+                        _context.ChangeTracker.Clear();
+                    }
+                }
+            }
+            return Json(new { status = "success", message = Lang.EMPLOYEE_FUND_SOURCE_IMPORT_SUCCESSFUL });
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public ActionResult WelfareInterestExport()
+        {
+            var sb = new StringBuilder();
+            string? wlYear = Request.Form["YearFilter"];
+            string? wlMonth = Request.Form["MonthFilter"];
+            if (string.IsNullOrWhiteSpace(wlYear) || string.IsNullOrWhiteSpace(wlMonth)) { return BadRequest(new { success = false, message = Lang.msg_insufficient_info }); }
+            short wl_year = Convert.ToInt16(wlYear);
+            short wl_month = Convert.ToInt16(wlMonth);
+            string StrMonthName = MonthName(wl_month);
+            if (wl_year < 1 || wl_month < 1) { return BadRequest(new { success = false, message = Lang.msg_insufficient_info }); }
+
+            var employees = (from emp in _context.tbl_employee
+                             join lft in _context.tbl_employee_welfare_interest
+                              .Where(x => x.wl_year == wl_year && x.wl_month == wl_month)
+                              on emp.emp_id equals lft.emp_id into leftJoin
+                             from lft in leftJoin.DefaultIfEmpty()   // LEFT OUTER JOIN
+                             orderby emp.emp_status, emp.firstname, emp.middlename, emp.lastname
+                             select new
+                             {
+                                 emp.emp_id,
+                                 emp.emp_status,
+                                 emp.emp_code,
+                                 employee = $"{emp.firstname} {emp.middlename} {emp.lastname}",
+                                 wl_amount = lft.wl_amount ?? 0,
+                             }).ToList();
+
+            _ = sb.AppendLine($",Period:,{StrMonthName}|{wl_year.ToString()},");
+            _ = sb.AppendLine("SN, ID, Employee Name,Amount");
+            int cnt = 0;
+            foreach (var row in employees)
+            {
+                cnt++;
+                var line = new List<string>
+                {
+                    cnt.ToString(),
+                    row.emp_code,
+                    row.employee,
+                    row.wl_amount.ToString()
+                };
+                _ = sb.AppendLine(string.Join(",", line.Select(x => $"\"{x}\"")));
+            }
+
+            byte[] bytes = Encoding.UTF8.GetBytes(sb.ToString());
+            var fileName = $"WelfareInterestExport_{DateTime.Now:yyyyMMddHHmmss}.csv";
+            string GblDocumentPath = _globalOptionServices.OptionServices["op_document_file_path_out"];
+            var filePath = Path.Combine(GblDocumentPath, "temp", fileName);
+            System.IO.File.WriteAllBytes(filePath, bytes);
+
+            return Json(new { status = "success", message = "Export successful!", url = "/uploads/temp/" + fileName });
+        }
+        #endregion
+        /********************************************************************************************************************/
+        #region 10918 WELFARE PAID OUT
+        [HttpGet]
+        public IActionResult WelfarePaidout()
+        {
+            string PageId = "10918";
+            #region FOR PERMISSION
+            var perm = _accountServices.GetMenuPermission(PageId);
+            if (perm.vpern == "false") { return RedirectToAction("PermissionDenied", "Home"); }
+            ViewBag.apern = perm.apern;
+            ViewBag.epern = perm.epern;
+            ViewBag.dpern = perm.dpern;
+            #endregion FOR END PERMISSION
+
+            var Records = (
+                from a in _context.tbl_employee_welfare_paidout
+                join emp in _context.tbl_employee
+                    on a.emp_id equals emp.emp_id
+                orderby a.id descending
+                select new WelfarePaidoutViewModel
+                {
+                    id = a.id,
+                    wl_year = a.wl_year,
+                    wl_month = a.wl_month,
+                    wl_amount = a.wl_amount,
+                    remarks = a.remarks,
+                    submit_date = a.submit_date,
+                    emp_id = a.emp_id,
+                    employee = $"{emp.firstname} {emp.middlename} {emp.lastname} ({emp.emp_code})",
+                    emp_status = emp.emp_status
+                }).ToList();
+            ViewBag.EmployeeStatusFilter = StatusActivePassive("AD", "A");
+            ViewBag.ViewButtons = _accountServices.getAddEditDeleteAccess("Employee/WelfarePaidout", "ADD|DEL", PageId, Records.Count);
+            return PartialView("Payroll/_WelfarePaidout", Records);
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> WelfarePaidoutList([FromForm] MultipleCostumFilterRequest request)
+        {
+            var (pageSize, skip, draw, sortColumn, sortColumnDir, searchValue) = DataTableHelper.GetParameters(Request);
+
+            string EmployeeStatusFilter = request.FilterValue1;
+
+            var query = from wp in _context.tbl_employee_welfare_paidout
+                        join emp in _context.tbl_employee
+                            on wp.emp_id equals emp.emp_id
+                        orderby wp.id descending
+                        select new WelfarePaidoutViewModel
+                        {
+                            id = wp.id,
+                            emp_id = emp.emp_id,
+                            wl_year = wp.wl_year,
+                            wl_month = wp.wl_month,
+                            wl_amount = wp.wl_amount,
+                            remarks = wp.remarks,
+                            submit_date = wp.submit_date,
+                            firstname = emp.firstname,
+                            middlename = emp.middlename,
+                            lastname = emp.lastname,
+                            employee = $"{emp.firstname} {emp.middlename} {emp.lastname} ({emp.emp_code})",
+                            emp_status = emp.emp_status
+                        };
+            if (!string.IsNullOrEmpty(EmployeeStatusFilter))
+            {
+                query = query.Where(d => d.emp_status == EmployeeStatusFilter);
+            }
+
+            if (!string.IsNullOrEmpty(sortColumn) && !string.IsNullOrEmpty(sortColumnDir))
+            {
+                if (sortColumn == "employee")
+                {
+                    if (sortColumnDir == "asc")
+                    {
+                        query = query.OrderBy(d => d.firstname).ThenBy(d => d.middlename).ThenBy(d => d.lastname);
+                    }
+                    else
+                    {
+                        query = query.OrderByDescending(d => d.firstname).ThenByDescending(d => d.middlename).ThenByDescending(d => d.lastname);
+                    }
+                }
+                else
+                {
+                    query = query.OrderBy(sortColumn + " " + sortColumnDir);
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(searchValue))
+            {
+                query = query.Where(a =>
+                    (a.wl_year != null && a.wl_year.Value.ToString().Contains(searchValue)) ||
+                    (a.wl_month != null && a.wl_month.Value.ToString().Contains(searchValue)) ||
+                    (a.firstname != null && a.firstname.Contains(searchValue)) ||
+                    (a.middlename != null && a.middlename.Contains(searchValue)) ||
+                    (a.lastname != null && a.lastname.Contains(searchValue))
+                );
+            }
+            var data = query.ToList();
+            int totalRecord = data.Count();
+            if (pageSize == -1) { pageSize = totalRecord; }
+            var cData = data.Skip(skip).Take(pageSize).ToList();
+
+            var jsonData = new
+            {
+                draw,
+                recordsFiltered = totalRecord,
+                recordsTotal = totalRecord,
+                data = cData
+            };
+
+            return new JsonResult(jsonData);
+        }
+        public IActionResult WelfarePaidoutAddEdit(string? id, string mode)
+        {
+            string PageId = "10918";
+            #region FOR PERMISSION
+            var perm = _accountServices.GetMenuPermission(PageId);
+            if (perm.vpern == "false") { return RedirectToAction("PermissionDenied", "Home"); }
+            #endregion FOR END PERMISSION
+
+            ViewBag.DATE_FORMAT = _appSettings.DATE_FORMAT;
+            ViewBag.mode = mode;
+            ViewBag.Status = StatusActivePassive("AD", "A");
+            ViewBag.EmployeeList = _employeeServices.GetEmployeeActiveOnly();
+            ViewBag.YearDropDown = _settingsServices.GetYears(DateTime.Now.Year);
+            ViewBag.MonthDropDown = _settingsServices.GetMonths(DateTime.Now.Month);
+
+            WelfarePaidoutViewModel model;
+            model = new WelfarePaidoutViewModel();
+            if (mode == "add")
+            {
+                ViewBag.apern = _accountServices.GetSingleMenuPermission(PageId, "A") ?? "false";
+                return PartialView("Payroll/_WelfarePaidoutAddEdit", model);
+            }
+            else if (mode == "edit")
+            {
+                if (string.IsNullOrWhiteSpace(id))
+                {
+                    return BadRequest(new { success = false, message = Lang.msg_error });
+                }
+                else
+                {
+                    var ec = (from e in _context.tbl_employee_welfare_paidout
+                              join emp in _context.tbl_employee
+                                  on e.emp_id equals emp.emp_id
+                              where e.id == id.ToString()
+                              select new
+                              {
+                                  e.id,
+                                  e.wl_year,
+                                  e.wl_month,
+                                  e.wl_amount,
+                                  e.remarks,
+                                  e.submit_date,
+                                  emp.firstname,
+                                  emp.middlename,
+                                  emp.lastname,
+                                  emp.emp_code,
+                                  employee = $"{emp.firstname} {emp.middlename} {emp.lastname} ({emp.emp_code})",
+                                  emp.emp_status,
+                                  emp.emp_id
+                              }).FirstOrDefault();
+                    ViewBag.SubmitDate = ec?.submit_date;
+                    if (ec == null)
+                    {
+                        return BadRequest(new { success = false, message = Lang.msg_error });
+                    }
+
+                    model = new WelfarePaidoutViewModel
+                    {
+                        id = ec.id,
+                        wl_year = ec.wl_year,
+                        wl_month = ec.wl_month,
+                        wl_amount = ec.wl_amount ?? 0,
+                        remarks = ec.remarks,
+                        submit_date = ec.submit_date,
+                        emp_id = ec.emp_id,
+                        employee = ec.employee,
+                        emp_status = ec.emp_status
+                    };
+                    ViewBag.Employee = ec.employee;
+                    ViewBag.epern = _accountServices.GetSingleMenuPermission(PageId, "E") ?? "false";
+                    return PartialView("Payroll/_WelfarePaidoutAddEdit", model);
+                }
+            }
+            else
+            {
+                return BadRequest(new { success = false, message = Lang.msg_error });
+            }
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public JsonResult WelfarePaidoutSave(WelfarePaidoutViewModel model)
+        {
+            ModelState.Remove("id");
+
+            if (!ModelState.IsValid)
+            {
+                return Json(new { status = "invalid", message = Lang.msg_error_invalid });
+            }
+            string? mode = Request.Form["mode"];
+            if (!_accountServices.HasPermission("10918", mode)) { return Json(new { status = "error", message = Lang.msg_permission_denied }); }
+
+            string id = Request.Form["id"].ToString() ?? string.Empty;
+            short? wl_year = model.wl_year;
+            short? wl_month = model.wl_month;
+            double? wl_amount = model.wl_amount ?? 0;
+            string? remarks = model.remarks;
+            DateTime submit_date = System.DateTime.Now;
+            int? emp_id = model.emp_id;
+
+            if (wl_year < 1 || wl_month < 1 || wl_amount <= 0){ return Json(new { status = "error", message = Lang.msg_insufficient_info }); }
+
+            if (mode == "add")
+            {
+                var newId = UniqueID();
+                var DataSave = new tbl_employee_welfare_paidout
+                {
+                    id = newId,
+                    emp_id = emp_id,
+                    wl_year = wl_year,
+                    wl_month = wl_month,
+                    wl_amount = wl_amount,
+                    submit_date = submit_date,
+                    wl_fiscal_year = null,
+                    wl_emp_week = 0,
+                    remarks = remarks
+                };
+                _context.tbl_employee_welfare_paidout.Add(DataSave);
+                _context.SaveChanges();
+
+                return Json(new { status = "success", message = Lang.msg_added_success, id = id });
+            }
+            else if (mode == "edit")
+            {
+                string? paidoutId = id;
+
+                var DataUpdate = _context.tbl_employee_welfare_paidout
+                    .FirstOrDefault(h => h.id.ToString() == paidoutId);
+
+                DataUpdate.id = paidoutId;
+                DataUpdate.emp_id = emp_id;
+                DataUpdate.wl_year = wl_year;
+                DataUpdate.wl_month = wl_month;
+                DataUpdate.wl_amount = wl_amount;
+                DataUpdate.remarks = remarks;
+
+                _context.tbl_employee_welfare_paidout.Update(DataUpdate);
+                _context.SaveChanges();
+
+                return Json(new { status = "success", message = Lang.msg_update_success, id = DataUpdate.id });
+            }
+            else
+            {
+                return Json(new { status = "invalid", message = Lang.msg_error_invalid });
+            }
+        }
+        public async Task<IActionResult> WelfarePaidoutDelete([FromBody] DeleteRequest request)
+        {
+            if (!_accountServices.HasPermission("10918", "delete")) { return Json(new { status = "error", message = Lang.msg_permission_denied }); }
+
+            if (request?.SelectedIds == null || !request.SelectedIds.Any())
+            {
+                return BadRequest(new { status = false, message = Lang.msg_no_record_selected });
+            }
+            var recordsToDelete = _context.tbl_employee_welfare_paidout
+                .Where(r => request.SelectedIds.Contains(r.id.ToString()))
+                .ToList();
+            if (!recordsToDelete.Any())
+            {
+                return NotFound(new { status = "false", message = Lang.msg_no_record_found });
+            }
+
+            _context.tbl_employee_welfare_paidout.RemoveRange(recordsToDelete);
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                status = "success",
+                deletedCount = request.SelectedIds.Count,
+                message = Lang.msg_delete_success.Replace("[<DELETED-ROWS>]", request.SelectedIds.Count.ToString())
+            });
+        }
+
+        #endregion
+        /********************************************************************************************************************/
+        #region 10919 GRATUITY INFORMATION
+        [HttpGet]
+        public IActionResult gratuityInformation()
+        {
+            string PageId = "10919";
+            #region FOR PERMISSION
+            string perm = _accountServices.GetSingleMenuPermission(PageId, "V") ?? "false";
+            if (perm == "false") { return RedirectToAction("PermissionDenied", "Home"); }
+            #endregion FOR END PERMISSION
+
+            ViewBag.StatusFilter = StatusActivePassive("AD", "A");
+            ViewBag.GRGroupList = _payrollServices.GetGRGroupList();
+            ViewBag.GRTypeList = _payrollServices.GetGRTypeList();
+            ViewBag.epern = _accountServices.GetSingleMenuPermission(PageId, "E") ?? "false";
+            return PartialView("Payroll/_GratuityInformation", "");
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult GratuityInformationList([FromForm] CostumFilterRequest request)
+        {
+            var (pageSize, skip, draw, sortColumn, sortColumnDir, searchValue) = DataTableHelper.GetParameters(Request);
+
+            string StatusFilter = request.FilterValue;
+            var query = from emp in _context.tbl_employee
+                        join lft in _context.tbl_employee_gratuity_info
+                        on emp.emp_id equals lft.emp_id into LeftJoin
+                        from lft in LeftJoin.DefaultIfEmpty()   // LEFT JOIN
+                        where emp.emp_status == StatusFilter
+                        select new
+                        {
+                            emp_id = emp.emp_id,
+                            employee = $"{emp.firstname} {emp.middlename} {emp.lastname} ({emp.emp_code})",
+                            opening_balance = lft.opening_balance ?? 0.00,
+                            opening_interest = lft.opening_interest ?? 0.00,
+                            salary = emp.salary,
+                            gr_number = lft.gr_number ?? string.Empty,
+                            gr_group = lft.gr_group ?? "",
+                            gr_type = lft.gr_type ?? "",
+                            add_percent_amount = lft.add_percent_amount ?? 0.00,
+                            ded_percent_amount = lft.ded_percent_amount ?? 0.00,
+                            emp_status = emp.emp_status
+                        };
+            var data = query.ToList();
+
+            int totalRecord = data.Count();
+            if (pageSize == -1) pageSize = totalRecord;
+            var cData = data.Skip(skip).Take(pageSize).ToList();
+            var jsonData = new
+            {
+                draw,
+                recordsFiltered = totalRecord,
+                recordsTotal = totalRecord,
+                data = cData
+            };
+            return new JsonResult(jsonData);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> GratuityInformationSave([FromBody] GratuityListViewModel model)
+        {
+            string PageId = "10919";
+            #region FOR PERMISSION
+            var perm = _accountServices.GetMenuPermission(PageId);
+            ViewBag.apern = perm.apern;
+            ViewBag.epern = perm.epern;
+            #endregion FOR END PERMISSION
+            if (perm.apern != "true" && perm.epern != "true") { return Json(new { status = "invalid", message = "Not Authorized User" }); }
+            if (!ModelState.IsValid) { return Json(new { status = "error", message = Lang.msg_error_invalid }); }
+            if (model?.Fields == null || !model.Fields.Any()) { return Json(new { status = "error", message = "No employees received." }); }
+
+            foreach (var emp in model.Fields)
+            {
+                var DataUpdate = _context.tbl_employee_gratuity_info.FirstOrDefault(h => h.emp_id == emp.emp_id);
+                //UPDATE EXISTING RECORDS IF EXIST
+                if (DataUpdate != null)
+                {
+                    DataUpdate.gr_number = emp.gr_number;
+                    DataUpdate.gr_group = emp.gr_group ?? string.Empty;
+                    DataUpdate.gr_type = emp.gr_type ?? string.Empty;
+                    DataUpdate.add_percent_amount = emp.add_percent_amount ?? 0.00;
+                    DataUpdate.ded_percent_amount = emp.ded_percent_amount ?? 0.00;
+                    _ = _context.tbl_employee_gratuity_info.Update(DataUpdate);
+                }
+                else
+                {
+                    // INSERT IF DATA DOESNOT EXIST
+                    int maxId = _context.tbl_employee_gratuity_info.Max(e => (int?)e.id) ?? 0;
+                    maxId++;
+                    var newRow = new tbl_employee_gratuity_info
+                    {
+                        id = maxId,
+                        emp_id = emp.emp_id,
+                        gr_number = emp.gr_number,
+                        gr_group = emp.gr_group,
+                        gr_type = emp.gr_type,
+                        add_percent_amount = emp.add_percent_amount,
+                        ded_percent_amount = emp.ded_percent_amount,
+                    };
+                    _ = _context.tbl_employee_gratuity_info.Add(newRow);
+                }
+            }
+            _ = _context.SaveChanges();
+            return Json(new { status = "success", message = Lang.msg_update_success });
+        }
+        #endregion
+        /********************************************************************************************************************/
+        #region 10909 FIELD STAFF SALARY
+        [HttpGet]
+        public IActionResult FieldStaffSalary()
+        {
+            string PageId = "10909";
+            #region FOR PERMISSION
+            var perm = _accountServices.GetMenuPermission(PageId);
+            if (perm.vpern == "false") { return RedirectToAction("PermissionDenied", "Home"); }
+            ViewBag.apern = perm.apern;
+            ViewBag.epern = perm.epern;
+            #endregion FOR END PERMISSION
+
+            ViewBag.EmployeeStatusFilter = StatusActivePassive("AD", "A");
+            ViewBag.YearDropDown = _settingsServices.GetYears(DateTime.Now.Year);
+            ViewBag.MonthDropDown = _settingsServices.GetMonths(DateTime.Now.Month);
+            ViewBag.ViewButtons = _accountServices.getAddEditDeleteAccess("Payroll/FieldStaffSalary", "DOWNLOAD-FORMAT|IMPORT|EXPORT", PageId, 1);
+            return PartialView("Payroll/_FieldStaffSalary", "");
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> FieldStaffSalaryList([FromForm] DataFilterRequest request)
+        {
+            var (pageSize, skip, draw, sortColumn, sortColumnDir, searchValue) = DataTableHelper.GetParameters(Request);
+
+            string EmployeeStatusFilter = request.Status;
+            int yearFilter = request.Year ?? 0;
+            int monthFilter = request.Month ?? 0;
+
+            var query = from emp in _context.tbl_employee
+                        where emp.emp_status == EmployeeStatusFilter
+                                && _context.tbl_employee_salary_extra_settings
+                                     .Where(ses => ses.is_field_salary == "Y")
+                                     .Select(ses => ses.emp_id)
+                                     .Contains(emp.emp_id)
+                        join lft in _context.tbl_employee_salary_a_field
+                              .Where(x => x.sal_year == yearFilter && x.sal_month == monthFilter)
+                              on emp.emp_id equals lft.emp_id into leftJoin
+                        from lft in leftJoin.DefaultIfEmpty()   // LEFT OUTER JOIN
+                        orderby emp.emp_status, emp.firstname, emp.middlename, emp.lastname
+                        select new
+                        {
+                            emp.emp_id,
+                            emp.firstname,
+                            emp.middlename,
+                            emp.lastname,
+                            emp.emp_status,
+                            employee = $"{emp.firstname} {emp.middlename} {emp.lastname} ({emp.emp_code})",
+                            act_basic_salary = lft.act_basic_salary ?? 0,
+                            act_pf_a = lft.act_pf_a ?? 0,
+                            act_pf_d = lft.act_pf_d ?? 0,
+                            a_cit_d = lft.a_cit_d ?? 0,
+                            act_remote_area_all = lft.act_remote_area_all ?? 0,
+                            basic_salary = lft.basic_salary ?? 0,
+                            pf_a = lft.pf_a ?? 0,
+                            children_edu_all = lft.children_edu_all ?? 0,
+                            performance_all = lft.performance_all ?? 0,
+                            remote_area_all = lft.remote_area_all ?? 0,
+                            overtime = lft.overtime ?? 0,
+                            dashain_a = lft.dashain_a ?? 0,
+                            gratuity = lft.gratuity ?? 0,
+                            ssf = lft.ssf ?? 0,
+                            annual_health_checkup_add = lft.annual_health_checkup_add ?? 0,
+                            insurance = lft.insurance ?? 0,
+                            others = lft.others ?? 0,
+                            medical_expense_reimburse_total = lft.medical_expense_reimburse_total ?? 0,
+                            leave_encash = lft.leave_encash ?? 0,
+                            pf_d = lft.pf_d ?? 0,
+                            cit_d = lft.cit_d ?? 0,
+                            gratuity_ded = lft.gratuity_ded ?? 0,
+                            ssf_ded = lft.ssf_ded ?? 0,
+                            annual_health_checkup_ded = lft.annual_health_checkup_ded ?? 0,
+                            pre_access_tax = lft.pre_access_tax ?? 0,
+                            incometax_d = lft.incometax_d ?? 0,
+                            tel_per_adv = lft.tel_per_adv ?? 0,
+                            travel_prog_adv = lft.travel_prog_adv ?? 0,
+                            pr_adv = lft.pr_adv ?? 0,
+                            fd_adv = lft.fd_adv ?? 0,
+                            welfare_fund = lft.welfare_fund ?? 0,
+                            adv_pf_loan = lft.adv_PF_loan ?? 0,
+                            adv_cit_loan = lft.adv_CIT_loan ?? 0,
+                            wl_adv = lft.wl_adv ?? 0,
+                            net_in_hand = lft.net_in_hand ?? 0
+                        };
+
+            // Search filter
+            if (!string.IsNullOrEmpty(searchValue))
+            {
+                query = query.Where(e => 
+                e.firstname.Contains(searchValue) ||
+                e.middlename.Contains(searchValue) ||
+                e.lastname.Contains(searchValue)
+                );
+            }
+
+            if (!string.IsNullOrEmpty(sortColumn) && !string.IsNullOrEmpty(sortColumnDir))
+            {
+                if (sortColumn == "employee")
+                {
+                    if (sortColumnDir == "asc")
+                    {
+                        query = query.OrderBy(d => d.firstname).ThenBy(d => d.middlename).ThenBy(d => d.lastname);
+                    }
+                    else
+                    {
+                        query = query.OrderByDescending(d => d.firstname).ThenByDescending(d => d.middlename).ThenByDescending(d => d.lastname);
+                    }
+                }
+                else
+                {
+                    query = query.OrderBy(sortColumn + " " + sortColumnDir);
+                }
+            }
+
+            var data = query.ToList();
+            int totalRecord = data.Count();
+            if (pageSize == -1) { pageSize = totalRecord; }
+            var cData = data.Skip(skip).Take(pageSize).ToList();
+
+            var jsonData = new
+            {
+                draw,
+                recordsFiltered = totalRecord,
+                recordsTotal = totalRecord,
+                data = cData
+            };
+            return new JsonResult(jsonData);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public JsonResult FieldStaffSalarySave([FromBody] FieldStaffSalaryListViewModel model)
+        {
+            string PageId = "10909";
+            #region FOR PERMISSION
+            var perm = _accountServices.GetMenuPermission(PageId);
+            ViewBag.apern = perm.apern;
+            ViewBag.epern = perm.epern;
+            #endregion FOR END PERMISSION
+
+            _ = ModelState.Remove("salary_id");
+            if (perm.apern != "true" && perm.epern != "true") { return Json(new { status = "invalid", message = "Not Authorized User" }); }
+            if (!ModelState.IsValid) { return Json(new { status = "error", message = Lang.msg_error_invalid }); }
+            if (model?.Fields == null || !model.Fields.Any()) { return Json(new { status = "error", message = "No employees received." }); }
+
+            foreach (var item in model.Fields)
+            {
+                if (!item.emp_id.HasValue || !item.sal_year.HasValue || !item.sal_month.HasValue) { continue; }
+
+                var existing = _context.tbl_employee_salary_a_field
+                .Where(a => a.emp_id == item.emp_id
+                            && a.sal_year == item.sal_year
+                            && a.sal_month == item.sal_month)
+                .ToList();
+
+                if (existing.Count > 0)
+                {
+                    _context.tbl_employee_salary_a_field.RemoveRange(existing);
+                    _ = _context.SaveChanges();
+                    _context.ChangeTracker.Clear();
+                }
+                bool allZero =
+                    item.act_basic_salary.GetValueOrDefault() == 0m &&
+                    item.act_pf_a.GetValueOrDefault() == 0m &&
+                    item.act_pf_d.GetValueOrDefault() == 0m &&
+                    item.a_cit_d.GetValueOrDefault() == 0m &&
+                    item.act_remote_area_all.GetValueOrDefault() == 0m &&
+                    item.basic_salary.GetValueOrDefault() == 0m &&
+                    item.pf_a.GetValueOrDefault() == 0m &&
+                    item.children_edu_all.GetValueOrDefault() == 0m &&
+                    item.performance_all.GetValueOrDefault() == 0m &&
+                    item.remote_area_all.GetValueOrDefault() == 0m &&
+                    item.overtime.GetValueOrDefault() == 0m &&
+                    item.dashain_a.GetValueOrDefault() == 0m &&
+                    item.gratuity.GetValueOrDefault() == 0m &&
+                    item.ssf.GetValueOrDefault() == 0m &&
+                    item.annual_health_checkup_add.GetValueOrDefault() == 0m &&
+                    item.insurance.GetValueOrDefault() == 0m &&
+                    item.others.GetValueOrDefault() == 0m &&
+                    item.medical_expense_reimburse_total.GetValueOrDefault() == 0m &&
+                    item.leave_encash.GetValueOrDefault() == 0m &&
+                    item.pf_d.GetValueOrDefault() == 0m &&
+                    item.cit_d.GetValueOrDefault() == 0m &&
+                    item.gratuity_ded.GetValueOrDefault() == 0m &&
+                    item.ssf_ded.GetValueOrDefault() == 0m &&
+                    item.annual_health_checkup_ded.GetValueOrDefault() == 0m &&
+                    item.pre_access_tax.GetValueOrDefault() == 0m &&
+                    item.incometax_d.GetValueOrDefault() == 0m &&
+                    item.tel_per_adv.GetValueOrDefault() == 0m &&
+                    item.travel_prog_adv.GetValueOrDefault() == 0m &&
+                    item.pr_adv.GetValueOrDefault() == 0m &&
+                    item.fd_adv.GetValueOrDefault() == 0m &&
+                    item.welfare_fund.GetValueOrDefault() == 0m &&
+                    item.adv_pf_loan.GetValueOrDefault() == 0m &&
+                    item.adv_cit_loan.GetValueOrDefault() == 0m &&
+                    item.wl_adv.GetValueOrDefault() == 0m &&
+                    item.net_in_hand.GetValueOrDefault() == 0m;
+
+                if (!allZero)
+                {
+                    var newRec = new tbl_employee_salary_a_field
+                    {
+                        salary_id = UniqueID(),
+                        emp_id = item.emp_id,
+                        sal_year = item.sal_year.Value,
+                        sal_month = item.sal_month.Value,
+                        act_basic_salary = item.act_basic_salary.GetValueOrDefault(),
+                        act_pf_a = item.act_pf_a.GetValueOrDefault(),
+                        act_pf_d = item.act_pf_d.GetValueOrDefault(),
+                        a_cit_d = item.a_cit_d.GetValueOrDefault(),
+                        act_remote_area_all = item.act_remote_area_all.GetValueOrDefault(),
+                        basic_salary = item.basic_salary.GetValueOrDefault(),
+                        pf_a = item.pf_a.GetValueOrDefault(),
+                        children_edu_all = item.children_edu_all.GetValueOrDefault(),
+                        performance_all = item.performance_all.GetValueOrDefault(),
+                        remote_area_all = item.remote_area_all.GetValueOrDefault(),
+                        overtime = item.overtime.GetValueOrDefault(),
+                        dashain_a = item.dashain_a.GetValueOrDefault(),
+                        gratuity = item.gratuity.GetValueOrDefault(),
+                        ssf = item.ssf.GetValueOrDefault(),
+                        annual_health_checkup_add = item.annual_health_checkup_add.GetValueOrDefault(),
+                        insurance = item.insurance.GetValueOrDefault(),
+                        others = item.others.GetValueOrDefault(),
+                        medical_expense_reimburse_total = item.medical_expense_reimburse_total.GetValueOrDefault(),
+                        leave_encash = item.leave_encash.GetValueOrDefault(),
+                        pf_d = item.pf_d.GetValueOrDefault(),
+                        cit_d = item.cit_d.GetValueOrDefault(),
+                        gratuity_ded = item.gratuity_ded.GetValueOrDefault(),
+                        ssf_ded = item.ssf_ded.GetValueOrDefault(),
+                        annual_health_checkup_ded = item.annual_health_checkup_ded.GetValueOrDefault(),
+                        pre_access_tax = item.pre_access_tax.GetValueOrDefault(),
+                        incometax_d = item.incometax_d.GetValueOrDefault(),
+                        tel_per_adv = item.tel_per_adv.GetValueOrDefault(),
+                        travel_prog_adv = item.travel_prog_adv.GetValueOrDefault(),
+                        pr_adv = item.pr_adv.GetValueOrDefault(),
+                        fd_adv = item.fd_adv.GetValueOrDefault(),
+                        welfare_fund = item.welfare_fund.GetValueOrDefault(),
+                        adv_PF_loan = item.adv_pf_loan.GetValueOrDefault(),
+                        adv_CIT_loan = item.adv_cit_loan.GetValueOrDefault(),
+                        wl_adv = item.wl_adv.GetValueOrDefault(),
+                        net_in_hand = item.net_in_hand.GetValueOrDefault(),
+                        submit_date = DateTime.Now,
+                        submit_by = Convert.ToInt32(HttpContext.Session.GetString("emp_id")),
+                        grade = 0,
+                        gratudi = 0,
+                        betalibi_d = 0,
+                        remarks = "",
+                    };
+                    _ = _context.tbl_employee_salary_a_field.Add(newRec);
+                    _ = _context.SaveChanges();
+                    _context.ChangeTracker.Clear();
+                }
+            }
+
+            return Json(new { status = "success", message = Lang.msg_update_success });
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public ActionResult FieldStaffSalaryDownloadFormat()
+        {
+            var sb = new StringBuilder();
+            var header = new List<string> { "Employee Name", "Employee ID", "Basic Salary [Actual]", "PF Addition [Actual]", "PF Deduction[Actual]", "CIT Deduction[Actual]", "RAA [Actual]", "Basic Salary", "PF Addition", "Children Edu. Allowance", "Performance Bonus", "Remote Area Allowance", "Overtime", "Dashain Bonus", "Gratuity", "SSF", "Insurance", "Other Allowance", "Medical/Insurance", "Leave Encashment", "PF Deduction", "CIT deduction", "Gratuity", "SSF", "Prev. Year Excess/(Less) Tax", "Income Tax", "Personal Advance", "Travel Advance", "Program Advance", "Field Advance", "Welfare Contribution", "PF Loan", "CIT Loan", "Welfare Loan", "Annual Health Checkup (+)", "Annual Health Checkup (-)", "Net" };
+            _ = sb.AppendLine(string.Join(",", header));
+
+            var employees = _context.tbl_employee
+                .Where(emp => emp.emp_id != 0 &&
+                              emp.emp_status == "A" &&
+                              _context.tbl_employee_salary_extra_settings
+                                  .Where(ses => ses.is_field_salary == "Y")
+                                  .Select(ses => ses.emp_id)
+                                  .Contains(emp.emp_id))
+                .OrderBy(emp => emp.firstname)
+                .ThenBy(emp => emp.middlename)
+                .ThenBy(emp => emp.lastname)
+                .Select(emp => new
+                {
+                    emp.emp_id,
+                    emp.emp_code,
+                    employee = $"{emp.firstname} {emp.middlename} {emp.lastname}"
+                })
+                .ToList();
+            int cnt = 0;
+            if (employees.Count > 0)
+            {
+                foreach (var record in employees)
+                {
+                    cnt++;
+                    string emp_code = EscapeCSV(record.emp_code ?? "");
+                    string employee = EscapeCSV(record.employee ?? "");
+                    var NewValue = new List<string> { employee, emp_code, "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0" };
+                    _ = sb.AppendLine(string.Join(",", NewValue));
+                }
+            }
+            else
+            {
+                _ = sb.AppendLine($"No record(s) found");
+            }
+            byte[] bytes = Encoding.UTF8.GetBytes(sb.ToString());
+            return File(bytes, "text/csv", "FieldStaffSalaryDownloadedFormat.csv");
+        }
+        [HttpGet]
+        public IActionResult FieldStaffSalaryImport(string? sal_year, string? sal_month)
+        {
+            string PageId = "10909";
+            #region FOR PERMISSION
+            var perm = _accountServices.GetMenuPermission(PageId);
+            if (perm.vpern == "false") { return RedirectToAction("PermissionDenied", "Home"); }
+            ViewBag.apern = perm.apern;
+            ViewBag.epern = perm.epern;
+            #endregion FOR END PERMISSION
+
+            short SalYear;
+            short SalMonth;
+            string SalMonthName = "";
+            if (string.IsNullOrWhiteSpace(sal_year) || string.IsNullOrWhiteSpace(sal_month))
+            {
+                SalYear = 0;
+                SalMonth = 0;
+            }
+            else
+            {
+                SalYear = Convert.ToInt16(sal_year);
+                SalMonth = Convert.ToInt16(sal_month);
+                SalMonthName = MonthName(SalMonth);
+            }
+            ViewBag.sal_year = SalYear;
+            ViewBag.sal_month = SalMonth;
+            ViewBag.SalMonthName = SalMonthName;
+            return PartialView("Payroll/_FieldStaffSalaryImport");
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> FieldStaffSalaryImportSave(IFormFile file)
+        {
+            if (file == null || file.Length == 0) { return Json(new { status = "error", message = Lang.NO_FILE_UPLOADED }); }
+            if (!FileValidator.ForCsv(file)) { return Json(new { status = "error", message = "There is problem with File." }); }
+
+            string? SelYear = Request.Form["sal_year"];
+            string? SelMonth = Request.Form["sal_month"];
+
+            if (string.IsNullOrEmpty(SelYear) || string.IsNullOrEmpty(SelMonth)) { return Json(new { status = "error", message = "Not valid year and/or month" }); }
+
+            short SalYear = Convert.ToInt16(SelYear);
+            short SalMonth = Convert.ToInt16(SelMonth);
+
+            if (SalYear < 1 || SalMonth < 1) { return Json(new { status = "error", message = "Not valid year and/or month" }); }
+            var errors = new List<string>();
+
+            using var reader = new StreamReader(file.OpenReadStream());
+            var headerLine = await reader.ReadLineAsync().ConfigureAwait(false);
+            headerLine = headerLine.Replace("\r", "", StringComparison.OrdinalIgnoreCase)
+                                   .Replace("\n", "", StringComparison.OrdinalIgnoreCase)
+                                   .Replace("\"", "", StringComparison.OrdinalIgnoreCase);
+            var headers = headerLine.Split(',').Select(h => h.Trim('"')).ToList();
+
+            while (!reader.EndOfStream)
+            {
+                var line = await reader.ReadLineAsync();
+                if (string.IsNullOrWhiteSpace(line)) { continue; }
+
+                if (line != null)
+                {
+                    line = line.Replace("\"", "", StringComparison.OrdinalIgnoreCase);
+                    var values = line.Split(',').Select(v => v.Trim('"')).ToList();
+                    string empCode = values[1];
+                    string employeeCode = _employeeServices.GetValidEmpCode(empCode);
+                    var emp = _context.tbl_employee.FirstOrDefault(e => e.emp_code == employeeCode); // INSTEAD OF THIS SECTION paymgr.getIDByEmpCode(s_emp_code)
+
+                    if (emp == null || emp.emp_status != "A")
+                    {
+                        errors.Add("> " + Lang.INACTIVE_EMPLOYEE.Replace("<[EMP-CODE]>", employeeCode, StringComparison.OrdinalIgnoreCase));
+                        continue;
+                    }
+
+                    var existing = _context.tbl_employee_salary_a_field
+                    .Where(a => a.emp_id == emp.emp_id
+                                && a.sal_year == SalYear
+                                && a.sal_month == SalMonth)
+                    .ToList();
+
+                    if (existing.Any())
+                    {
+                        _context.tbl_employee_salary_a_field.RemoveRange(existing);
+                        _ = _context.SaveChanges();
+                        _context.ChangeTracker.Clear();
+                    }
+                    decimal act_basic_salary = Convert.ToDecimal(values[2]);//"Basic Salary [Actual]" 
+                    decimal act_pf_a = Convert.ToDecimal(values[3]);//"PF Addition [Actual]" 
+                    decimal act_pf_d = Convert.ToDecimal(values[4]);//"PF Deduction[Actual]" 
+                    decimal a_cit_d = Convert.ToDecimal(values[5]);//"CIT Deduction[Actual]" 
+                    decimal act_remote_area_all = Convert.ToDecimal(values[6]);//"RAA [Actual]" 
+                    decimal basic_salary = Convert.ToDecimal(values[7]);//"Basic Salary" 
+                    decimal pf_a = Convert.ToDecimal(values[8]);//"PF Addition"
+                    decimal children_edu_all = Convert.ToDecimal(values[9]);//"Children Edu. Allowance" 
+                    decimal performance_all = Convert.ToDecimal(values[10]);//"Performance Bonus" 
+                    decimal remote_area_all = Convert.ToDecimal(values[11]);//"Remote Area Allowance" 
+                    decimal overtime = Convert.ToDecimal(values[12]);//"Overtime" 
+                    decimal dashain_a = Convert.ToDecimal(values[13]);//"Dashain Bonus" 
+                    decimal gratuity = Convert.ToDecimal(values[14]);//"Gratuity" 
+                    decimal ssf = Convert.ToDecimal(values[15]);//"SSF"
+                    decimal insurance = Convert.ToDecimal(values[16]);//"Insurance"
+                    decimal others = Convert.ToDecimal(values[17]);//"Other Allowance"
+                    decimal medical_expense_reimburse_total = Convert.ToDecimal(values[18]);//"Medical/Insurance"
+                    decimal leave_encash = Convert.ToDecimal(values[19]);//"Leave Encashment" 
+                    decimal pf_d = Convert.ToDecimal(values[20]);//"PF Deduction"
+                    decimal cit_d = Convert.ToDecimal(values[21]);//"CIT deduction"
+                    decimal gratuity_ded = Convert.ToDecimal(values[22]);//"Gratuity"
+                    decimal ssf_ded = Convert.ToDecimal(values[23]);//"SSF"
+                    decimal pre_access_tax = Convert.ToDecimal(values[24]);//"Prev. Year Excess/(Less) Tax"
+                    decimal incometax_d = Convert.ToDecimal(values[25]);//"Income Tax" 
+                    decimal tel_per_adv = Convert.ToDecimal(values[26]);//"Personal Advance"
+                    decimal travel_prog_adv = Convert.ToDecimal(values[27]);//"Travel Advance"
+                    decimal pr_adv = Convert.ToDecimal(values[28]);//"Program Advance"
+                    decimal fd_adv = Convert.ToDecimal(values[29]);//"Field Advance"
+                    decimal welfare_fund = Convert.ToDecimal(values[30]);//"Welfare Contribution"
+                    decimal adv_pf_loan = Convert.ToDecimal(values[31]);//"PF Loan" 
+                    decimal adv_cit_loan = Convert.ToDecimal(values[32]);//"CIT Loan" 
+                    decimal wl_adv = Convert.ToDecimal(values[33]);//"Welfare Loan"
+                    decimal annual_health_checkup_add = Convert.ToDecimal(values[34]);//"Annual Health Checkup (+)"
+                    decimal annual_health_checkup_ded = Convert.ToDecimal(values[35]);//"Annual Health Checkup (-)" 
+                    decimal net_in_hand = Convert.ToDecimal(values[36]);//"Net"
+
+
+                    bool allZero = new[] { act_basic_salary, act_pf_a, act_pf_d, a_cit_d, act_remote_area_all,
+                        basic_salary, pf_a, children_edu_all, performance_all, remote_area_all, overtime,
+                        dashain_a, gratuity, ssf, insurance, others, medical_expense_reimburse_total, leave_encash,
+                        pf_d, cit_d, gratuity_ded, ssf_ded, pre_access_tax, incometax_d, tel_per_adv, travel_prog_adv,
+                        pr_adv, fd_adv, welfare_fund, adv_pf_loan, adv_cit_loan,  wl_adv, annual_health_checkup_add,
+                        annual_health_checkup_ded, net_in_hand }.All(x => x == 0m);
+
+                    if (!allZero)
+                    {
+                        var newRec = new tbl_employee_salary_a_field
+                        {
+                            salary_id = UniqueID(),
+                            emp_id = emp.emp_id,
+                            sal_year = SalYear,
+                            sal_month = SalMonth,
+                            act_basic_salary = act_basic_salary,
+                            act_pf_a = act_pf_a,
+                            act_pf_d = act_pf_d,
+                            a_cit_d = a_cit_d,
+                            act_remote_area_all = act_remote_area_all,
+                            basic_salary = basic_salary,
+                            pf_a = pf_a,
+                            children_edu_all = children_edu_all,
+                            performance_all = performance_all,
+                            remote_area_all = remote_area_all,
+                            overtime = overtime,
+                            dashain_a = dashain_a,
+                            gratuity = gratuity,
+                            ssf = ssf,
+                            annual_health_checkup_add = annual_health_checkup_add,
+                            insurance = insurance,
+                            others = others,
+                            medical_expense_reimburse_total = medical_expense_reimburse_total,
+                            leave_encash = leave_encash,
+                            pf_d = pf_d,
+                            cit_d = cit_d,
+                            gratuity_ded = gratuity_ded,
+                            ssf_ded = ssf_ded,
+                            annual_health_checkup_ded = annual_health_checkup_ded,
+                            pre_access_tax = pre_access_tax,
+                            incometax_d = incometax_d,
+                            tel_per_adv = tel_per_adv,
+                            travel_prog_adv = travel_prog_adv,
+                            pr_adv = pr_adv,
+                            fd_adv = fd_adv,
+                            welfare_fund = welfare_fund,
+                            adv_PF_loan = adv_pf_loan,
+                            adv_CIT_loan = adv_cit_loan,
+                            wl_adv = wl_adv,
+                            net_in_hand = net_in_hand,
+                            submit_date = DateTime.Now,
+                            submit_by = Convert.ToInt32(HttpContext.Session.GetString("emp_id")),
+                            grade = 0,
+                            gratudi = 0,
+                            betalibi_d = 0,
+                            remarks = "",
+                        };
+                        _ = _context.tbl_employee_salary_a_field.Add(newRec);
+                        _ = _context.SaveChanges();
+                        _context.ChangeTracker.Clear();
+                    }
+                }
+            }
+            return Json(new { status = "success", message = Lang.EMPLOYEE_FUND_SOURCE_IMPORT_SUCCESSFUL });
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public ActionResult FieldStaffSalaryExport()
+        {
+            var sb = new StringBuilder();
+            string? SalYear = Request.Form["YearFilter"];
+            string? SalMonth = Request.Form["MonthFilter"];
+            if (string.IsNullOrWhiteSpace(SalYear) || string.IsNullOrWhiteSpace(SalMonth)) { return BadRequest(new { success = false, message = Lang.msg_insufficient_info }); }
+            short sal_year = Convert.ToInt16(SalYear);
+            short sal_month = Convert.ToInt16(SalMonth);
+            string StrMonthName = MonthName(sal_month);
+            if (sal_year < 1 || sal_month < 1) { return BadRequest(new { success = false, message = Lang.msg_insufficient_info }); }
+
+            var employees = (from emp in _context.tbl_employee
+                             where emp.emp_id != 0
+                                 && _context.tbl_employee_salary_extra_settings
+                                     .Where(ses => ses.is_field_salary == "Y")
+                                     .Select(ses => ses.emp_id)
+                                     .Contains(emp.emp_id)
+                             join lft in _context.tbl_employee_salary_a_field
+                              .Where(x => x.sal_year == sal_year && x.sal_month == sal_month)
+                              on emp.emp_id equals lft.emp_id into leftJoin
+                             from lft in leftJoin.DefaultIfEmpty()   // LEFT OUTER JOIN
+                             orderby emp.emp_status, emp.firstname, emp.middlename, emp.lastname
+                             select new
+                             {
+                                 emp.emp_id,
+                                 emp.emp_status,
+                                 emp.emp_code,
+                                 employee = $"{emp.firstname} {emp.middlename} {emp.lastname}",
+                                 act_basic_salary = lft.act_basic_salary ?? 0,
+                                 act_pf_a = lft.act_pf_a ?? 0,
+                                 act_pf_d = lft.act_pf_d ?? 0,
+                                 a_cit_d = lft.a_cit_d ?? 0,
+                                 act_remote_area_all = lft.act_remote_area_all ?? 0,
+                                 basic_salary = lft.basic_salary ?? 0,
+                                 pf_a = lft.pf_a ?? 0,
+                                 children_edu_all = lft.children_edu_all ?? 0,
+                                 performance_all = lft.performance_all ?? 0,
+                                 remote_area_all = lft.remote_area_all ?? 0,
+                                 overtime = lft.overtime ?? 0,
+                                 dashain_a = lft.dashain_a ?? 0,
+                                 gratuity = lft.gratuity ?? 0,
+                                 ssf = lft.ssf ?? 0,
+                                 annual_health_checkup_add = lft.annual_health_checkup_add ?? 0,
+                                 insurance = lft.insurance ?? 0,
+                                 others = lft.others ?? 0,
+                                 medical_expense_reimburse_total = lft.medical_expense_reimburse_total ?? 0,
+                                 leave_encash = lft.leave_encash ?? 0,
+                                 pf_d = lft.pf_d ?? 0,
+                                 cit_d = lft.cit_d ?? 0,
+                                 gratuity_ded = lft.gratuity_ded ?? 0,
+                                 ssf_ded = lft.ssf_ded ?? 0,
+                                 annual_health_checkup_ded = lft.annual_health_checkup_ded ?? 0,
+                                 pre_access_tax = lft.pre_access_tax ?? 0,
+                                 incometax_d = lft.incometax_d ?? 0,
+                                 tel_per_adv = lft.tel_per_adv ?? 0,
+                                 travel_prog_adv = lft.travel_prog_adv ?? 0,
+                                 pr_adv = lft.pr_adv ?? 0,
+                                 fd_adv = lft.fd_adv ?? 0,
+                                 welfare_fund = lft.welfare_fund ?? 0,
+                                 adv_pf_loan = lft.adv_PF_loan ?? 0,
+                                 adv_cit_loan = lft.adv_CIT_loan ?? 0,
+                                 wl_adv = lft.wl_adv ?? 0,
+                                 net_in_hand = lft.net_in_hand ?? 0
+                             }).ToList();
+
+            _ = sb.AppendLine($",Period:,{StrMonthName}|{sal_year.ToString()},,,,,,,");
+            _ = sb.AppendLine("SN, ID, Employee Name,Basic Salary [Actual], PF Addition [Actual], PF Deduction[Actual], CIT Deduction[Actual], RAA [Actual], Basic Salary, PF Addition, Children Edu. Allowance, Performance Bonus, Remote Area Allowance, Overtime, Dashain Bonus, Gratuity, SSF, Annual Health Checkup (+), Insurance, Other Allowance, Medical/Insurance, Leave Encashment, PF Deduction, CIT deduction, Gratuity, SSF, Annual Health Checkup (-), Prev. Year Excess/(Less) Tax, Income Tax, Personal Advance, Travel Advance, Program Advance, Field Advance, Welfare Contribution, PF Loan, CIT Loan, Welfare Loan, Net");
+            int cnt = 0;
+            foreach (var row in employees)
+            {
+                cnt++;
+                var line = new List<string>
+                {
+                    cnt.ToString(),
+                    row.emp_code,
+                    row.employee,
+                    row.act_basic_salary.ToString(),    //  Basic Salary [Actual] 
+                    row.act_pf_a.ToString(),            //  PF Addition [Actual]
+                    row.act_pf_d.ToString(),            //  PF Deduction[Actual]
+                    row.a_cit_d.ToString(),             //  CIT Deduction[Actual]
+                    row.act_remote_area_all.ToString(), //  RAA [Actual]
+                    row.basic_salary.ToString(),        //  Basic Salary
+                    row.pf_a.ToString(),                //  PF Addition 
+                    row.children_edu_all.ToString(),    //  Children Edu. Allowance 
+                    row.performance_all.ToString(),     //  Performance Bonus 
+                    row.remote_area_all.ToString(),     //  Remote Area Allowance 
+                    row.overtime.ToString(),            //  Overtime 
+                    row.dashain_a.ToString(),           //  Dashain Bonus 
+                    row.gratuity.ToString(),            //  Gratuity 
+                    row.ssf.ToString(),                 //  SSF
+                    row.annual_health_checkup_add.ToString(),   //  Annual Health Checkup (+) 
+                    row.insurance.ToString(),           //  Insurance 
+                    row.others.ToString(),              //  Other Allowance 
+                    row.medical_expense_reimburse_total.ToString(),//  Medical/Insurance 
+                    row.leave_encash.ToString(),        //  Leave Encashment 
+                    row.pf_d.ToString(),                //  PF Deduction 
+                    row.cit_d.ToString(),               //  CIT deduction 
+                    row.gratuity_ded.ToString(),        //  Gratuity 
+                    row.ssf_ded.ToString(),             //  SSF
+                    row.annual_health_checkup_ded.ToString(),//  Annual Health Checkup (-) 
+                    row.pre_access_tax.ToString(),      //  Prev. Year Excess/(Less) Tax 
+                    row.incometax_d.ToString(),         //  Income Tax 
+                    row.tel_per_adv.ToString(),         //  Personal Advance 
+                    row.travel_prog_adv.ToString(),     //  Travel Advance 
+                    row.pr_adv.ToString(),              //  Program Advance
+                    row.fd_adv.ToString(),              //  Field Advance 
+                    row.welfare_fund.ToString(),        //  Welfare Contribution 
+                    row.adv_pf_loan.ToString(),         //  PF Loan 
+                    row.adv_cit_loan.ToString(),        //  CIT Loan 
+                    row.wl_adv.ToString(),              //  Welfare Loan     
+                    row.net_in_hand.ToString()          //  Net
+                };
+                _ = sb.AppendLine(string.Join(",", line.Select(x => $"\"{x}\"")));
+            }
+
+            byte[] bytes = Encoding.UTF8.GetBytes(sb.ToString());
+            var fileName = $"FieldStaffSalaryExport_{DateTime.Now:yyyyMMddHHmmss}.csv";
+            string GblDocumentPath = _globalOptionServices.OptionServices["op_document_file_path_out"];
+            var filePath = Path.Combine(GblDocumentPath, "temp", fileName);
+            System.IO.File.WriteAllBytes(filePath, bytes);
+
+            return Json(new { status = "success", message = "Export successful!", url = "/uploads/temp/" + fileName });
+        }
+        #endregion
+        /********************************************************************************************************************/
+        #region 10908 Employee Salary Previous
+        [HttpGet]
+        public IActionResult SalaryPrevious()
+        {
+            string PageId = "10908";
+            #region FOR PERMISSION
+            var perm = _accountServices.GetMenuPermission(PageId);
+            if (perm.vpern == "false") { return RedirectToAction("PermissionDenied", "Home"); }
+            ViewBag.apern = perm.apern;
+            ViewBag.epern = perm.epern;
+            ViewBag.dpern = perm.dpern;
+            #endregion FOR END PERMISSION
+
+            var Records = (
+                from a in _context.que_employee_salary_previous
+                join emp in _context.tbl_employee
+                    on a.emp_id equals emp.emp_id
+                orderby a.sal_id descending
+                select new SalaryPreviousViewModel
+                {
+                    id = a.sal_id
+                }).ToList();
+
+            ViewBag.EmployeeStatusFilter = StatusActivePassive("AD", "A");
+            ViewBag.ViewButtons = _accountServices.getAddEditDeleteAccess("Employee/SalaryPrevious", "ADD|DEL", PageId, Records.Count);
+            return PartialView("Payroll/_SalaryPrevious", Records);
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SalaryPreviousList([FromForm] MultipleCostumFilterRequest request)
+        {
+            var (pageSize, skip, draw, sortColumn, sortColumnDir, searchValue) = DataTableHelper.GetParameters(Request);
+
+            string EmployeeStatusFilter = request.FilterValue1;
+
+            var query = from s in _context.que_employee_salary_previous
+                        join emp in _context.tbl_employee
+                            on s.emp_id equals emp.emp_id
+                        orderby s.sal_id descending
+                        select new
+                        {
+                            id = s.sal_id,
+                            emp_id = s.emp_id,
+                            sal_year = Convert.ToInt16(s.sal_year),
+                            sal_month = Convert.ToInt16(s.sal_month),
+                            basicsalary = Convert.ToDecimal(s.t_basic_salary),
+                            pfaddition = Convert.ToDecimal(s.t_pf),
+                            allowance = Convert.ToDecimal(s.t_allow),
+                            remoteareaallowance = Convert.ToDecimal(s.t_raa),
+                            lipreimbursement = Convert.ToDecimal(s.t_lip_rem),
+                            dashainbonus = Convert.ToDecimal(s.t_dashain),
+                            betalabideduction = Convert.ToDecimal(s.t_betalabi),
+                            pfdeduction = Convert.ToDecimal(s.t_pf_d),
+                            citdeduction = Convert.ToDecimal(s.t_cit_d),
+                            prevyearexcesslesstax = Convert.ToDecimal(s.t_tax_pre),
+                            taxdeduction = Convert.ToDecimal(s.t_tax),
+                            remarks = s.remarks,
+                            firstname = emp.firstname,
+                            middlename = emp.middlename,
+                            lastname = emp.lastname,
+                            employee = $"{emp.firstname} {emp.middlename} {emp.lastname} ({emp.emp_code})",
+                            emp_status = emp.emp_status
+                        };
+            // Search filter
+            if (!string.IsNullOrEmpty(EmployeeStatusFilter))
+            {
+                query = query.Where(d => d.emp_status == EmployeeStatusFilter);
+            }
+            if (!string.IsNullOrEmpty(searchValue))
+            {
+                query = query.Where(e =>
+                    e.firstname.ToString().Contains(searchValue) ||
+                    e.middlename.ToString().Contains(searchValue) ||
+                    e.lastname.ToString().Contains(searchValue) ||
+                    e.sal_year.ToString().Contains(searchValue) ||
+                    e.sal_month.ToString().Contains(searchValue) ||
+                    e.remarks.Contains(searchValue));
+            }
+
+            if (!string.IsNullOrEmpty(sortColumn) && !string.IsNullOrEmpty(sortColumnDir))
+            {
+                if (sortColumn == "employee")
+                {
+                    if (sortColumnDir == "asc")
+                    {
+                        query = query.OrderBy(d => d.firstname).ThenBy(d => d.middlename).ThenBy(d => d.lastname);
+                    }
+                    else
+                    {
+                        query = query.OrderByDescending(d => d.firstname).ThenByDescending(d => d.middlename).ThenByDescending(d => d.lastname);
+                    }
+                }
+                else if(sortColumn == "sal_year" || sortColumn == "sal_month")
+                {
+                    query = query.OrderBy(sortColumn + " " + sortColumnDir);
+                }
+            }
+
+            var data = query.ToList();
+
+            int recordsTotal = data.Count();
+            if (pageSize == -1) pageSize = recordsTotal;
+
+            var cData = data.Skip(skip).Take(pageSize).ToList();
+
+            return Json(new
+            {
+                draw,
+                recordsFiltered = recordsTotal,
+                recordsTotal = recordsTotal,
+                data = cData
+            });
+        }
+        public IActionResult SalaryPreviousAddEdit(int? id, string? mode)
+        {
+            string PageId = "10908";
+            #region FOR PERMISSION
+            var perm = _accountServices.GetMenuPermission(PageId);
+            if (perm.vpern == "false") { return RedirectToAction("PermissionDenied", "Home"); }
+            #endregion FOR END PERMISSION
+
+            //ViewBag.DATE_FORMAT = _appSettings.DATE_FORMAT;
+            ViewBag.mode = mode;
+            //ViewBag.Status = StatusActivePassive("AD", "A");
+            int salyear = DateTime.Now.Year;
+            int salmonth = DateTime.Now.Month;
+
+            SalaryPreviousViewModel model;
+            if (mode == "add")
+            {
+                model = new SalaryPreviousViewModel
+                {
+                    salyear = salyear,
+                    salmonth = salmonth
+                };
+                ViewBag.EmployeeList = _employeeServices.GetEmployeeActiveOnly();
+                ViewBag.YearDropDown = _settingsServices.GetYears(salyear);
+                ViewBag.MonthDropDown = _settingsServices.GetMonths(salmonth);
+                ViewBag.apern = _accountServices.GetSingleMenuPermission(PageId, "A") ?? "false";
+                return PartialView("Payroll/_SalaryPreviousAddEdit", model);
+            }
+            else if (mode == "edit")
+            {
+                if (!id.HasValue || id <= 0) { return BadRequest(new { success = false, message = Lang.msg_error }); }
+                var ec = (from e in _context.que_employee_salary_previous
+                            join emp in _context.tbl_employee
+                                on e.emp_id equals emp.emp_id
+                            where e.sal_id == id
+                            select new
+                            {
+                                e.sal_id,
+                                e.emp_id,
+                                sal_year = Convert.ToInt16(e.sal_year),
+                                sal_month = Convert.ToInt16(e.sal_month),
+                                t_basic_salary = Convert.ToDecimal(e.t_basic_salary),
+                                t_betalabi = Convert.ToDecimal(e.t_betalabi),
+                                t_pf = Convert.ToDecimal(e.t_pf),
+                                t_pf_d = Convert.ToDecimal(e.t_pf_d),
+                                t_allow = Convert.ToDecimal(e.t_allow),
+                                t_cit_d = Convert.ToDecimal(e.t_cit_d),
+                                t_raa = Convert.ToDecimal(e.t_raa),
+                                t_lip_rem = Convert.ToDecimal(e.t_lip_rem),
+                                t_tax_pre = Convert.ToDecimal(e.t_tax_pre),
+                                t_dashain = Convert.ToDecimal(e.t_dashain),
+                                t_tax = Convert.ToDecimal(e.t_tax),
+                                e.remarks,
+                                e.fiscal_year,
+                                e.emp_week,
+                                emp.firstname,
+                                emp.middlename,
+                                emp.lastname,
+                                emp.emp_code,
+                                employee = $"{emp.firstname} {emp.middlename} {emp.lastname} ({emp.emp_code})",
+                                emp.emp_status
+                            }).FirstOrDefault();
+                if (ec == null) { return BadRequest(new { success = false, message = Lang.msg_error }); }
+                model = new SalaryPreviousViewModel
+                {
+                    id = ec.sal_id,
+                    empid = ec.emp_id,
+                    salyear = ec.sal_year,
+                    salmonth = ec.sal_month,
+                    basicsalary = (decimal?)ec.t_basic_salary,
+                    betalabideduction = (decimal?)ec.t_betalabi,
+                    pfaddition = (decimal?)ec.t_pf,
+                    pfdeduction = (decimal?)ec.t_pf_d,
+                    allowance = (decimal?)ec.t_allow,
+                    citdeduction = (decimal?)ec.t_cit_d,
+                    remoteareaallowance = (decimal?)ec.t_raa,
+                    lipreimbursement = (decimal?)ec.t_lip_rem,
+                    prevyearexcesslesstax = (decimal?)ec.t_tax_pre,
+                    dashainbonus = (decimal?)ec.t_dashain,
+                    taxdeduction = (decimal?)ec.t_tax,
+                    remarks = ec.remarks,
+                    fiscalyear = ec.fiscal_year,
+                    empweek = ec.emp_week,
+                    firstname = ec.firstname,
+                    middlename = ec.middlename,
+                    lastname = ec.lastname,
+                    empcode = ec.emp_code,
+                    employee = $"{ec.firstname} {ec.middlename} {ec.lastname} ({ec.emp_code})",
+                    emp_status = ec.emp_status
+                };
+                ViewBag.Employee = ec.employee;
+                ViewBag.epern = _accountServices.GetSingleMenuPermission(PageId, "E") ?? "false";
+                ViewBag.YearDropDown = _settingsServices.GetYears(salyear);
+                ViewBag.MonthDropDown = _settingsServices.GetMonths(salmonth);
+                return PartialView("Payroll/_SalaryPreviousAddEdit", model);
+            }
+            return BadRequest(new { success = false, message = Lang.msg_error });
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> SalaryPreviousSave(SalaryPreviousViewModel model)
+        {
+            ModelState.Remove("id");
+            if (!ModelState.IsValid)
+            {
+                return Json(new { status = "error", message = Lang.msg_error_invalid });
+            }
+            string? mode = Request.Form["mode"];
+            if (!_accountServices.HasPermission("10908", mode)) { return Json(new { status = "error", message = Lang.msg_permission_denied }); }
+            string id = Request.Form["id"].ToString() ?? string.Empty;
+            if (mode == "add") // ADD NEW
+            {
+                // Generate new ID (assuming sal_id is not identity)
+                var maxId = _context.tbl_employee_salary_previous.Max(s => (int?)s.sal_id) ?? 0;
+                var newId = maxId + 1;
+
+                var entity = new tbl_employee_salary_previous
+                {
+                    sal_id = newId,
+                    emp_id = model.empid,
+                    sal_year = (short?)model.salyear,
+                    sal_month = (short?)model.salmonth,
+                    t_basic_salary = (double?)model.basicsalary ?? 0,
+                    t_betalabi = (double?)model.betalabideduction ?? 0,
+                    t_pf = (double?)model.pfaddition ?? 0,
+                    t_pf_d = (double?)model.pfdeduction ?? 0,
+                    t_allow = (double?)model.allowance ?? 0 ,
+                    t_cit_d = (double?)model.citdeduction ?? 0,
+                    t_raa = (double?)model.remoteareaallowance ?? 0,
+                    t_lip_rem = (double?)model.lipreimbursement ?? 0,
+                    t_tax_pre = (double?)model.prevyearexcesslesstax ?? 0,
+                    t_dashain = (double?)model.dashainbonus ?? 0,
+                    t_tax = (double?)model.taxdeduction ?? 0,
+                    remarks = model.remarks ?? "",
+                    fiscal_year = model.fiscalyear ?? "",
+                    emp_week = model.empweek ?? 0
+                };
+
+                _context.tbl_employee_salary_previous.Add(entity);
+                await _context.SaveChangesAsync();
+
+                return Json(new { status = "success", message = Lang.msg_added_success });
+            }
+            else if (mode == "edit")
+            {
+                var entity = _context.tbl_employee_salary_previous
+                    .FirstOrDefault(s => s.sal_id == int.Parse(id));
+
+                if (entity == null)
+                    return Json(new { status = "notfound" });
+
+                entity.emp_id = model.empid;
+                entity.sal_year = (short?)model.salyear;
+                entity.sal_month = (short?)model.salmonth;
+                entity.t_basic_salary = (double?)model.basicsalary;
+                entity.t_betalabi = (double?)model.betalabideduction;
+                entity.t_pf = (double?)model.pfaddition;
+                entity.t_pf_d = (double?)model.pfdeduction;
+                entity.t_allow = (double?)model.allowance;
+                entity.t_cit_d = (double?)model.citdeduction;
+                entity.t_raa = (double?)model.remoteareaallowance;
+                entity.t_lip_rem = (double?)model.lipreimbursement;
+                entity.t_tax_pre = (double?)model.prevyearexcesslesstax;
+                entity.t_dashain = (double?)model.dashainbonus;
+                entity.t_tax = (double?)model.taxdeduction;
+                entity.remarks = model.remarks;
+                entity.fiscal_year = model.fiscalyear;
+                entity.emp_week = model.empweek;
+
+                await _context.SaveChangesAsync();
+
+                return Json(new { status = "success", message = Lang.msg_update_success });
+            }
+            else
+            {
+                return Json(new { status = "invalid", message = Lang.msg_error_invalid });
+            }
+        }
+        [HttpPost]
+        public async Task<IActionResult> SalaryPreviousDelete([FromBody] DeleteRequest request)
+        {
+            if (request?.SelectedIds == null || !request.SelectedIds.Any())
+            {
+                return Json(new { status = "error", message = Lang.msg_no_record_selected });
+            }
+
+            // Fetch records that match the IDs
+            var records = _context.tbl_employee_salary_previous
+                .Where(r => request.SelectedIds.Contains(r.sal_id.ToString()))
+                .ToList();
+
+            if (!records.Any())
+            {
+                return Json(new { status = "error", message = Lang.msg_no_record_found });
+            }
+
+            // Remove them
+            _context.tbl_employee_salary_previous.RemoveRange(records);
+            var deletedCount = await _context.SaveChangesAsync();
+
+            return Json(new { status = "success", message = Lang.msg_delete_success.Replace("[<DELETED-ROWS>]", deletedCount.ToString()) });
+        }
+
+        #endregion
+        /********************************************************************************************************************/
+        #region 10905 EMPLOYEE ADVANCE
+        [HttpGet]
+        public IActionResult AdvanceCSP(string? year, string? month, string status)
+        {
+            string PageId = "10905";
+            string? AdvYear = year;
+            string? AdvMonth = month;
+            string blnShow = "true";
+            string perm = _accountServices.GetSingleMenuPermission(PageId, "E") ?? "false";
+
+            if (status != "A")
+            {
+                perm = "false";
+                blnShow = "true";
+                return Json(new { status = "success", blnShow, perm });
+            }
+            else
+            {
+                if (string.IsNullOrWhiteSpace(AdvYear) || string.IsNullOrWhiteSpace(AdvMonth))
+                {
+                    //silent
+                }
+                else
+                {
+                    short adv_year = Convert.ToInt16(AdvYear);
+                    short adv_month = Convert.ToInt16(AdvMonth);
+                    if (adv_year < 1 || adv_month < 1)
+                    {
+                        //silent
+                    }
+                    else
+                    {
+                        var PSal = _context.tbl_employee_salary.Where(a => a.sal_year == adv_year && a.sal_month == adv_month).ToList();
+                        if (PSal.Any())
+                        {
+                            perm = "false";
+                            blnShow = "false";
+                        }
+                        return Json(new { status = "success", blnShow, perm });
+                    }
+                }
+            }    
+            return Json(new { status = "fail", blnShow, perm });
+        }
+        [HttpGet]
+        public IActionResult Advance()
+        {
+            string PageId = "10905";
+            #region FOR PERMISSION
+            var perm = _accountServices.GetMenuPermission(PageId);
+            if (perm.vpern == "false") { return RedirectToAction("PermissionDenied", "Home"); }
+            #endregion FOR END PERMISSION
+
+            short adv_year = Convert.ToInt16(DateTime.Now.Year);
+            short adv_month = Convert.ToInt16(DateTime.Now.Month);
+            /** need to check if already saved salary for the month and year */
+            var PSal = _context.tbl_employee_salary.Where(a => a.sal_year == adv_year && a.sal_month == adv_month).ToList();
+            int count = 0;
+            ViewBag.EmployeeStatusFilter = StatusActivePassive("AD", "A");
+            ViewBag.YearDropDown = _settingsServices.GetYears(DateTime.Now.Year);
+            ViewBag.MonthDropDown = _settingsServices.GetMonths(DateTime.Now.Month);
+            if (PSal.Any())
+            {
+                /**Salary already processed for the selected period.*/
+                ViewBag.epern = "false";
+                ViewBag.msg_cant_edit_salary_processed = "The salary has already been processed so that it can not be edited.";
+            }
+            else
+            {
+                ViewBag.msg_cant_edit_salary_processed = "";
+                ViewBag.epern = _accountServices.GetSingleMenuPermission(PageId, "E") ?? "false";
+                count = 1;
+            }
+            ViewBag.ViewButtons = _accountServices.getAddEditDeleteAccess("Payroll/Advance", "DOWNLOAD-FORMAT|IMPORT|EXPORT", PageId, count);
+            return PartialView("Payroll/_Advance", "");
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AdvanceList([FromForm] DataFilterRequest request)
+        {
+            var (pageSize, skip, draw, sortColumn, sortColumnDir, searchValue) = DataTableHelper.GetParameters(Request);
+
+            string EmployeeStatusFilter = request.Status;
+            int yearFilter = request.Year ?? 0;
+            int monthFilter = request.Month ?? 0;
+
+            var query = from emp in _context.tbl_employee
+                        join lft in _context.tbl_employee_advance.Where(adv => adv.adv_year == yearFilter && adv.adv_month == monthFilter)
+                        on emp.emp_id equals lft.emp_id into LeftJoin
+                        from lft in LeftJoin.DefaultIfEmpty()   // LEFT JOIN
+                        where emp.emp_status == EmployeeStatusFilter
+                        select new AdvanceViewModel
+                        {
+                            emp_id = emp.emp_id,
+                            firstname = emp.firstname,
+                            middlename = emp.middlename,
+                            lastname = emp.lastname,
+                            emp_code = emp.emp_code,
+                            employee = $"{emp.firstname} {emp.middlename} {emp.lastname} ({emp.emp_code})",
+                            emp_status = emp.emp_status,
+                            adv_month = lft.adv_month,
+                            adv_year = lft.adv_year,
+                            adv_personnel = lft.adv_personnel ?? 0,
+                            adv_program = lft.adv_program ?? 0,
+                            adv_travel = lft.adv_travel ?? 0,
+                            adv_field_drawing = lft.adv_field_drawing ?? 0,
+                            adv_pf_loan = lft.adv_PF_loan ?? 0,
+                            adv_cit_loan = lft.adv_CIT_loan ?? 0,
+                            adv_welfare = lft.adv_welfare ?? 0
+                        };
+            if (!string.IsNullOrEmpty(sortColumn) && !string.IsNullOrEmpty(sortColumnDir))
+            {
+                if (sortColumn == "employee")
+                {
+                    if (sortColumnDir == "asc")
+                    {
+                        query = query.OrderBy(d => d.firstname).ThenBy(d => d.middlename).ThenBy(d => d.lastname);
+                    }
+                    else
+                    {
+                        query = query.OrderByDescending(d => d.firstname).ThenByDescending(d => d.middlename).ThenByDescending(d => d.lastname);
+                    }
+                }
+                else
+                {
+                    query = query.OrderBy(sortColumn + " " + sortColumnDir);
+                }
+            }
+
+            var data = query.ToList();
+            int totalRecord = data.Count();
+            if (pageSize == -1) { pageSize = totalRecord; }
+            var cData = data.Skip(skip).Take(pageSize).ToList();
+
+            var jsonData = new
+            {
+                draw,
+                recordsFiltered = totalRecord,
+                recordsTotal = totalRecord,
+                data = cData
+            };
+            return new JsonResult(jsonData);
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public JsonResult AdvanceSave([FromBody] AdvanceListViewModel model)
+        {
+            string PageId = "10905";
+            #region FOR PERMISSION
+            var perm = _accountServices.GetMenuPermission(PageId);
+            ViewBag.apern = perm.apern;
+            ViewBag.epern = perm.epern;
+            #endregion FOR END PERMISSION
+
+            _ = ModelState.Remove("adv_id");
+            if (perm.apern != "true" && perm.epern != "true") { return Json(new { status = "invalid", message = "Not Authorized User" }); }
+            if (!ModelState.IsValid) { return Json(new { status = "error", message = Lang.msg_error_invalid }); }
+            if (model?.Fields == null || !model.Fields.Any()) { return Json(new { status = "error", message = "No employees received." }); }
+
+            foreach (var item in model.Fields)
+            {
+                if (!item.adv_year.HasValue || !item.adv_month.HasValue) { continue; }
+
+                /** need to check if already saved salary for the month and year */
+                var PSal = _context.tbl_employee_salary
+                .Where(a => a.sal_year == item.adv_year
+                             && a.sal_month == item.adv_month)
+                .ToList();
+                if (PSal.Any()) { continue; } /**Salary already processed for the selected period.*/
+
+                var existing = _context.tbl_employee_advance
+                .Where(a => a.emp_id == item.emp_id
+                            && a.adv_year == item.adv_year
+                            && a.adv_month == item.adv_month)
+                .ToList();
+
+                if (existing.Any())
+                {
+                    _context.tbl_employee_advance.RemoveRange(existing);
+                    _ = _context.SaveChanges();
+                    _context.ChangeTracker.Clear();
+                }
+
+                bool allZero = item.adv_personnel.GetValueOrDefault() == 0m &&
+                               item.adv_program.GetValueOrDefault() == 0m &&
+                               item.adv_travel.GetValueOrDefault() == 0m &&
+                               item.adv_field_drawing.GetValueOrDefault() == 0m &&
+                               item.adv_welfare.GetValueOrDefault() == 0m &&
+                               item.adv_pf_loan.GetValueOrDefault() == 0m &&
+                               item.adv_cit_loan.GetValueOrDefault() == 0m;
+
+                if (!allZero)
+                {
+                    var newAdvance = new tbl_employee_advance
+                    {
+                        adv_id = Guid.NewGuid().ToString(),
+                        emp_id = item.emp_id,
+                        adv_year = item.adv_year.Value,
+                        adv_month = item.adv_month.Value,
+                        adv_personnel = item.adv_personnel.GetValueOrDefault(),
+                        adv_program = item.adv_program.GetValueOrDefault(),
+                        adv_travel = item.adv_travel.GetValueOrDefault(),
+                        adv_field_drawing = item.adv_field_drawing.GetValueOrDefault(),
+                        adv_welfare = item.adv_welfare.GetValueOrDefault(),
+                        adv_PF_loan = item.adv_pf_loan.GetValueOrDefault(),
+                        adv_CIT_loan = item.adv_cit_loan.GetValueOrDefault(),
+                        adv_fiscal_year = "",
+                        adv_emp_week = 0
+                    };
+                    _ = _context.tbl_employee_advance.Add(newAdvance);
+                    _ = _context.SaveChanges();
+                    _context.ChangeTracker.Clear();
+                }
+            }
+
+            return Json(new { status = "success", message = Lang.msg_update_success });
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public ActionResult AdvanceDownloadFormat()
+        {
+            var sb = new StringBuilder();
+            var header = new List<string> { "Employee Name", "ID", "Personal Advance", "Program Advance", "Travel Advance", "Welfare Advance", "Field Drawing", "PF Loan", "CIT Loan" };
+            _ = sb.AppendLine(string.Join(",", header));
+
+            var employees = _context.tbl_employee
+                .Where(emp => emp.emp_id != 0 &&
+                              emp.emp_status == "A" &&
+                              _context.tbl_employee_salary_extra_settings
+                                  .Where(ses => ses.is_field_salary == "N")
+                                  .Select(ses => ses.emp_id)
+                                  .Contains(emp.emp_id))
+                .OrderBy(emp => emp.firstname)
+                .ThenBy(emp => emp.middlename)
+                .ThenBy(emp => emp.lastname)
+                .Select(emp => new
+                {
+                    emp.emp_id,
+                    emp.emp_code,
+                    employee = $"{emp.firstname} {emp.middlename} {emp.lastname}"
+                })
+                .ToList();
+            int cnt = 0;
+            if (employees.Count > 0)
+            {
+                foreach (var record in employees)
+                {
+                    cnt++;
+                    string emp_code = EscapeCSV(record.emp_code ?? "");
+                    string employee = EscapeCSV(record.employee ?? "");
+                    var NewValue = new List<string> { emp_code, employee, "0", "0", "0", "0", "0", "0", "0" };
+                    _ = sb.AppendLine(string.Join(",", NewValue));
+                }
+            }
+            else
+            {
+                _ = sb.AppendLine($"No record(s) found");
+            }
+            byte[] bytes = Encoding.UTF8.GetBytes(sb.ToString());
+            return File(bytes, "text/csv", "EmployeeAdvanceDownloadedFormat.csv");
+        }
+        [HttpGet]
+        public IActionResult AdvanceImport(string? adv_year, string? adv_month)
+        {
+            string PageId = "10905";
+            #region FOR PERMISSION
+            var perm = _accountServices.GetMenuPermission(PageId);
+            if (perm.vpern == "false") { return RedirectToAction("PermissionDenied", "Home"); }
+            ViewBag.apern = perm.apern;
+            ViewBag.epern = perm.epern;
+            #endregion FOR END PERMISSION
+
+            short AdvYear;
+            short AdvMonth;
+            string advMonthName = "";
+            if (string.IsNullOrWhiteSpace(adv_year) || string.IsNullOrWhiteSpace(adv_month)) {
+                AdvYear = 0;
+                AdvMonth = 0;
+            }
+            else
+            {
+                AdvYear = Convert.ToInt16(adv_year);
+                AdvMonth = Convert.ToInt16(adv_month);
+                advMonthName = GblUtilities.MonthName(AdvMonth);
+            }
+            string blnShow = "true";
+            var PSal = _context.tbl_employee_salary.Where(a => a.sal_year == AdvYear && a.sal_month == AdvMonth).ToList();
+            if (PSal.Any()) { blnShow = "false"; }
+
+            ViewBag.adv_year = AdvYear;
+            ViewBag.adv_month = AdvMonth;
+            ViewBag.advMonthName = advMonthName;
+            ViewBag.blnShow = blnShow;
+            return PartialView("Payroll/_AdvanceImport");
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AdvanceImportSave(IFormFile file)
+        {
+            if (file == null || file.Length == 0) { return Json(new { status = "error", message = Lang.NO_FILE_UPLOADED }); }
+            if (!FileValidator.ForCsv(file)) { return Json(new { status = "error", message = "There is problem with File." }); }
+
+            string? SelYear = Request.Form["adv_year"];
+            string? SelMonth = Request.Form["adv_month"];
+
+            if (string.IsNullOrEmpty(SelYear) || string.IsNullOrEmpty(SelMonth)) { return Json(new { status = "error", message = "Not valid year and/or month" }); }
+
+            short AdvYear = Convert.ToInt16(SelYear);
+            short AdvMonth = Convert.ToInt16(SelMonth);
+
+            if (AdvYear < 1 || AdvMonth < 1) { return Json(new { status = "error", message = "Not valid year and/or month" }); }
+
+            var errors = new List<string>();
+
+            using var reader = new StreamReader(file.OpenReadStream());
+            var headerLine = await reader.ReadLineAsync().ConfigureAwait(false);
+            headerLine = headerLine.Replace("\r", "", StringComparison.OrdinalIgnoreCase)
+                                   .Replace("\n", "", StringComparison.OrdinalIgnoreCase)
+                                   .Replace("\"", "", StringComparison.OrdinalIgnoreCase);
+            var headers = headerLine.Split(',').Select(h => h.Trim('"')).ToList();
+
+            while (!reader.EndOfStream)
+            {
+                var line = await reader.ReadLineAsync();
+                if (string.IsNullOrWhiteSpace(line)) { continue; }
+
+                if (line != null)
+                {
+                    line = line.Replace("\"", "", StringComparison.OrdinalIgnoreCase);
+                    var values = line.Split(',').Select(v => v.Trim('"')).ToList();
+                    string empCode = values[0];
+                    string employeeCode = _employeeServices.GetValidEmpCode(empCode);
+                    var emp = _context.tbl_employee.FirstOrDefault(e => e.emp_code == employeeCode); // INSTEAD OF THIS SECTION paymgr.getIDByEmpCode(s_emp_code)
+
+                    if (emp == null || emp.emp_status != "A") {
+                        errors.Add("> " + Lang.INACTIVE_EMPLOYEE.Replace("<[EMP-CODE]>", employeeCode, StringComparison.OrdinalIgnoreCase));
+                        continue;
+                    }
+
+                    var existing = _context.tbl_employee_advance
+                    .Where(a => a.emp_id == emp.emp_id
+                                && a.adv_year == AdvYear
+                                && a.adv_month == AdvMonth)
+                    .ToList();
+
+                    if (existing.Any())
+                    {
+                        _context.tbl_employee_advance.RemoveRange(existing);
+                        _ = _context.SaveChanges();
+                        _context.ChangeTracker.Clear();
+                    }
+
+                    decimal txtadvpe = Convert.ToDecimal(values[2]);  //personal
+                    decimal txtadvpr = Convert.ToDecimal(values[3]);  //program
+                    decimal txtadvtr = Convert.ToDecimal(values[4]);  //travel
+                    decimal txtadvfd = Convert.ToDecimal(values[5]);  //field drawing
+                    decimal txtadvwl = Convert.ToDecimal(values[6]);  //welfare
+                    decimal txtadvpf = Convert.ToDecimal(values[7]);  //pfloan
+                    decimal txtadvcit = Convert.ToDecimal(values[8]); //citloan
+
+                    bool allZero = new[] { txtadvpe, txtadvpr, txtadvtr, txtadvfd, txtadvwl, txtadvpf, txtadvcit }
+                                   .All(x => x == 0m);
+
+                    if (!allZero)
+                    {
+                        var newAdvance = new tbl_employee_advance
+                        {
+                            adv_id = UniqueID(),
+                            emp_id = emp.emp_id,
+                            adv_year = AdvYear,
+                            adv_month = AdvMonth,
+                            adv_personnel = txtadvpe,
+                            adv_program = txtadvpr,
+                            adv_travel = txtadvtr,
+                            adv_field_drawing = txtadvfd,
+                            adv_welfare = txtadvwl,
+                            adv_PF_loan = txtadvpf,
+                            adv_CIT_loan = txtadvcit,
+                            adv_fiscal_year = "",
+                            adv_emp_week = 0
+                        };
+                        _ = _context.tbl_employee_advance.Add(newAdvance);
+                        _ = _context.SaveChanges();
+                        _context.ChangeTracker.Clear();
+                    }
+                }
+            }
+            return Json(new { status = "success", message = Lang.EMPLOYEE_FUND_SOURCE_IMPORT_SUCCESSFUL });
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public ActionResult AdvanceExport()
+        {
+            var sb = new StringBuilder();
+            string? AdvYear = Request.Form["YearFilter"];
+            string? AdvMonth = Request.Form["MonthFilter"];
+            if (string.IsNullOrWhiteSpace(AdvYear) || string.IsNullOrWhiteSpace(AdvMonth)) { return BadRequest(new { success = false, message = Lang.msg_insufficient_info }); }
+            short adv_year = Convert.ToInt16(AdvYear);
+            short adv_month = Convert.ToInt16(AdvMonth);
+            string StrMonthName = MonthName(adv_month);
+            if (adv_year < 1 || adv_month < 1) { return BadRequest(new { success = false, message = Lang.msg_insufficient_info }); }
+
+            // Query employee + advance data
+            var employees = (from e in _context.tbl_employee
+                             where e.emp_id != 0 && e.emp_status == "A"
+                             join a in _context.tbl_employee_advance
+                                 on e.emp_id equals a.emp_id
+                             where a.adv_year == adv_year && a.adv_month == adv_month
+                             orderby e.firstname, e.middlename, e.lastname
+                             select new
+                             {
+                                 EmployeeId = e.emp_id,
+                                 EmpCode = e.emp_code,
+                                 FullName = string.Join(" ", new[] { e.firstname, e.middlename, e.lastname }
+                                                               .Where(x => !string.IsNullOrEmpty(x))),
+                                 Personnel = a.adv_personnel ?? 0,
+                                 Program = a.adv_program ?? 0,
+                                 Travel = a.adv_travel ?? 0,
+                                 Welfare = a.adv_welfare ?? 0,
+                                 FieldDrawing = a.adv_field_drawing ?? 0,
+                                 PFLoan = a.adv_PF_loan ?? 0,
+                                 CITLoan = a.adv_CIT_loan ?? 0
+                             }).ToList();
+
+            _ = sb.AppendLine($",Period:,{StrMonthName}|{adv_year.ToString()},,,,,,,");
+            _ = sb.AppendLine("SN, ID, Employee Name,Personal Advance,Program Advance,Travel Advance,Welfare Advance,Field Drawing,PF Loan,CIT Loan");
+            int cnt = 0;
+            foreach (var row in employees)
+            {
+                cnt++;
+                var line = new List<string>
+                {
+                    cnt.ToString(),
+                    row.EmpCode.ToString(),
+                    row.FullName,
+                    row.Personnel.ToString(),
+                    row.Program.ToString(),
+                    row.Travel.ToString(),
+                    row.Welfare.ToString(),
+                    row.FieldDrawing.ToString(),
+                    row.PFLoan.ToString(),
+                    row.CITLoan.ToString()
+                };
+                _ = sb.AppendLine(string.Join(",", line.Select(x => $"\"{x}\"")));
+            }
+
+            byte[] bytes = Encoding.UTF8.GetBytes(sb.ToString());
+            var fileName = $"EmployeeAdvanceExport_{DateTime.Now:yyyyMMddHHmmss}.csv";
+            string GblDocumentPath = _globalOptionServices.OptionServices["op_document_file_path_out"];
+            var filePath = Path.Combine(GblDocumentPath, "temp", fileName);
+            System.IO.File.WriteAllBytes(filePath, bytes);
+
+            return Json(new { status = "success", message = "Export successful!", url = "/uploads/temp/" + fileName });
+        }
+        #endregion
+        /********************************************************************************************************************/
+        #region 10913 PF
+        [HttpGet]
+        public IActionResult PF()
+        {
+            string PageId = "10913";
+            #region FOR PERMISSION
+            string perm = _accountServices.GetSingleMenuPermission(PageId, "V") ?? "false";
+            if (perm == "false") { return RedirectToAction("PermissionDenied", "Home"); }
+            #endregion FOR END PERMISSION
+
+            ViewBag.EmployeeStatusFilter = StatusActivePassive("AD", "A");
+            ViewBag.PFGroupList = _payrollServices.GetPFGroupList();
+            ViewBag.PFTypeList = _payrollServices.GetPFTypeList();
+            ViewBag.epern = _accountServices.GetSingleMenuPermission(PageId, "E") ?? "false";
+            return PartialView("Payroll/_PF", "");
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult PFList([FromForm] CostumFilterRequest request)
+        {
+            var (pageSize, skip, draw, sortColumn, sortColumnDir, searchValue) = DataTableHelper.GetParameters(Request);
+
+            string EmployeeStatusFilter = request.FilterValue;
+
+            var query = from emp in _context.tbl_employee
+                        join lft in _context.tbl_employee_pf
+                        on emp.emp_id equals lft.emp_id into LeftJoin
+                        from lft in LeftJoin.DefaultIfEmpty()   // LEFT JOIN
+                        where emp.emp_status == EmployeeStatusFilter
+                        select new PFViewModel
+                        {
+                            emp_id = emp.emp_id,
+                            salary = emp.salary ?? 0,
+                            firstname = emp.firstname,
+                            middlename = emp.middlename,
+                            lastname = emp.lastname,
+                            emp_code = emp.emp_code,
+                            employee = $"{emp.firstname} {emp.middlename} {emp.lastname} ({emp.emp_code})",
+                            emp_status = emp.emp_status,
+                            gender = emp.gender == "M" ? "Male" : "Female",
+                            join_date = emp.join_date,
+                            end_date = emp.end_date,
+                            pf_no = emp.pf_no ?? "",
+                            pf_group = lft.pf_group ?? "",
+                            pf_type = lft.pf_type ?? "",
+                            add_percent_amount = lft.add_percent_amount ?? 0.00,
+                            ded_percent_amount = lft.ded_percent_amount ?? 0.00
+                        };
+            if (!string.IsNullOrEmpty(sortColumn) && !string.IsNullOrEmpty(sortColumnDir))
+            {
+                if (sortColumn == "employee")
+                {
+                    if (sortColumnDir == "asc")
+                    {
+                        query = query.OrderBy(d => d.firstname).ThenBy(d => d.middlename).ThenBy(d => d.lastname);
+                    }
+                    else
+                    {
+                        query = query.OrderByDescending(d => d.firstname).ThenByDescending(d => d.middlename).ThenByDescending(d => d.lastname);
+                    }
+                }
+                else
+                {
+                    query = query.OrderBy(sortColumn + " " + sortColumnDir);
+                }
+            }
+
+            var data = query.ToList();
+            int totalRecord = data.Count();
+            if (pageSize == -1) { pageSize = totalRecord; }
+            var cData = data.Skip(skip).Take(pageSize).ToList();
+
+            var jsonData = new
+            {
+                draw,
+                recordsFiltered = totalRecord,
+                recordsTotal = totalRecord,
+                data = cData
+            };
+            return new JsonResult(jsonData);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> PFSave([FromBody] PFListViewModel model)
+        {
+            string PageId = "10913";
+            #region FOR PERMISSION
+            var perm = _accountServices.GetMenuPermission(PageId);
+            ViewBag.apern = perm.apern;
+            ViewBag.epern = perm.epern;
+            #endregion FOR END PERMISSION
+            if (perm.apern != "true" && perm.epern != "true") { return Json(new { status = "invalid", message = "Not Authorized User" }); }
+            if (!ModelState.IsValid) { return Json(new { status = "error", message = Lang.msg_error_invalid }); }
+            if (model?.Fields == null || !model.Fields.Any()) { return Json(new { status = "error", message = "No employees received." }); }
+
+            foreach (var emp in model.Fields)
+            {
+                var DataUpdate = _context.tbl_employee_pf.FirstOrDefault(h => h.emp_id == emp.emp_id);
+                //UPDATE EXISTING RECORDS IF EXIST
+                if (DataUpdate != null)
+                {
+                    DataUpdate.pf_group = emp.pf_group;
+                    DataUpdate.pf_type = emp.pf_type;
+                    DataUpdate.add_percent_amount = emp.add_percent_amount;
+                    DataUpdate.ded_percent_amount = emp.ded_percent_amount;
+                    _ = _context.tbl_employee_pf.Update(DataUpdate);
+                }
+                else
+                {
+                    // INSERT IF DATA DOESNOT EXIST
+                    int maxId = _context.tbl_employee_pf.Max(e => (int?)e.emp_pf_id) ?? 0;
+                    maxId++;
+                    var newRow = new tbl_employee_pf
+                    {
+                        emp_pf_id = maxId,
+                        emp_id = emp.emp_id,
+                        pf_group = emp.pf_group,
+                        pf_type = emp.pf_type,
+                        add_percent_amount = emp.add_percent_amount,
+                        ded_percent_amount = emp.ded_percent_amount
+                    };
+                    _ = _context.tbl_employee_pf.Add(newRow);
+                }
+                if (emp?.h_pf_no != emp?.pf_no)
+                {
+                    var employee = _context.tbl_employee.FirstOrDefault(e => e.emp_id == emp.emp_id);
+                    if (employee != null)
+                    {
+                        employee.pf_no = emp.pf_no;
+                        _ = _context.tbl_employee.Update(employee);
+                    }
+                }
+            }
+            _ = _context.SaveChanges();
+            return Json(new { status = "success", message = Lang.msg_update_success });
+        }
+        #endregion
+        /********************************************************************************************************************/
+        #region 10915 SSF
+        [HttpGet]
+        public IActionResult SSF()
+        {
+            string PageId = "10915";
+            #region FOR PERMISSION
+            string perm = _accountServices.GetSingleMenuPermission(PageId, "V") ?? "false";
+            if (perm == "false") { return RedirectToAction("PermissionDenied", "Home"); }
+            #endregion FOR END PERMISSION
+
+            ViewBag.EmployeeStatusFilter = StatusActivePassive("AD", "A");
+            ViewBag.epern = _accountServices.GetSingleMenuPermission(PageId, "E") ?? "false";
+            return PartialView("Payroll/_SSF", "");
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult SSFList([FromForm] CostumFilterRequest request)
+        {
+            var (pageSize, skip, draw, sortColumn, sortColumnDir, searchValue) = DataTableHelper.GetParameters(Request);
+
+            string EmployeeStatusFilter = request.FilterValue;
+
+            var query = from emp in _context.tbl_employee
+                        join lft in _context.tbl_employee_ssf_info
+                        on emp.emp_id equals lft.emp_id into LeftJoin
+                        from lft in LeftJoin.DefaultIfEmpty()   // LEFT JOIN
+                        where emp.emp_status == EmployeeStatusFilter
+                        select new SSFViewModel
+                        {
+                            emp_id = emp.emp_id,
+                            firstname = emp.firstname,
+                            middlename = emp.middlename,
+                            lastname = emp.lastname,
+                            emp_code = emp.emp_code,
+                            employee = $"{emp.firstname} {emp.middlename} {emp.lastname} ({emp.emp_code})",
+                            emp_status = emp.emp_status,
+                            gender = emp.gender == "M" ? "Male" : "Female",
+                            join_date = emp.join_date,
+                            end_date = emp.end_date,
+                            salary = emp.salary.ToString() != null ? emp.salary : 0,
+                            ssf_number = lft.ssf_number ?? "",
+                            add_percent = lft.add_percent ?? 1.67,
+                            ded_percent = lft.ded_percent ?? 2.67,
+                            add_percent_amount = lft.add_percent_amount ?? 0.00,
+                            ded_percent_amount = lft.ded_percent_amount ?? 0.00
+                        };
+
+            if (!string.IsNullOrEmpty(sortColumn) && !string.IsNullOrEmpty(sortColumnDir))
+            {
+                if (sortColumn == "employee")
+                {
+                    if (sortColumnDir == "asc")
+                    {
+                        query = query.OrderBy(d => d.firstname).ThenBy(d => d.middlename).ThenBy(d => d.lastname);
+                    }
+                    else
+                    {
+                        query = query.OrderByDescending(d => d.firstname).ThenByDescending(d => d.middlename).ThenByDescending(d => d.lastname);
+                    }
+                }
+                else
+                {
+                    query = query.OrderBy(sortColumn + " " + sortColumnDir);
+                }
+            }
+
+            var data = query.ToList();
+            int totalRecord = data.Count();
+            if (pageSize == -1) { pageSize = totalRecord; }
+            var cData = data.Skip(skip).Take(pageSize).ToList();
+
+            var jsonData = new
+            {
+                draw,
+                recordsFiltered = totalRecord,
+                recordsTotal = totalRecord,
+                data = cData
+            };
+            return new JsonResult(jsonData);
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SSFSave([FromBody] SSFListViewModel model)
+        {
+            string PageId = "10915";
+            #region FOR PERMISSION
+            var perm = _accountServices.GetMenuPermission(PageId);
+            ViewBag.apern = perm.apern;
+            ViewBag.epern = perm.epern;
+            #endregion FOR END PERMISSION
+            if (perm.apern != "true" && perm.epern != "true") { return Json(new { status = "invalid", message = "Not Authorized User" }); }
+            if (!ModelState.IsValid) { return Json(new { status = "error", message = Lang.msg_error_invalid }); }
+
+            if (model?.Fields == null || !model.Fields.Any()) { return Json(new { status = "error", message = "No employees received." }); }
+
+            foreach (var emp in model.Fields)
+            {
+                var DataUpdate = _context.tbl_employee_ssf_info.FirstOrDefault(h => h.emp_id == emp.emp_id);
+                //UPDATE EXISTING RECORDS IF EXIST
+                if (DataUpdate != null)
+                {
+                    DataUpdate.ssf_number = emp.ssf_number;
+                    DataUpdate.add_percent = emp.add_percent;
+                    DataUpdate.ded_percent = emp.ded_percent;
+                    DataUpdate.add_percent_amount = emp.add_percent_amount;
+                    DataUpdate.ded_percent_amount = emp.ded_percent_amount;
+                    _ = _context.tbl_employee_ssf_info.Update(DataUpdate);
+                }
+                else
+                {
+                    // INSERT IF DATA DOESNOT EXIST
+                    int maxId = _context.tbl_employee_ssf_info.Max(e => (int?)e.id) ?? 0;
+                    maxId++;
+                    var newRow = new tbl_employee_ssf_info
+                    {
+                        id = maxId,
+                        emp_id = emp.emp_id,
+                        ssf_number = emp.ssf_number,
+                        add_percent = emp.add_percent,
+                        ded_percent = emp.ded_percent,
+                        add_percent_amount = emp.add_percent_amount,
+                        ded_percent_amount = emp.ded_percent_amount,
+                    };
+                    _ = _context.tbl_employee_ssf_info.Add(newRow);
+                }
+            }
+            _ = _context.SaveChanges();
+            return Json(new { status = "success", message = Lang.msg_update_success });
+        }
+        #endregion
+        /********************************************************************************************************************/
+        #region 10902 CIT
+        [HttpGet]
+        public IActionResult CIT()
+        {
+            string PageId = "10902";
+            #region FOR PERMISSION
+            var perm = _accountServices.GetMenuPermission(PageId);
+            if (perm.vpern == "false") { return RedirectToAction("PermissionDenied", "Home"); }
+            #endregion FOR END PERMISSION
+            ViewBag.EmployeeStatusFilter = StatusActivePassive("AD", "A");
+            ViewBag.CitTypeList = _payrollServices.CITType();
+            ViewBag.epern = _accountServices.GetSingleMenuPermission(PageId, "E") ?? "false";
+            return PartialView("Payroll/_CIT", "");
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CITList([FromForm] CostumFilterRequest request)
+        {
+            var (pageSize, skip, draw, sortColumn, sortColumnDir, searchValue) = DataTableHelper.GetParameters(Request);
+
+            string EmployeeStatusFilter = request.FilterValue;
+
+            var query = from emp in _context.tbl_employee
+                        join lft in _context.tbl_employee_cit
+                        on emp.emp_id equals lft.emp_id into LeftJoin
+                        from lft in LeftJoin.DefaultIfEmpty()   // LEFT JOIN
+                        where emp.emp_status == EmployeeStatusFilter
+                        select new CitViewModel
+                        {
+                            emp_id = emp.emp_id,
+                            firstname = emp.firstname,
+                            middlename = emp.middlename,
+                            lastname = emp.lastname,
+                            emp_code = emp.emp_code,
+                            employee = $"{emp.firstname} {emp.middlename} {emp.lastname} ({emp.emp_code})",
+                            emp_status = emp.emp_status,
+                            gender = emp.gender == "M" ? "Male" : "Female",
+                            join_date = emp.join_date,
+                            end_date = emp.end_date,
+                            cit_no = emp.cit_no ?? "",
+                            cit_type = lft.cit_type ?? "",
+                            percent_amount = lft.percent_amount ?? 0,
+                            remarks = lft.remarks ?? ""
+                        };
+            if (!string.IsNullOrEmpty(sortColumn) && !string.IsNullOrEmpty(sortColumnDir))
+            {
+                if (sortColumn == "employee")
+                {
+                    if (sortColumnDir == "asc")
+                    {
+                        query = query.OrderBy(d => d.firstname).ThenBy(d => d.middlename).ThenBy(d => d.lastname);
+                    }
+                    else
+                    {
+                        query = query.OrderByDescending(d => d.firstname).ThenByDescending(d => d.middlename).ThenByDescending(d => d.lastname);
+                    }
+                }
+                else
+                {
+                    query = query.OrderBy(sortColumn + " " + sortColumnDir);
+                }
+            }
+
+            var data = query.ToList();
+            int totalRecord = data.Count();
+            if (pageSize == -1) { pageSize = totalRecord; }
+            var cData = data.Skip(skip).Take(pageSize).ToList();
+
+            var jsonData = new
+            {
+                draw,
+                recordsFiltered = totalRecord,
+                recordsTotal = totalRecord,
+                data = cData
+            };
+            return new JsonResult(jsonData);
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public JsonResult CITSave([FromBody] CitListViewModel model)
+        {
+            string PageId = "10902";
+            #region FOR PERMISSION
+            var perm = _accountServices.GetMenuPermission(PageId);
+            ViewBag.apern = perm.apern;
+            ViewBag.epern = perm.epern;
+            #endregion FOR END PERMISSION
+
+            if (perm.apern != "true" && perm.epern != "true") { return Json(new { status = "invalid", message = "Not Authorized User" }); }
+            if (!ModelState.IsValid) { return Json(new { status = "error", message = Lang.msg_error_invalid }); }
+            if (model?.Fields == null || !model.Fields.Any()) { return Json(new { status = "error", message = "No employees received." }); }
+            foreach (var emp in model.Fields)
+            {
+                var DataUpdate = _context.tbl_employee_cit.FirstOrDefault(h => h.emp_id == emp.emp_id);
+                //UPDATE EXISTING RECORDS IF EXIST
+                if (DataUpdate != null)
+                {
+                    DataUpdate.cit_type = emp.cit_type;
+                    DataUpdate.percent_amount = emp.percent_amount;
+                    DataUpdate.remarks = emp.remarks;
+                    _ = _context.tbl_employee_cit.Update(DataUpdate);
+                }
+                else
+                {
+                    // INSERT IF DATA DOESNOT EXIST
+                    int maxId = _context.tbl_employee_cit.Max(e => (int?)e.emp_cit_id) ?? 0;
+                    maxId++;
+                    var newRow = new tbl_employee_cit
+                    {
+                        emp_cit_id = maxId,
+                        cit_type = emp.cit_type,
+                        percent_amount = emp.percent_amount,
+                        remarks = emp.remarks,
+                        emp_id = emp.emp_id
+                    };
+                    _ = _context.tbl_employee_cit.Add(newRow);
+                }
+                if (emp?.h_cit_no != emp?.cit_no)
+                {
+                    var employee = _context.tbl_employee.FirstOrDefault(e => e.emp_id == emp.emp_id);
+                    if (employee != null)
+                    {
+                        employee.cit_no = emp.cit_no;
+                        _ = _context.tbl_employee.Update(employee);
+                    }
+                }
+            }
+            _ = _context.SaveChanges();
+            return Json(new { status = "success", message = Lang.msg_update_success });
+        }
+        #endregion
+        /********************************************************************************************************************/
+        #region 10901 BLOCK PAY SLIP
+        [HttpGet]
+        public IActionResult PaySlipBlock()
+        {
+            string PageId = "10901";
+            #region FOR PERMISSION
+            string perm = _accountServices.GetSingleMenuPermission(PageId, "V") ?? "false";
+            if (perm == "false") { return RedirectToAction("PermissionDenied", "Home"); }
+            #endregion FOR END PERMISSION
+
+            ViewBag.DATE_FORMAT = _appSettings.DATE_FORMAT;
+            ViewBag.EmployeeStatusFilter = StatusActivePassive("AD", "A");
+            ViewBag.YearDropDown = _settingsServices.GetYears(DateTime.Now.Year);
+            ViewBag.MonthDropDown = _settingsServices.GetMonths(DateTime.Now.Month);
+            ViewBag.epern = _accountServices.GetSingleMenuPermission(PageId, "E") ?? "false";
+            return PartialView("Payroll/_PaySlipBlock", "");
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult PaySlipBlockList([FromForm] CostumFilterRequest request)
+        {
+            var (pageSize, skip, draw, sortColumn, sortColumnDir, searchValue) = DataTableHelper.GetParameters(Request);
+
+            string EmployeeStatusFilter = request.FilterValue;
+
+            var query = from emp in _context.tbl_employee
+                        join blk in _context.tbl_employee_salary_block
+                        on emp.emp_id equals blk.emp_id into empSalaryBlock
+                        from blk in empSalaryBlock.DefaultIfEmpty()   // LEFT JOIN
+                        where emp.emp_status == EmployeeStatusFilter
+                        select new PaySlipBlockViewModel
+                        {
+                            emp_id = emp.emp_id,
+                            firstname = emp.firstname,
+                            middlename = emp.middlename,
+                            lastname = emp.lastname,
+                            emp_code = emp.emp_code,
+                            employee = $"{emp.firstname} {emp.middlename} {emp.lastname} ({emp.emp_code})",
+                            emp_status = emp.emp_status,
+                            gender = emp.gender == "M" ? "Male" : "Female",
+                            join_date = emp.join_date,
+                            end_date = emp.end_date,
+                            sal_year = (short)(blk.sal_year ?? (short)DateTime.Now.Year),
+                            sal_month = (short)(blk.sal_month ?? (short)DateTime.Now.Month),
+                            block_status = blk.emp_id != null ? "Yes" : "No"
+                        };
+            if (!string.IsNullOrEmpty(sortColumn) && !string.IsNullOrEmpty(sortColumnDir))
+            {
+                if (sortColumn == "employee")
+                {
+                    if (sortColumnDir == "asc")
+                    {
+                        query = query.OrderBy(d => d.firstname).ThenBy(d => d.middlename).ThenBy(d => d.lastname);
+                    }
+                    else
+                    {
+                        query = query.OrderByDescending(d => d.firstname).ThenByDescending(d => d.middlename).ThenByDescending(d => d.lastname);
+                    }
+                }
+                else
+                {
+                    query = query.OrderBy(sortColumn + " " + sortColumnDir);
+                }
+            }
+
+            var data = query.ToList();
+            int totalRecord = data.Count();
+            if (pageSize == -1) { pageSize = totalRecord; }
+            var cData = data.Skip(skip).Take(pageSize).ToList();
+
+            var jsonData = new
+            {
+                draw,
+                recordsFiltered = totalRecord,
+                recordsTotal = totalRecord,
+                data = cData
+            };
+            return new JsonResult(jsonData);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> PaySlipBlockSave([FromBody] PaySlipBlockListViewModel model)
+        {
+            string PageId = "10901";
+            #region FOR PERMISSION
+            var perm = _accountServices.GetMenuPermission(PageId);
+            ViewBag.apern = perm.apern;
+            ViewBag.epern = perm.epern;
+            #endregion FOR END PERMISSION
+
+            _ = ModelState.Remove("selectedIds");
+            _ = ModelState.Remove("Fields");
+
+            if (perm.apern != "true" && perm.epern != "true") { return Json(new { status = "invalid", message = "Not Authorized User" }); }
+            if (!ModelState.IsValid) { return Json(new { status = "error", message = Lang.msg_error_invalid }); }
+
+            var recordsToDelete = _context.tbl_employee_salary_block.ToList();
+            if (recordsToDelete.Any())
+            {
+                _context.tbl_employee_salary_block.RemoveRange(recordsToDelete);
+                _ = await _context.SaveChangesAsync().ConfigureAwait(false);
+            }
+
+            if (model.Fields != null && model.Fields.Count > 0)
+            {
+                foreach (var emp in model.Fields)
+                {
+                    var newRow = new tbl_employee_salary_block
+                    {
+                        id = UniqueID(),
+                        emp_id = emp.emp_id,
+                        sal_year = emp.sal_year,
+                        sal_month = emp.sal_month,
+                        fiscal_year = null,
+                        emp_week = 0
+                    };
+                    _ = _context.tbl_employee_salary_block.Add(newRow);
+                }
+                _ = await _context.SaveChangesAsync().ConfigureAwait(false);
+            }
+            return Json(new { status = "success", message = Lang.msg_update_success });
+        }
+        #endregion        
+        /********************************************************************************************************************/
+        #region 10914 SEND PAY SLIP
+        [HttpGet]
+        public IActionResult PaySlipSend()
+        {
+            string PageId = "10914";
+            #region FOR PERMISSION
+            var perm = _accountServices.GetMenuPermission(PageId);
+            if (perm.vpern == "false") { return RedirectToAction("PermissionDenied", "Home"); }
+            ViewBag.apern = perm.apern;
+            ViewBag.epern = perm.epern;
+            ViewBag.dpern = perm.dpern;
+            #endregion FOR END PERMISSION
+
+            ViewBag.StatusFilter = StatusActivePassive("AD", "A");
+            ViewBag.YearDropDown = _settingsServices.GetYears(DateTime.Now.Year);
+            ViewBag.MonthDropDown = _settingsServices.GetMonths(DateTime.Now.Month);
+            return PartialView("Payroll/_PaySlipSend", "");
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> PaySlipSendList([FromForm] DataFilterRequest request)
+        {
+            var (pageSize, skip, draw, sortColumn, sortColumnDir, searchValue) = DataTableHelper.GetParameters(Request);
+            var Status = request.Status;
+            int Year = request.Year ?? 0;
+            int Month = request.Month ?? 0;
+
+            var query = from e in _context.tbl_employee
+                        join b in _context.tbl_employee_salary_block
+                        .Where(b => b.sal_year == Year && b.sal_month == Month)
+                            on e.emp_id equals b.emp_id into blocks
+                        from b in blocks.DefaultIfEmpty()   // left join
+                        orderby e.emp_id descending
+                        select new
+                        {
+                            e.emp_id,
+                            e.emp_code,
+                            fullname = e.firstname + " " + e.middlename + " " + e.lastname,
+                            e.e_mail,
+                            e.emp_status,
+                            isblocked = b != null,
+                            e.firstname,
+                            e.lastname
+                        };
+
+            query = query.Where(d => d.emp_status == Status);
+            // Search filter
+            if (!string.IsNullOrEmpty(searchValue))
+            {
+                query = query.Where(e => e.firstname.Contains(searchValue) || e.lastname.Contains(searchValue) || e.emp_code.Contains(searchValue) || e.e_mail.Contains(searchValue));
+            }
+            // Sorting (requires System.Linq.Dynamic.Core)
+            if (!string.IsNullOrEmpty(sortColumn) && !string.IsNullOrEmpty(sortColumnDir))
+            {
+                query = query.OrderBy($"{sortColumn} {sortColumnDir}");
+            }
+            var data = query.ToList();
+
+            int totalRecord = data.Count();
+            if (pageSize == -1) { pageSize = totalRecord; }
+            var cData = data.Skip(skip).Take(pageSize).ToList();
+
+            var jsonData = new
+            {
+                draw,
+                recordsFiltered = totalRecord,
+                recordsTotal = totalRecord,
+                data = cData.Select((x, index) => new
+                {
+                    x.emp_id,
+                    x.emp_code,
+                    x.fullname,
+                    x.e_mail,
+                    x.emp_status,
+                    blockedicon = x.isblocked
+                            ? "<img src='/images/delete.png' title='Pay Slip Blocked'>"
+                            : "<img src='/images/right.png' title='Pay Slip Not Blocked'>"
+                })
+            };
+            return new JsonResult(jsonData);
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult PaySlipPreview([FromBody] PaySlipPreviewRequest request)
+        {
+            if (request.SelectedIds == null || !request.SelectedIds.Any())
+            {
+                return Content("<font color='red'><b>No employee selected for slip preview</b></font>", "text/html");
+            }
+
+            string op_org_name = _globalOptionServices.OptionServices["op_org_name"];
+            string op_org_addr = _globalOptionServices.OptionServices["op_org_addr"];
+            string op_currency_symbol = _globalOptionServices.OptionServices["op_currency_symbol"];
+            bool isDiffMonth = _paySlipManager.GetIsMonthHasDiff(request.Year, request.Month);
+
+            ViewBag.op_org_name = op_org_name;
+            ViewBag.op_org_addr = op_org_addr;
+            ViewBag.op_currency_symbol = op_currency_symbol;
+            ViewBag.DiffMonth = isDiffMonth;
+            ViewBag.Period = $"Statement of Salary for the month of {MonthName(request.Month)}-{request.Year}";
+            var slips = new List<PaySlipViewModel>();
+            foreach (var empId in request.SelectedIds)
+            {
+                var slip = _paySlipManager.GetPaySlipSingle(empId, request.Year, request.Month, isDiffMonth);
+                if (slip != null) { slips.Add(slip); }
+            }
+
+            if (!slips.Any())
+            {
+                return Content("<table><tr><td align='center'><b>No record found</b></td></tr></table>", "text/html");
+            }
+
+            return PartialView("Payroll/_PaySlipPreview", slips);
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public JsonResult PaySlipSendSubmit([FromBody] PaySlipSubmitListViewModel model)
+        {
+            string PageId = "10914";
+            #region FOR PERMISSION
+            var perm = _accountServices.GetMenuPermission(PageId);
+            ViewBag.apern = perm.apern;
+            ViewBag.epern = perm.epern;
+            #endregion FOR END PERMISSION
+
+            if (perm.apern != "true" && perm.epern != "true") { return Json(new { status = "invalid", message = "Not Authorized User" }); }
+            if (!ModelState.IsValid) { return Json(new { status = "error", message = Lang.msg_error_invalid }); }
+            if (model?.Fields == null || !model.Fields.Any()) { return Json(new { status = "error", message = "No employees received." }); }
+
+            int sal_year = Convert.ToInt32(model.year);
+            int sal_month = Convert.ToInt32(model.month);
+            string StrTMsg = model.message ?? "";
+            if (sal_year < 1 || sal_month < 1) { return Json(new { status = "error", message = Lang.msg_insufficient_info }); }
+
+            string StrPaySlipOf = $"{MonthName(sal_month)}/{sal_year}";
+            string Subject = Lang.EMAIL_SALARY_PAY_SLIP_SEND_SUBJECT.Replace("<[MONTH-NAME]>", StrPaySlipOf, StringComparison.OrdinalIgnoreCase);
+            int SendCount = 0;
+            foreach (var update in model.Fields)
+            {
+                var emp = _context.tbl_employee.FirstOrDefault(e => e.emp_id == update.emp_id);
+                if (emp == null) { continue; }
+                int emp_id = emp.emp_id;
+                string EmployeeName = _employeeServices.GetEmployeeName(emp_id, "NameOnly");
+                string SetEmail = _employeeServices.GetEmployeeNameEmail(emp_id);
+                string ToEmail = string.IsNullOrWhiteSpace(SetEmail) ? "" : SetEmail;
+                if (string.IsNullOrWhiteSpace(ToEmail)) { continue; }
+
+                string linkClickHere = ""; // for security reason, link na pathune ho ki 
+                string Message = "";
+                string isBlockedPaySlip = "N";
+                bool isBlocked = _context.tbl_employee_salary_block
+                    .Any(b => b.emp_id == emp_id && b.sal_year == sal_year && b.sal_month == sal_month);
+                if (isBlocked) { isBlockedPaySlip = "Y"; }
+
+                Message = isBlockedPaySlip == "Y" ? Lang.EMAIL_SALARY_PAY_SLIP_SEND_MESSAGE_BLK : Lang.EMAIL_SALARY_PAY_SLIP_SEND_MESSAGE;
+                string LinkInEmail = $"<a href='{_appSettings.BaseUrl}Personnel/PaySlipEmailMiddle?emp_id={emp_id}&salyear={sal_year}&salmonth={sal_month}&st=view&tstype=monthly'>View</a>";
+
+                Message = Message
+                    .Replace("<[EMPLOYEE-NAME]>", EmployeeName, StringComparison.Ordinal)
+                    .Replace("<[MONTH-NAME]>", StrPaySlipOf, StringComparison.Ordinal)
+                    .Replace("<[TYPED-MESSAGE]>", StrTMsg, StringComparison.Ordinal)
+                    .Replace("<[VIEW-LINK]>", LinkInEmail, StringComparison.Ordinal);
+                string emst = _emailService.SendEmail("PaySlip", ToEmail, Subject, Message);
+                if (emst == "true") { SendCount++; }
+            }
+            return Json(new { status = "success", message = $"{SendCount} Pay Slip(s) sent." });
+        }
+        #endregion
+        /********************************************************************************************************************/
+
+        public IActionResult Index()
+        {
+            return View();
+        }
+    }
+}

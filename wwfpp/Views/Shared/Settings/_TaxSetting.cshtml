@@ -1,0 +1,251 @@
+﻿@using Microsoft.AspNetCore.Http;
+@inject IHttpContextAccessor HttpContextAccessor;
+@model wwfpp.Models.Settings.TaxSettingViewModel
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var PageTitle = "Tax setting";
+    
+    //Tool tip message on right side
+    var Page_Tips = $@"<b>Eligible medical expenses means</b> 
+                    <br/><br/><i> - For staff optioning as &quot;Singl&quot; 
+                    for filing income tax return :- medical expenses of taxpayer 
+                    (staff) only (not other dependents).</i><br/><br/> <i>- For 
+                    staff optioning as &quot;Married&quot; for filing income tax return 
+                    :- medical expenses of taxpayer (staff) and his/her spouse (not other 
+                    dependents).</i>";
+    	
+    var msg_please_wait = "";
+    var Page_Mode = PageTitle; 
+    ViewData["Title"] = "| " + PageTitle;
+    var Help_Tips = GblUtilities.HelpTips(Page_Tips);    
+    string ShowMsg = GblUtilities.MsgDisplay(Context.Request.Query["msg"].ToString());/*success|fail|error'*/    
+}
+@Html.AntiForgeryToken()
+@Html.Hidden("ilaka", "/Settings/TaxSetting")
+<h2 class="titlebig"><span name="header" id="header">@Page_Mode</span> @Html.Raw(Help_Tips)</h2>
+@Html.Hidden("mode", (string)ViewBag.mode)
+@Html.HiddenFor(m => m.Id)
+<partial name="_ConstantValues" view-data='new ViewDataDictionary(ViewData) { { "NoteKey", "RequiredField" } }' />
+
+<div id="message_header"><p id="loading" class="loading displaynone">@msg_please_wait</p></div>
+<div id="message_header">@Html.Raw(ShowMsg)</div>
+
+<div class="form-group row p-1">
+    <label class="col-lg-12 col-form-label-sm bg-ltax" >Initial Tax Percent</label>
+
+    <div class="row">
+        <div class="col-lg-12 col-form-label-sm">
+            <table>
+                <tr>
+                    <td style="width:5%">
+                        @Html.CheckBoxFor(m => m.is_used_initial_tax_percent)
+                    </td>
+                    <td style="width:45%">Apply initial tax percent:<span class="text-danger">*</span></td>
+                    <td style="width:50%">@Html.TextBox("initial_tax_percent", @String.Format("{0:F2}", Model.initial_tax_percent), new { @class = "form-control w-30", maxlength = "5" })</td>
+                </tr>
+            </table>
+        </div>
+    </div>
+    <label class="col-lg-12 col-form-label-sm  bg-ltax">Discount Amount</label>
+    <div class="row">
+        <div class="col-lg-4 col-form-label-sm">Single (@ViewBag.CurrncySymbol)<span class="text-danger">*</span></div>
+        <div class="col-lg-8">            
+            @Html.TextBox("single_amt", @String.Format("{0:F2}", Model.single_amt), new { @class = "form-control w-25", maxlength = "10" })
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-4 col-form-label-sm">Married &nbsp;(@ViewBag.CurrncySymbol) <span class="text-danger">*</span></div>
+        <div class="col-lg-8">
+            @Html.TextBox("married_amt", @String.Format("{0:F2}", Model.married_amt), new { @class = "form-control w-25", maxlength = "10"})
+            
+        </div>
+    </div>
+
+    <label class="col-lg-12 col-form-label-sm bg-ltax">Taxable amount and %</label>
+    <div class="row">
+        <div class="col-lg-4 col-form-label-sm">First taxable amount&nbsp;(@ViewBag.CurrncySymbol)<span class="text-danger">*</span></div>
+        <div class="col-lg-8">
+            @Html.TextBoxFor(m => m.first_tax_amount, new { @class = "form-control w-25", maxlength = "10" })
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-4 col-form-label-sm">Tax on first taxable amount &nbsp;(%)<span class="text-danger">*</span></div>
+        <div class="col-lg-8">
+            @Html.TextBoxFor(m => m.first_tax_percent, new { @class = "form-control w-25", maxlength = "5" })
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-4 col-form-label-sm  bg-window">Second taxable amount &nbsp;(@ViewBag.CurrncySymbol)<span class="text-danger">*</span></div>
+        <div class="col-lg-8  bg-window">
+            @Html.TextBox("second_tax_amount", @String.Format("{0:F2}", Model.second_tax_amount), new { @class = "form-control w-25", maxlength = "10"})
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-4 col-form-label-sm  bg-window">Tax on second taxable amount &nbsp;(%)<span class="text-danger">*</span></div>
+        <div class="col-lg-8  bg-window">
+            @Html.TextBoxFor(m => m.second_tax_percent, new { @class = "form-control w-25", maxlength = "5" })
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-4 col-form-label-sm">Third taxable amount (<b>Single</b>) &nbsp;(@ViewBag.CurrncySymbol)<span class="text-danger">*</span></div>
+        <div class="col-lg-8">
+            @Html.TextBox("third_tax_amount_single", @String.Format("{0:F2}", Model.third_tax_amount_single), new { @class = "form-control w-25", maxlength = "5" })
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-4 col-form-label-sm">Third taxable amount (<b>Married</b>) &nbsp;(@ViewBag.CurrncySymbol)<span class="text-danger">*</span></div>
+        <div class="col-lg-8">
+            @Html.TextBox("third_tax_amount_married", @String.Format("{0:F2}", Model.third_tax_amount_married), new { @class = "form-control w-25", maxlength = "10" })
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-4 col-form-label-sm">Tax on third taxable amount &nbsp;(%)<span class="text-danger">*</span></div>
+        <div class="col-lg-8">
+            @Html.TextBoxFor(m => m.third_tax_percent, new { @class = "form-control w-25", maxlength = "5" })
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-4 col-form-label-sm  bg-window">Fourth taxable amount:&nbsp;(@ViewBag.CurrncySymbol)<span class="text-danger">*</span></div>
+        <div class="col-lg-8  bg-window">
+            @Html.TextBox("fourth_tax_amount", @String.Format("{0:F2}", Model.fourth_tax_amount), new { @class = "form-control w-25", maxlength = "10" })
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-4 col-form-label-sm bg-window">Tax on fourth taxable amount &nbsp;(%)<span class="text-danger">*</span></div>
+        <div class="col-lg-8 bg-window">
+            @Html.TextBoxFor(m => m.fourth_tax_percent, new { @class = "form-control w-25", maxlength = "5"})
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-4 col-form-label-sm">Tax on remaining &nbsp;(%)<span class="text-danger">*</span></div>
+        <div class="col-lg-8">
+            @Html.TextBoxFor(m => m.fifth_tax_percent, new { @class = "form-control w-25", maxlength = "10" })
+        </div>
+    </div>
+
+
+    <label class="col-lg-12 col-form-label-sm bg-ltax">Tax rebate for</label>
+    <div class="row">
+        <div class="col-lg-4 col-form-label-sm"> <u>Single/Married</u> <u>Female</u> &nbsp;(%)<span class="text-danger">*</span></div>
+        <div class="col-lg-8">
+            @Html.TextBoxFor(m => m.single_female_ded_per, new { @class = "form-control w-25", maxlength = "5" })
+        </div>
+    </div>
+
+    <label class="col-lg-12 col-form-label-sm bg-ltax">Medical expenses and tax rules </label>
+    <div class="row">
+        <div class="col-lg-4 col-form-label-sm">Max. medical expenses and life insurance reimbursed by employer&nbsp;(@ViewBag.CurrncySymbol)<span class="text-danger">*</span></div>
+            <div class="col-lg-8">            
+            @Html.TextBoxFor(m => m.max_medical_expenses_reimbursed, new { @class = "form-control w-25", maxlength = "5" })
+        </div>
+    </div>
+
+    <label class="col-lg-12 col-form-label-sm bg-ltax">Max. medical tax credit <span class="text-danger">*</span></label>
+    <div class="row">
+        <div class="col-lg-12 col-form-label-sm">
+            <table width="100%">
+                <tr>
+                    <td width="5%">&nbsp;</td>
+                    <td style="display:inline; width:95%;">
+                        Lowest of &nbsp;
+                        @Html.TextBoxFor(m => m.max_medical_tax_credit_amount, new { @class = "form-control w-25", maxlength = "10" })
+                        &nbsp; OR &nbsp;
+                        @Html.TextBoxFor(m => m.max_medical_tax_credit_per, new { @class = "form-control w-25", maxlength = "5" })
+                        &nbsp; % of eligible medical expenses
+                    </td>
+                </tr>
+            </table>
+
+        </div>
+    </div>
+
+    <label class="col-lg-12 col-form-label-sm bg-ltax">Yearly insurance</label>
+
+    <div class="row">
+        <div class="col-lg-4 col-form-label-sm">Yearly insurance amount for deduction<span class="text-danger">*</span>&nbsp;(@ViewBag.CurrncySymbol)</div>
+        <div class="col-lg-8">
+        @Html.TextBox("ins_amt", @String.Format("{0:F2}", Model.ins_amt), new { @class = "form-control w-25", maxlength = "10" })
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-4 col-form-label-sm">Yearly non life insurance amount for deduction<span class="text-danger">*</span>&nbsp;(@ViewBag.CurrncySymbol)</div>
+        <div class="col-lg-8">
+        @Html.TextBox("ins_amt_non_life", @String.Format("{0:F2}", Model.ins_amt_non_life), new { @class = "form-control w-25", maxlength = "10" })
+        </div>
+    </div>
+
+</div>
+
+@if (ViewBag.apern == "true" || ViewBag.epern == "true")
+{
+    <div class="form-group row p-1">
+        <label class="col-sm-4 col-form-label">&nbsp;</label>
+        <div class="col-sm-8">
+            <button type="reset" name="btnReset" id="btnReset" class="button btn-secondary">Reset</button>
+            <button type="button" name="btnSave" id="btnSave" class="button btn-primary">Save</button>
+        </div>
+    </div>
+
+    @section scripts
+    {
+        <script>
+            var ilaka = document.getElementById('ilaka').value;
+            $(document).off("click", "#btnSave").on("click", "#btnSave", function () {
+                if(document.frm.is_used_initial_tax_percent.checked == true)
+                {
+                    if ( checkInput( 'txt', 'initial_tax_percent', 'Initial tax percent is required.')  == false ) {return false;}
+                }
+                if ( checkInput( 'txt', 'single_amt', 'Single discount amount is required.' ) == false ) {return false;}
+                if ( checkInput( 'txt', 'married_amt', 'Married discount amount is required.' ) == false ) {return false;}
+                if ( checkInput( 'txt', 'first_tax_amount', 'First taxable amount is required.' ) == false ) {return false;}
+                if ( checkInput( 'txt', 'first_tax_percent', 'Tax % of first taxable amount is required.' ) == false ) {return false;}
+                if ( checkInput( 'txt', 'second_tax_amount', 'Second taxable amount is required.' ) == false ) {return false;}
+                if ( checkInput( 'txt', 'second_tax_percent', 'Tax % of second taxable is required.' ) == false ) {return false;}
+                if ( checkInput( 'txt', 'third_tax_amount_single', 'Third taxable amount (Single) is required.' ) == false ) {return false;}
+                if ( checkInput( 'txt', 'third_tax_amount_married', 'Third taxable amount (Married) is required.' ) == false ) {return false;}
+                if ( checkInput( 'txt', 'third_tax_percent', 'Tax % of third taxable is required.' ) == false ) {return false;}
+                if ( checkInput( 'txt', 'fourth_tax_amount', 'Fourth taxable amount  is required.' ) == false ) {return false;}
+                if ( checkInput( 'txt', 'fourth_tax_percent', 'Tax % of fourth taxable is required.' ) == false ) {return false;}
+                if ( checkInput( 'txt', 'fifth_tax_percent', 'Tax % of remaining amount is required.' ) == false ) {return false;}
+                if ( checkInput( 'txt', 'single_female_ded_per', 'Rebate on total tax (for Single Female) is required.' ) == false ) {return false;}
+                if ( checkInput( 'txt', 'max_medical_expenses_reimbursed', 'Maximum medical expenses reimbursed by employer is required.' ) == false ) {return false;}
+                if ( checkInput( 'txt', 'max_medical_tax_credit_amount', 'Maximum medical tax credit amount is required.' ) == false ) {return false;}
+                if ( checkInput( 'txt', 'max_medical_tax_credit_per', 'Maximum medical tax credit percentage is required.' ) == false ) {return false;}
+                if ( checkInput( 'txt', 'ins_amt', 'Insurance amount is required.' ) == false ) {return false;}
+                if ( checkInput( 'txt', 'ins_amt_non_life', 'Insurance amount (Non Life) is required.' ) == false ) {return false;}
+                submitSaveUpdate(ilaka);
+            });
+            $(document).off('blur', '#initial_tax_percent').on('blur', '#initial_tax_percent', function () {OnlyNumeric('initial_tax_percent');});
+            $(document).off('blur', '#single_amt').on('blur', '#single_amt', function () {OnlyNumeric('single_amt');});
+            $(document).off('blur', '#married_amt').on('blur', '#married_amt', function () {OnlyNumeric('married_amt');});
+            $(document).off('blur', '#first_tax_amount').on('blur', '#first_tax_amount', function () {OnlyNumeric('first_tax_amount');});
+            $(document).off('blur', '#first_tax_percent').on('blur', '#first_tax_percent', function () {OnlyNumeric('first_tax_percent');});
+            $(document).off('blur', '#second_tax_amount').on('blur', '#second_tax_amount', function () {OnlyNumeric('second_tax_amount');});
+            $(document).off('blur', '#second_tax_percent').on('blur', '#second_tax_percent', function () {OnlyNumeric('second_tax_percent');});
+            $(document).off('blur', '#third_tax_amount_single').on('blur', '#third_tax_amount_single', function () {OnlyNumeric('third_tax_amount_single');});
+            $(document).off('blur', '#third_tax_amount_married').on('blur', '#third_tax_amount_married', function () {OnlyNumeric('third_tax_amount_married');});
+            $(document).off('blur', '#third_tax_percent').on('blur', '#third_tax_percent', function () {OnlyNumeric('third_tax_percent');});
+            $(document).off('blur', '#fourth_tax_amount').on('blur', '#fourth_tax_amount', function () {OnlyNumeric('fourth_tax_amount');});
+            $(document).off('blur', '#fourth_tax_percent').on('blur', '#fourth_tax_percent', function () {OnlyNumeric('fourth_tax_percent');});
+            $(document).off('blur', '#fifth_tax_percent').on('blur', '#fifth_tax_percent', function () {OnlyNumeric('fifth_tax_percent');});
+            $(document).off('blur', '#single_female_ded_per').on('blur', '#single_female_ded_per', function () {OnlyNumeric('single_female_ded_per');});
+            $(document).off('blur', '#max_medical_expenses_reimbursed').on('blur', '#max_medical_expenses_reimbursed', function () {OnlyNumeric('max_medical_expenses_reimbursed');});
+            $(document).off('blur', '#max_medical_tax_credit_amount').on('blur', '#max_medical_tax_credit_amount', function () {OnlyNumeric('max_medical_tax_credit_amount');});
+            $(document).off('blur', '#max_medical_tax_credit_per').on('blur', '#max_medical_tax_credit_per', function () {OnlyNumeric('max_medical_tax_credit_per');});
+            $(document).off('blur', '#ins_amt').on('blur', '#ins_amt', function () {OnlyNumeric('ins_amt');});
+            $(document).off('blur', '#ins_amt_non_life').on('blur', '#ins_amt_non_life', function () {OnlyNumeric('ins_amt_non_life');});
+
+        </script>
+    }
+}

@@ -1,0 +1,197 @@
+﻿@using Microsoft.AspNetCore.Http;
+@using wwfpp.Services;
+@inject IHttpContextAccessor HttpContextAccessor;
+@inject GlobalOptionServices GlobalOptionServices;
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var PageTitle = "Gratuity Information";
+    var Page_Tips = "";  //Tool tip message on right side
+    var msg_please_wait = "";
+    var Page_Mode = PageTitle;
+    ViewData["Title"] = "| " + PageTitle;
+    var Help_Tips = GblUtilities.HelpTips(Page_Tips);
+    /*success|fail|error'*/
+    string ShowMsg = GblUtilities.MsgDisplay(Context.Request.Query["msg"].ToString());
+    var op_float_gratuity_percentage_value = GlobalOptionServices.OptionServices["OP_float_gratuity_percentage_value"];
+}
+@Html.AntiForgeryToken()
+<h2 class="titlebig"><span name="header" id="header">@Page_Mode</span> @Html.Raw(Help_Tips)</h2>
+@Html.Hidden("mode", "")
+@Html.Hidden("Id", "")
+@Html.Hidden("op_float_gratuity_percentage_value", @op_float_gratuity_percentage_value)
+<div id="message_header"><p id="loading" class="loading displaynone">@msg_please_wait</p></div>
+
+<div class="row">
+    <div class="col-lg-2"><label class="col-lg-12 col-form-label-lg">Employee Status : &nbsp;</label></div>
+    <div class="col-lg-10">
+        @Html.DropDownList("StatusFilter", (SelectList)ViewBag.StatusFilter, new { @class = "form-select", style = "width:300px;" })
+    </div>
+</div>
+
+<!-- DataTable -->
+<div class="form-group p-2">
+    <table id="tblData" class="display compact nowrap" style="width:100%">
+        <thead>
+            <tr style="background-color:silver; height:40px;">
+                <th class="text-center" style="width:1%;"><input type="checkbox" id="selectAll"></th>
+                <th style="width:1%;">S.N.</th>
+                <th style="width:18%;">Employee Name</th>
+                <th style="width:10%;">Opening<br>Balance</th>
+                <th style="width:10%;">Opening<br>Interest</th>
+                <th style="width:10%;">Salary</th>
+                <th style="width:10%;">Number</th>
+                <th style="width:10%;">Group</th>
+                <th style="width:10%;">Type</th>
+                <th style="width:10%;">Addition</th>
+                <th style="width:10%;">Deduction</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Data dynamically injected here -->
+        </tbody>
+    </table>
+</div>
+<div id="message_header">@Html.Raw(ShowMsg)</div>
+@if (ViewBag.epern == "true")
+{
+    <div class="form-group row p-1">
+        <label class="col-sm-4 col-form-label">&nbsp;</label>
+        <div class="col-sm-8">
+            <button type="reset" name="btnReset" id="btnReset" class="button btn-secondary">Reset</button>
+            <button type="button" name="btnCalculate" id="btnCalculate" class="button bg-blue">Calculate All</button>
+            <button type="button" name="btnSave" id="btnSave" class="button btn-primary">Save</button>
+        </div>
+    </div>
+}
+<div id="grgTemplate" style="display:none;">@Html.DropDownList("gr_group", (SelectList)ViewBag.GRGroupList, "--Select--", new { @class = "form-control", style = "width:90px;" })</div>
+<div id="grtTemplate" style="display:none;">@Html.DropDownList("gr_type", (SelectList)ViewBag.GRTypeList, "--Select--", new { @class = "form-control", style = "width:70px;" })</div>
+@section scripts
+{
+    <script>
+        var ilaka = "/Payroll/GratuityInformation";
+        var selectedIds = new Set();
+        var hideviewaction = "yes";
+        var table;
+        $(document).ready(function() {
+            GetAllData(ilaka, "emp_id", [
+                {
+                    data: null,
+                    name: "serial",
+                    autoWidth: false,
+                    render: function(data, type, row, meta) {
+                        return meta.row + 1; // serial number starting from 1
+                    }
+                },
+                { data: "employee", name: "employee", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "opening_balance", name: "opening_balance", autoWidth: false, render: function(data, type, row, meta) { return '<span id="opening_balance' + meta.row + '" name="opening_balance' + meta.row + '" style="white-space:normal;">' + data + '</span>'; } },
+                { data: "opening_interest", name: "opening_interest", autoWidth: false, render: function(data, type, row, meta) { return '<span id="opening_interest' + meta.row + '" name="opening_interest' + meta.row + '" style="white-space:normal;">' + data + '</span>'; } },
+                { data: "salary", name: "salary", autoWidth: false, render: function(data, type, row, meta) { return '<span id="salary' + meta.row + '" name="salary' + meta.row + '" style="white-space:normal;">' + data + '</span>'; } },
+                { data: "gr_number", name: "gr_number", autoWidth: false, render: function(data, type, row, meta) { return '<input type="text" name="gr_number' + meta.row + '" id="gr_number' + meta.row + '" value="' + data + '" class="form-control gr_number-input" style = "width:90px;", maxlength = "10">'; } },
+                {
+                    data: "gr_group",
+                    name: "gr_group",
+                    autoWidth: false,
+                    render: function(data, type, row, meta) {
+                        var ctrlName = "gr_group" + meta.row;
+                        var $select = $("#grgTemplate select").clone();
+                        $select.attr("id", ctrlName)
+                            .attr("name", ctrlName)
+                            .addClass("gr_group")                 // add class
+                            .attr("data-serial", meta.row)        // add serial
+                            .attr("style", "width:150px;");
+
+                        var val = data != null ? data.toString().trim() : "";
+                        $select.find("option:selected").prop("selected", false);
+                        $select.find("option").each(function() {
+                            if ($(this).val() === val) {
+                                $(this).attr("selected", "selected");
+                            }
+                        });
+                        return $select.prop("outerHTML");
+                    }
+                },
+                {
+                    data: "gr_type",
+                    name: "gr_type",
+                    autoWidth: false,
+                    render: function(data, type, row, meta) {
+                        var ctrlName = "gr_type" + meta.row;
+                        var $select = $("#grtTemplate select").clone();
+                        $select.attr("id", ctrlName)
+                            .attr("name", ctrlName)
+                            .addClass("gr_type")                  // add class
+                            .attr("data-serial", meta.row)        // add serial
+                            .attr("style", "width:150px;");
+
+                        var val = data != null ? data.toString().trim() : "";
+                        $select.find("option:selected").prop("selected", false);
+                        $select.find("option").each(function() {
+                            if ($(this).val() === val) {
+                                $(this).attr("selected", "selected");
+                            }
+                        });
+                        return $select.prop("outerHTML");
+                    }
+                },
+                { data: "add_percent_amount", name: "add_percent_amount", autoWidth: false, render: function(data, type, row, meta) { return '<input type="number" name="add_percent_amount' + meta.row + '" id="add_percent_amount' + meta.row + '" value="' + data + '" class="form-control add_amount-input" style = "width:90px;", maxlength = "10">'; } },
+                { data: "ded_percent_amount", name: "ded_percent_amount", autoWidth: false, render: function(data, type, row, meta) { return '<input type="number" name="ded_percent_amount' + meta.row + '" id="ded_percent_amount' + meta.row + '" value="' + data + '" class="form-control ded_amount-input" style = "width:90px;", maxlength = "10">'; } },
+            ],
+                {
+                    FilterValue: "StatusFilter"
+                });
+            $(document).one('init.dt', '#tblData', function() { table.page.len(-1).draw(); })/** Wait for first draw to complete before changing page length*/
+            $('#tblData_filter').hide();
+            $('#tblData_length').hide();
+        });
+
+        function collectExtraFields() {
+            var extraSettings = [];
+            $("#tblData tbody tr").each(function() {
+                var row = $(this);
+                var id = row.find("input.row-checkbox:checked").val();
+                if (selectedIds.has(id)) {
+                    extraSettings.push({
+                        id: 0,
+                        emp_id: parseInt(id, 10),
+                        gr_number: row.find("input[name^='gr_number']").val() || "",
+                        gr_group: row.find("select[name^='gr_group']").val() || "",
+                        gr_type: row.find("select[name^='gr_type']").val() || "",
+                        add_percent_amount: parseFloat(row.find("input[name^='add_percent_amount']").val()) || 0,
+                        ded_percent_amount: parseFloat(row.find("input[name^='ded_percent_amount']").val()) || 0
+                    });
+                }
+            });
+            return extraSettings;
+        }
+        $(document).on('change', '.gr_group', function() { var serial = $(this).data("serial"); change_gr_add_ded_amount(serial); });
+        $(document).on('change', '.gr_type', function() { var serial = $(this).data("serial"); change_gr_add_ded_amount(serial); });
+        $(document).off("click", "#btnCalculate").on("click", "#btnCalculate", function () { calculateAll(); });
+        $(document).off("click", "#btnSave").on("click", "#btnSave", function() { $("#mode").val("update"); updateDataJSON(ilaka + "Save"); });
+        $("#StatusFilter").off("change").on("change", function() { const statusV = $(this).val(); if (!statusV) { return; } const $myButton = $("#btnSave"); if ($myButton.length) { if (statusV === "A") { $myButton.show(); $('#tblData_length').hide(); table.page.len(-1).draw(); } else { $myButton.hide(); $('#tblData_length').show(); table.page.len(10).draw(); } } table.draw(); });
+
+        function change_gr_add_ded_amount(serial) {
+            var op_float_gratuity_percentage_value = $("#op_float_gratuity_percentage_value").val() || 0;
+            var grGroup = $("select[name='gr_group" + serial + "']").val();
+            var grType = $("select[name='gr_type" + serial + "']").val();
+            var salary = parseFloat($("#salary" + serial).text()) || 0;
+            var dblAdd = 0, dblDed = 0;
+            if (grGroup === "A" && grType === "B") {
+                // 10% add and 20% ded
+                dblAdd = (salary * op_float_gratuity_percentage_value) / 100;
+                dblDed = 2 * (salary * op_float_gratuity_percentage_value) / 100;
+            } else if (grGroup === "B" && grType === "B") {
+                // 20% ded only
+                dblDed = 2 * (salary * op_float_gratuity_percentage_value) / 100;
+            }
+
+            $("input[name='add_percent_amount" + serial + "']").val(dblAdd.toFixed(2));
+            $("input[name='ded_percent_amount" + serial + "']").val(dblDed.toFixed(2));
+        }
+        function calculateAll() {
+            $("#tblData tbody tr").each(function (index) {
+                var serial = index; 
+                change_gr_add_ded_amount(serial);
+            });
+        }
+    </script>
+}

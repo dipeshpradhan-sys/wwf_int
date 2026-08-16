@@ -1,0 +1,220 @@
+﻿@using Microsoft.AspNetCore.Http;
+@inject IHttpContextAccessor HttpContextAccessor;
+@model List<wwfpp.Models.Settings.LeaveSettingViewModel>
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var PageTitle = "Leave Setting";
+    var Page_Tips = "Leave can be set for only active employee for current fiscal year.";  //Tool tip message on right side
+    var msg_please_wait = "";
+    var Page_Mode = PageTitle; 
+    var Pern = ViewBag.vpern;
+    ViewData["Title"] = "| " + PageTitle;
+    var Help_Tips = GblUtilities.HelpTips(Page_Tips);    
+    string ShowMsg = GblUtilities.MsgDisplay(Context.Request.Query["msg"].ToString());/*success|fail|error'*/
+}
+@Html.AntiForgeryToken()
+@Html.Hidden("ilaka", "/Settings/LeaveSetting")
+<h2 class="titlebig"><span name="header" id="header">@Page_Mode</span> @Html.Raw(Help_Tips)</h2>
+<input type="hidden" id="mode" name="mode" value="" />
+<input type="hidden" id="Id" name="Id" value="" />
+
+<div id="message_header"><p id="loading" class="loading displaynone">@msg_please_wait</p></div>
+
+<div class="row">
+    <div class="col-lg-2"><label class="col-lg-12 col-form-label-lg">Unit : &nbsp;</label></div>
+    <div class="col-lg-10">
+        @Html.DropDownList("UnitFilter", (SelectList)ViewBag.UnitFilter, new { @class = "form-select", style = "width:300px;" })
+    </div>
+</div>
+<div class="row">
+    <div class="col-lg-2"><label class="col-lg-12 col-form-label-lg">Fiscal Year : &nbsp;</label></div>
+    <div class="col-lg-10">
+        @Html.DropDownList("FiscalFilter", (SelectList)ViewBag.FiscalFilter, new { @class = "form-select", style = "width:300px;" })
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-2"><label class="col-lg-12 col-form-label-lg">Employee Status : &nbsp;</label></div>
+    <div class="col-lg-10">
+        @Html.DropDownList("StatusFilter", (SelectList)ViewBag.StatusFilter, new { @class = "form-select", style = "width:300px;" })
+    </div>
+</div>
+
+<div class="p-0 bg-white rounded mb-3">
+    <div class="row align-items-center">
+        <div class="col-auto ms-auto">
+            @Html.Raw(ViewBag.ViewButtons)
+        </div>
+    </div>
+</div>
+
+@if (Model == null)
+{
+    <div id="message_header"><p class="note">No record(s) found.</p></div>
+}
+else
+{
+    <div class="form-group p-2">
+        <table id="tblData" class="display compact nowrap" style="width:100%">
+            <thead>
+                <tr style="height: 40px; align-items: center;color:white;" class="bg-secondary bg-opacity-27">
+                    <th>&nbsp;</th>
+                    <th colspan="2">Employee</th>
+                    <th colspan="2">Annual</th>
+                    <th colspan="2">Sick</th>
+                    <th colspan="6">Others</th>
+                </tr>
+                <tr style="height: 40px; align-items: center;color:white;" class="bg-secondary bg-opacity-27">
+                    <th width="1%"><input type="checkbox" id="selectAll"></th>
+                    <th width="19%">Name</th>
+                    <th width="10%">Gender</th>
+                    <th width="7%">C.F.</th>
+                    <th width="7%">Current</th>
+                    <th width="7%">C.F.</th>
+                    <th width="7%">Current</th>
+                    <th width="7%">Casual</th>
+                    <th width="7%">Other</th>
+                    <th width="7%">Maternity</th>
+                    <th width="7%">Paternity</th>
+                    <th width="7%">Mourning</th>
+                    <th width="7%">Unpaid<br/>Study</th>
+                </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
+    </div>
+
+    <div id="message_header">@Html.Raw(ShowMsg)</div>
+    @if (ViewBag.epern == "true")
+    {
+        <div class="form-group row p-1">
+            <label class="col-sm-4 col-form-label">&nbsp;</label>
+            <div class="col-sm-8">
+                <button type="reset" name="btnReset" id="btnReset" class="button btn-secondary">Reset</button>
+                <button type="button" name="btnAddSave" id="btnAddSave" class="button btn-primary">Save</button>
+            </div>
+        </div>
+    }
+    @await Html.PartialAsync("_SharedModal", new wwfpp.Models.ModalViewModel { ModalId = "ModalID", DialogClass = "modal-lg", BodyId = "ModalBody" })
+    @section scripts 
+    {
+        <script>
+            var currentFY = "@HttpContextAccessor.HttpContext.Session.GetString("fiscal_year")";
+            var perm = "@ViewBag.epern";
+            var ilaka = document.getElementById('ilaka').value;
+            var selectedIds = new Set();
+            var hideviewaction = "yes";
+            var table;
+            $(document).ready(function () 
+            {
+                GetAllData(ilaka, "indv_leave_id", [
+                    { data: "employee", name: "employee", autoWidth: false, render: function (data, type, row) {return '<span style="white-space:normal;">' + data + '</span>';}},
+                    { data: "gender", name: "gender", autoWidth: false, render: function(data, type, row, meta) {return data + '<input type="hidden" name="gender"' + meta.row +'" id="gender"' + meta.row +'" value="' + data + '" class="form-control gender-input">';}},
+                    { data: "annual_leave_hours_carry_forward", name: "annual_leave_hours_carry_forward", autoWidth: false, render: function(data, type, row, meta) {return '<input type="text" name="annual_leave_hours_carry_forward"' + meta.row +'" id="annual_leave_hours_carry_forward"' + meta.row +'" value="' + data + '" class="form-control annual-leave-hours-carry-forward-input" style = "width:70px;", maxlength = "5">';}},
+                    { data: "annual_leave", name: "annual_leave", autoWidth: false, render: function(data, type, row, meta) {return '<input type="text" name="annual_leave"' + meta.row +'" id="annual_leave"' + meta.row +'" value="' + data + '" class="form-control annual-leave-input" style = "width:70px;", maxlength = "5">';}},
+                    { data: "sick_leave_hours_carry_forward", name: "sick_leave_hours_carry_forward", autoWidth: false, render: function(data, type, row, meta) {return '<input type="text" name="sick_leave_hours_carry_forward"' + meta.row +'" id="sick_leave_hours_carry_forward"' + meta.row +'" value="' + data + '" class="form-control sick-leave-hours-carry-forward-input" style = "width:70px;", maxlength = "5">';}},
+                    { data: "sick_leave", name: "sick_leave", autoWidth: false, render: function(data, type, row, meta) {return '<input type="text" name="sick_leave"' + meta.row +'" id="sick_leave"' + meta.row +'" value="' + data + '" class="form-control sick-leave-input" style = "width:70px;", maxlength = "5">';}},
+                    { data: "casual_leave", name: "casual_leave", autoWidth: false, render: function(data, type, row, meta) {return '<input type="text" name="casual_leave"' + meta.row +'" id="casual_leave"' + meta.row +'" value="' + data + '" class="form-control casual-leave-input" style = "width:70px;", maxlength = "5">';}},
+                    { data: "other_leave", name: "other_leave", autoWidth: false, render: function(data, type, row, meta) {return '<input type="text" name="other_leave"' + meta.row +'" id="other_leave"' + meta.row +'" value="' + data + '" class="form-control other-leave-input" style = "width:70px;", maxlength = "5">';}},
+                    { data: "maternity", name: "maternity", autoWidth: false, render: function(data, type, row, meta) {return '<input type="text" name="maternity"' + meta.row +'" id="maternity"' + meta.row +'" value="' + data + '" class="form-control maternity-input" style = "width:70px;", maxlength = "5">';}},
+                    { data: "paternity", name: "paternity", autoWidth: false, render: function(data, type, row, meta) {return '<input type="text" name="paternity"' + meta.row +'" id="paternity"' + meta.row +'" value="' + data + '" class="form-control paternity-input" style = "width:70px;", maxlength = "5">';}},
+                    { data: "mourning", name: "mourning", autoWidth: false, render: function(data, type, row, meta) {return '<input type="text" name="mourning"' + meta.row +'" id="mourning"' + meta.row +'" value="' + data + '" class="form-control mourning-input" style = "width:70px;", maxlength = "5">';}},
+                    { data: "unpaid_study", name: "unpaid_study", autoWidth: false, render: function(data, type, row, meta) {return '<input type="text" name="unpaid_study"' + meta.row +'" id="unpaid_study"' + meta.row +'" value="' + data + '" class="form-control unpaid-study-input" style = "width:70px;", maxlength = "5">';}},
+                    { data: "emp_id", name: "emp_id", autoWidth: false, visible: false , render: function(data, type, row, meta) {return '<input type="text" name="emp_id"' + meta.row +'" id="emp_id"' + meta.row +'" value="' + data + '" class="form-control emp-id-input" style = "width:70px;", maxlength = "6">';}},
+                ],
+                {
+                    FilterValue1: "UnitFilter",
+                    FilterValue2: "FiscalFilter",
+                    FilterValue3: "StatusFilter"
+                });
+                $(document).one('init.dt', '#tblData', function () {table.page.len(-1).draw();})
+                $('#tblData_filter').hide();
+                $('#tblData_length').hide();
+            });
+            function collectExtraFields() 
+            {
+                var extraSettings = [];
+                $("#tblData tbody tr").each(function () {
+                    var row = $(this);
+                    var id = row.find("input.row-checkbox:checked").val();
+                    var gender = $(this).find('.gender-input').val();
+                    var maternity = $(this).find('.maternity-input');
+                    var paternity = $(this).find('.paternity-input');
+                    if (gender === "Male") {
+                        maternity.prop('readonly', true);
+                        paternity.prop('readonly', false);
+                    } else if (gender === "Female") {
+                        maternity.prop('readonly', false);
+                        paternity.prop('readonly', true);
+                    } else {
+                        maternity.prop('readonly', true);
+                        paternity.prop('readonly', true);
+                    }
+                    if (selectedIds.has(id)) {
+                        extraSettings.push({
+                            indv_leave_id: parseInt(id, 10),
+                            emp_id: 0,
+                            employee: "", 
+                            gender :row.find("input[name^='gender']").val(),
+                            unit:  $("#UnitFilter").val(),
+                            fiscal_year_to : $("#FiscalFilter").val(),
+                            annual_leave_hours_carry_forward: parseFloat(row.find("input[name^='annual_leave_hours_carry_forward']").val()),
+                            annual_leave: parseFloat(row.find("input[name='annual_leave']").val()),
+                            sick_leave_hours_carry_forward: parseFloat(row.find("input[name^='sick_leave_hours_carry_forward']").val()),
+                            sick_leave: parseFloat(row.find("input[name='sick_leave']").val()),
+                            casual_leave: parseFloat(row.find("input[name^='casual_leave']").val()),
+                            other_leave: parseFloat(row.find("input[name^='other_leave']").val()),
+                            maternity: parseFloat(row.find("input[name^='maternity']").val()),
+                            paternity: parseFloat(row.find("input[name^='paternity']").val()),
+                            mourning: parseFloat(row.find("input[name^='mourning']").val()),
+                            unpaid_study: parseFloat(row.find("input[name^='unpaid_study']").val())
+                        });
+                    }
+                });
+                return extraSettings;
+            }
+            $(document).on('blur', '.annual-leave-hours-carry-forward-input', function () { OnlyNumericCtrl(this); });
+            $(document).on('blur', '.annual-leave-input', function () { OnlyNumericCtrl(this); });
+            $(document).on('blur', '.sick-leave-hours-carry-forward-input', function () { OnlyNumericCtrl(this); });
+            $(document).on('blur', '.sick-leave-input', function () { OnlyNumericCtrl(this); });
+            $(document).on('blur', '.casual-leave-input', function () { OnlyNumericCtrl(this); });
+            $(document).on('blur', '.other-leave-input', function () { OnlyNumericCtrl(this); });
+            $(document).on('blur', '.maternity-input', function () { OnlyNumericCtrl(this); });
+            $(document).on('blur', '.paternity-input', function () { OnlyNumericCtrl(this); });
+            $(document).on('blur', '.mourning-input', function () { OnlyNumericCtrl(this); });
+            $(document).on('blur', '.unpaid-study-input', function () { OnlyNumericCtrl(this); });         
+       
+            $(document).off("click", "#btnAddSave").on("click", "#btnAddSave", function () {$("#mode").val("update");updateDataJSON(ilaka+"ListSave");});
+            $("#StatusFilter").off("change").on("change", function () {
+                ShowHideSave();
+            });
+            $("#FiscalFilter").off("change").on("change", function () {
+                ShowHideSave();
+            });
+            function ShowHideSave()
+            {
+                const statusV = $("#StatusFilter").val();
+                if (!statusV) {return;}
+                const fiscalV = $("#FiscalFilter").val();
+                if (!fiscalV) {return;}
+                const $myButton =  $("#btnAddSave");
+                if ($myButton.length)
+                {
+                    if (statusV === "A" && fiscalV === currentFY && perm === "true")
+                    {
+                        $myButton.show();
+                        $('#tblData_length').hide();
+                        table.page.len(-1).draw();
+                    } else {
+                        $myButton.hide();
+                        $('#tblData_length').show();
+                        table.page.len(10).draw(); 
+                    }
+                }
+                table.draw();
+            }
+            $(document).off('click', '#btnC').on('click', '#btnC', function () {modalCloseCancel($(this));});
+        </script>
+    }    
+}

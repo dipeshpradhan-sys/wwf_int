@@ -1,0 +1,271 @@
+﻿@using wwfpp.Services
+@inject SettingsServices SettingsServices
+@model wwfpp.Models.Employee.EmployeeViewModel
+@{
+    string? mode = ViewBag.mode;
+    string? DATE_FORMAT = ViewBag.DATE_FORMAT;
+    string? join_date = Model.join_date.ToString();
+    string? s_join_date = SettingsServices.DateformatToDt(join_date ?? string.Empty);
+    string? end_date = Model.end_date.ToString();
+    string? s_end_date = SettingsServices.DateformatToDt(end_date ?? string.Empty);
+    string? deactivated_date = Model.deactivated_date.ToString();
+    string? s_deactivated_date = SettingsServices.DateformatToDt(deactivated_date ?? string.Empty);
+    string? effective_date = Model.effective_date.ToString();
+    string? s_effective_date = SettingsServices.DateformatToDt(effective_date ?? string.Empty);
+    string? dob = Model.dob.ToString();
+    string? s_dob = SettingsServices.DateformatToDt(dob ?? string.Empty);
+
+    string emp_code = @ViewBag.EmpCode;
+    if (mode == "edit") { emp_code = Model.emp_code; }
+}
+
+<partial name="_ConstantValues" view-data='new ViewDataDictionary(ViewData) { { "NoteKey", "RequiredField" } }' />
+@Html.HiddenFor(m => m.emp_id) 
+<div class="form-group row p-1">
+    @if(mode == "add")
+    {
+    <label class="col-lg-12 col-form-label-lg">Employee ID<span class="text-danger">*</span></label>
+    <div class="col-lg-12">
+        @Html.TextBox("emp_code", emp_code, new { @class = "form-control", maxlength = "10" })
+    </div>
+    }
+    else
+    {
+    <label class="col-lg-12 col-form-label-lg">Employee ID<span class="text-danger">*</span> : @Model.emp_code</label>
+    <div class="col-lg-12">
+          @Html.HiddenFor(m => m.emp_code)
+    </div>
+    }
+    <label class="col-lg-12 col-form-label-lg">Salutation</label>
+    <div class="col-lg-12">
+        @Html.TextBoxFor(m => m.title, new { @class = "form-control", maxlength = "20" })
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">First Name<span class="text-danger">*</span></label>
+    <div class="col-lg-12">
+        @Html.TextBoxFor(m => m.firstname, new { @class = "form-control", maxlength = "30" })
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Middle Name</label>
+    <div class="col-lg-12">
+        @Html.TextBoxFor(m => m.middlename, new { @class = "form-control", maxlength = "30" })
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Last Name<span class="text-danger">*</span></label>
+    <div class="col-lg-12">
+        @Html.TextBoxFor(m => m.lastname, new { @class = "form-control", maxlength = "30" })
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Gender<span class="text-danger">*</span></label>
+    <div class="col-lg-12">
+        @Html.DropDownListFor(m => m.gender, (SelectList)ViewBag.Gender, new { @class = "form-select", style = "width:300px;" })
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Date of Birth<span class="text-danger">*</span>&nbsp;(@DATE_FORMAT)</label>
+    <div class="row">
+        <div class="col-lg-4">@Html.TextBox("dob", s_dob, new { @class = "form-control", maxlength = "10" })</div>
+        <div class="col-lg-8"><button type="button" name="btndob" id="btndob" class="button bg-sky">Date...</button></div>
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Ethnicity</label>
+    <div class="col-lg-12">
+        @Html.TextBoxFor(m => m.ethnicity, new { @class = "form-control", maxlength = "50" })
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Email<span class="text-danger">*</span></label>
+    <div class="col-lg-12">
+        @Html.TextBoxFor(m => m.e_mail, new { @class = "form-control", maxlength = "50" })
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Nationality<span class="text-danger">*</span></label>
+    <div class="col-lg-12">
+        @Html.TextBoxFor(m => m.nationality, new { @class = "form-control", maxlength = "20" })
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Citizenship Number<span class="text-danger">*</span></label>
+    <div class="col-lg-12">
+        @Html.TextBoxFor(m => m.citizenship_number, new { @class = "form-control", maxlength = "20" })
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Passport Number</label>
+    <div class="col-lg-12">
+        @Html.TextBoxFor(m => m.passport_number, new { @class = "form-control", maxlength = "20" })
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">National ID Number</label>
+    <div class="col-lg-12">
+        @Html.TextBoxFor(m => m.nin_no, new { @class = "form-control", maxlength = "20" })
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Marital Status<span class="text-danger">*</span></label>
+    <div class="col-lg-12">
+        @Html.DropDownListFor(m => m.marital_status_info, (SelectList)ViewBag.MaritalStatus, "--Select --", new { @class = "form-select", style = "width:300px;" })
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Number of Childern</label>
+    <div class="col-lg-12">
+        @Html.TextBoxFor(m => m.no_of_children, new { @class = "form-control", maxlength = "2" })
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Dependent Details</label>
+    <div class="col-lg-12">
+        @Html.TextAreaFor(m => m.dependent_details, new { @class = "form-control", rows = "3", cols="50", maxlength = "250" })
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Blood Group</label>
+    <div class="col-lg-12">
+        @Html.TextBoxFor(m => m.blood_group, new { @class = "form-control", maxlength = "5" })
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Employee Type<span class="text-danger">*</span></label>
+    <div class="d-flex align-items-center">
+        @Html.DropDownListFor(m => m.employee_type, (SelectList)ViewBag.EmployeeType, new { @class = "form-select me-3", style = "width:200px;" })
+        @Html.DropDownListFor(m => m.employee_type_sub, (SelectList)ViewBag.EmployeeTypeSub, new { @class = "form-select me-3", style = "width:150px;" })
+        @Html.TextBoxFor(m => m.work_percent, new { @class = "form-control", maxlength = "3", @readonly = (Convert.ToInt32(Model.work_percent) == 100 ? "readonly" : null) })
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Department</label>
+    <div class="col-lg-12">
+        @Html.TextBoxFor(m => m.department, new { @class = "form-control", maxlength = "50" })
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Designation</label>
+    <div class="col-lg-12">
+        @Html.TextBoxFor(m => m.post, new { @class = "form-control", maxlength = "50" })
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Job Family</label>
+    <div class="col-lg-12">
+        @Html.DropDownListFor(m => m.job_family, (SelectList)ViewBag.JobFamily, "-- Select Job Family --", new { @class = "form-select", style = "width:400px;" })
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Career Level</label>
+    <div class="col-lg-12">
+        @Html.DropDownListFor(m => m.emp_level, (SelectList)ViewBag.CareerLevel, "-- Select Career Level --", new { @class = "form-select", style = "width:400px;" })
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Immediate Supervisor</label>
+    <div class="col-lg-12">
+        @Html.DropDownListFor(m => m.manager_id, (SelectList)ViewBag.ManagerList, "-- Select --", new { @class = "form-select", style = "width:400px;" })
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Line Director</label>
+    <div class="col-lg-12">
+        @Html.DropDownListFor(m => m.line_manager_id, (SelectList)ViewBag.ManagerList, "-- Select --", new { @class = "form-select", style = "width:400px;" })
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Alternative Immediate Supervisor</label>
+    <div class="col-lg-12">
+        @Html.DropDownListFor(m => m.alt_manager_id, (SelectList)ViewBag.ManagerList, "-- Select --", new { @class = "form-select", style = "width:400px;" })
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Alternative Line Director</label>
+    <div class="col-lg-12">
+        @Html.DropDownListFor(m => m.alt_line_manager_id, (SelectList)ViewBag.ManagerList, "-- Select --", new { @class = "form-select", style = "width:400px;" })
+    </div>
+    @if (mode == "add")
+    {
+        <label class="col-lg-12 col-form-label-lg">Join Date<span class="text-danger">*</span>&nbsp;(@DATE_FORMAT)</label>
+        <div class="row">
+            <div class="col-lg-4">@Html.TextBox("join_date", s_join_date, new { @class = "form-control", maxlength = "10" })</div>
+            <div class="col-lg-8"><button type="button" name="btnJoinDate" id="btnJoinDate" class="button bg-sky">Date...</button></div>
+        </div>
+
+        <label class="col-lg-12 col-form-label-lg">End Date&nbsp;(@DATE_FORMAT)</label>
+        <div class="row">
+            <div class="col-lg-4">@Html.TextBox("end_date", s_end_date, new { @class = "form-control", maxlength = "10" })</div>
+            <div class="col-lg-8"><button type="button" name="btnEndDate" id="btnEndDate" class="button bg-sky">Date...</button></div>
+        </div>
+    }
+    else
+    {
+        <label class="col-lg-12 col-form-label-lg">Join Date<span class="text-danger">*</span>&nbsp;(@DATE_FORMAT)</label>
+        <div class="row">
+            <div class="col-lg-4">@s_join_date</div>
+        </div>
+
+        <label class="col-lg-12 col-form-label-lg">End Date&nbsp;(@DATE_FORMAT)</label>
+        <div class="row">
+            <div class="col-lg-4">@s_end_date</div>
+        </div>
+    }
+    <label class="col-lg-12 col-form-label-lg">Employee Status</label>
+    <div class="col-lg-12">
+        @Html.DropDownListFor(m => m.emp_status, (SelectList)ViewBag.Status, new { @class = "form-select", style = "width:400px;" })
+        @if (Model.emp_status == "D") { s_deactivated_date = $"Deactivated Date : {s_deactivated_date}"; } else { s_deactivated_date = ""; }
+        @s_deactivated_date
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Change Effective Date&nbsp;(@DATE_FORMAT)</label>
+    <div class="row">
+        <div class="col-lg-4">@Html.TextBox("effective_date", s_effective_date, new { @class = "form-control", maxlength = "10" })</div>
+        <div class="col-lg-8"><button type="button" name="btnEffectDate" id="btnEffectDate" class="button bg-sky">Date...</button></div>
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Remarks</label>
+    <div class="col-lg-12">
+        @Html.TextAreaFor(m => m.remarks, new { @class = "form-control", rows = "4", cols = "50", maxlength = "500" })
+    </div>
+</div>
+
+@if (mode == "add" && ViewBag.apern == "true")
+{
+    <script>renderModalButtons("modal-button-list", "Save");</script>
+}
+else if (mode == "edit" && ViewBag.epern == "true" && Model.emp_status == "A")
+{
+    <script>renderModalButtons("modal-button-list", "Edit");</script>
+}
+else
+{
+    <script>renderModalCloseButton("modal-button-list")</script>
+}
+<script>
+    // Toggle between Edit and Update
+    $(document).off("click", "#btnSave").on("click", "#btnSave", function () {
+        var btn = $(this);
+        if (btn.text() == "Edit") {$("#ModalID .modal-title").text("Update");btn.text("Update");$("#btnC").text("Cancel");return;}
+        if (btn.text() === "Update" || btn.text() === "Save") {
+            if ($("#mode").val() === "add") {
+                if ( checkInput( 'txt', 'emp_code', 'Employee ID is required.', 'modal-message') == false) { return false; }
+            }
+            if ( checkInput( 'txt', 'firstname', 'First Name is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'txt', 'lastname', 'Last Name is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'cmb', 'gender', 'Gender is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'txt', 'dob', 'Date of Birth is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'txt', 'e_mail', 'Email is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'txt', 'nationality', 'Nationality is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'txt', 'citizenship_number', 'Citizenship Number is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'cmb', 'marital_status_info', 'Marital Status is required', 'modal-message') == false ) {return false;}
+            if (checkInput('cmb', 'employee_type', 'Employee Type is required.', 'modal-message') == false) { return false; }
+            if (checkInput('cmb', 'employee_type_sub', 'Employee Type Sub is required.', 'modal-message') == false) { return false; }
+            if ( checkInput( 'txt', 'work_percent', 'Work Percent is required.', 'modal-message') == false ) {return false;}
+            if ($("#mode").val() === "add") {
+                if ( checkInput( 'txt', 'join_date', 'Join Date is required.', 'modal-message') == false ) {return false;}
+            }
+            submitSaveUpdate("/Employee/Employee");
+        }
+    });
+    $(document).off('change', '#employee_type_sub').on('change', '#employee_type_sub', function() {
+        show_hide_work_percent(this.value);
+    });    
+    $(document).off('blur', '#no_of_children').on('blur', '#no_of_children', function() { OnlyNumeric('no_of_children', 'modal-message'); });
+    $(document).off('blur', '#work_percent').on('blur', '#work_percent', function() { OnlyNumeric('work_percent', 'modal-message'); });
+    $(document).off('blur', '#dob').on('blur', '#dob', function() { convert_date(dob, 'modal-message'); });
+    $(document).off('blur', '#join_date').on('blur', '#join_date', function() { convert_date(join_date, 'modal-message'); });
+    $(document).off('blur', '#end_date').on('blur', '#end_date', function() { convert_date(end_date, 'modal-message'); });
+    $(document).off('blur', '#effective_date').on('blur', '#effective_date', function() { convert_date(effective_date, 'modal-message'); });
+    $(document).off('click', '#btndob').on('click', '#btndob', function() { show_calendar('frm.dob', 'modal-message'); });
+    $(document).off('click', '#btnJoinDate').on('click', '#btnJoinDate', function() { show_calendar('frm.join_date', 'modal-message'); });
+    $(document).off('click', '#btnEndDate').on('click', '#btnEndDate', function() { show_calendar('frm.end_date', 'modal-message'); });
+    $(document).off('click', '#btnEffectDate').on('click', '#btnEffectDate', function() { show_calendar('frm.effective_date', 'modal-message'); });
+    function show_hide_work_percent(parm) {
+        if (parm === "Full Time") {
+            document.getElementById("work_percent").value = "100";
+            document.getElementById("work_percent").readOnly = true;
+        } else {
+            document.getElementById("work_percent").readOnly = false;
+            document.getElementById("work_percent").value = "";
+        }
+    }
+</script>

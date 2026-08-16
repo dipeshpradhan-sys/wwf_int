@@ -1,0 +1,1167 @@
+/*******************************************************************************
+ * Package:     PandaPays
+ * Author:      eFour Core Pvt. Ltd.
+ * Author URI:  https://www.efourcore.com.np/
+ * Page:        style-new.css
+ * Description: CSS file
+ * Date:        29-Mar-2013
+ * Update:      15-Sep-2015
+ *******************************************************************************/
+body{
+      background-color: #fff;
+      margin:0;
+      padding:0;   
+  /*
+  font-family: Arial;
+  font-size : 11px;
+  */
+  font-family: Verdana;
+  font-size : 11px;
+  color : #000;
+ }
+ a {
+  text-decoration: none;
+  color: #00718C;
+ }
+ a:hover {
+  text-decoration: underline;
+  color: #0096BB;
+ }
+
+/**************************** TOP CSS START ****************************/
+#top {
+ width  : 100%;
+ height : 145px;
+ margin : 0px 0px 5px 0px;
+ padding  : 0;
+ background : url(../images/bg-top.gif) repeat-x top left;
+ min-width: 1300px;
+}
+#curve-left {
+ width  : 46px;
+ float: left;
+ height : 145px;
+ margin : 0;
+ padding  :0;
+ text-align : left;
+ overflow : hidden;
+}
+#logo-00 {
+ width  : 78%;
+ float: left;
+ height : 114px;
+ margin : 0;
+ padding  :0;
+ text-align : left;
+ background : url(../images/bg-left-bar-00.gif) no-repeat top left;
+}
+#logo-01 {
+ width  : 78%;
+ float: left;
+ height : 114px;
+ margin : 0;
+ padding  :0;
+ text-align : left;
+ background : url(../images/bg-left-bar-01.gif) no-repeat top left;
+}
+
+#top-nav {
+ float: right;
+ height : auto;
+ margin : 0;
+ padding  :120px 0px 0px 0px;
+}
+#top-nav ul {
+ margin : 0;
+ padding  : 0px 10px 0px 0px;
+ text-align: right;
+}
+    #top-nav li {
+        list-style: none;
+        margin: 0;
+        padding: 0px 0px 0px 5px;
+        font-weight: bold;
+        font-family: Tahoma;
+        font-size: 11px;
+        display: inline;
+        color: #000;
+    }
+#top-nav a{
+ color  : #000;
+ padding: 0px 7px 0px 0px;
+ text-decoration: none;
+}
+#top-nav a:hover {
+ color  : #AA0000;
+ text-decoration: underline;
+}
+#curve-right {
+ width  : 18%;
+ float: right;
+ height : 145px;
+ margin : 0;
+ padding  :0;
+ text-align : left;
+ overflow : hidden;
+ background :  url(../images/curve-right.gif) no-repeat top right;
+}
+#curve-right h4 {
+ font-size  :  11px;
+ font-weight  : bold;
+ text-align: right;
+ margin : 0;
+ padding  : 0px 5px 10px 20px;
+}
+
+#curve-right h6 {
+ font-size  :  12px;
+ font-weight  : normal;
+ text-align: right;
+ color: #AC1614;
+ margin : 0;
+ font-style: italic;
+ padding  : 45px 5px 10px 20px;
+}
+#header-txt {
+ width  : 100%;
+ float: left;
+ height : auto;
+ margin : 0;
+ padding  : 0;
+ text-align : right;
+}
+
+#header-txt h5 {
+ font-size  :  12px;
+ font-weight  : normal;
+ text-align: right;
+ color: #A42423;
+ margin : 0;
+ font-style: italic;
+ padding  : 15px 10px 0px 10px;
+}
+
+.date {
+ font-style: normal;
+ font-weight: bold;
+ color: #3E647E;
+ text-decoration: none;
+}
+
+/**************************** TOP CSS END ****************************/
+
+
+/**************************** LOGIN CSS START ****************************/
+#wrapper {
+    width: 100%;
+    height: auto;
+    margin: 0;
+    padding: 0px 0px 0px 0px;
+    min-width: 1300px;
+    display: flex;
+    justify-content: center; /* horizontal */
+    align-items: center; /* vertical */
+}
+#main-login {
+    width: 95%;
+    height: auto;
+    margin: auto; /* auto centers horizontally */
+    padding: 40px 0px 20px 40px;
+    display: inline;
+    border: 0px solid #E5E5D9;
+    vertical-align: top;
+}
+#main-login h2 {
+ font-size  :  25px;
+ font-weight  : normal;
+ text-align: left;
+ color  : #110809;
+ margin : 0px;
+ padding  : 30px 0px 10px 40px;
+}
+#center {
+    width: 650px;
+    height: auto;
+    margin: 0px auto;
+    padding: 0px 0px 0px 0px;
+    text-align: left;
+    overflow: hidden;
+    min-height: 450px;
+}
+#center h2 {
+ font-size  :  25px;
+ font-weight  : bold;
+ text-align: center;
+ color  : #ff0000;
+ margin : 0;
+ padding  : 0
+}
+#login-box-1 {
+ float  : left;
+ width  : 197px;
+ height : 334px;
+ display:inline;
+ margin : 0px 0px 4px 0px;
+ padding  : 20px 0px 0px 0px;
+ /*background: #ccc;*/
+ /*background : url(../images/bg_login.png) no-repeat top left;*/
+}
+#login-box-1 h3 {
+ font-size  :  12px;
+ font-weight  : bold;
+ text-align: left;
+ margin : 0;
+ padding  : 5px 0px 5px 40px;
+}
+#login-box-2 {
+ float  : left;
+ width  : 380px;
+ height : 334px;
+ display:inline;
+ margin : 0px 0px 4px 0px;
+ padding  : 20px 0px 0px 0px;
+ /* background : url(../images/bg_login.png) no-repeat top left; */
+}
+#login-box-2 h2 {
+ font-size  :  20px;
+ font-weight  : normal;
+ font-style: italic;
+ text-align: right;
+ color: #000;
+ margin : 0px 0px 10px 0px;
+ padding  : 15px 0px 15px 40px;
+ border-bottom: 3px solid #AC1614;
+}
+#login-box-2 h3 {
+ font-size  :  12px;
+ font-weight  : bold;
+ text-align: right;
+ margin : 0px 0px 0px 0px;
+ padding  : 10px 0px 0px 40px;
+}
+#login-box-2 h4 {
+ text-align: right;
+ margin : 0;
+ padding  : 15px 0px 5px 40px;
+}
+#login-box-2 p {
+ margin : 4px;
+ color: #000;
+ padding  : 0;
+ text-align: right;
+}
+#login-box-3 {
+ float  : left;
+ width  : 420px;
+ height : 334px;
+ display:inline;
+ margin : 0px 0px 4px 0px;
+ padding  : 5px 0px 0px 0px;
+ /* background : url(../images/bg_login.png) no-repeat top left; */
+}
+#login-box-3 h2 {
+ font-size  :  28px;
+ font-weight  : normal;
+ font-style: italic;
+ text-align: right;
+ color: #000;
+ margin : 0px 0px 10px 0px;
+ padding  : 15px 0px 15px 0px;
+ border-bottom: 3px solid #AC1614;
+}
+#login-box-3 h3 {
+ font-size  :  12px;
+ font-weight  : bold;
+ text-align: right;
+ margin : 0;
+ padding  : 10px 0px 0px 40px;
+}
+#login-box-3 h4 {
+ text-align: right;
+ margin : 0;
+ padding  : 15px 0px 5px 0px;
+}
+#login-box-3 p {
+ margin : 4px;
+ color: #000;
+ padding  : 0;
+ text-align: right;
+}
+.textarea-login {
+ background-color: #F7F5F2;
+ font-size: 14px;
+ color: #333;
+ border: 1px solid #ccc;
+ padding: 0px 0px 0px 10px;
+ height:20px;
+ width: 140px;
+}
+.login-button {
+ background-color:#AC1614;
+ color:#FFB056;
+ font-size: 14px;
+ font-weight: bold;
+ padding: 4px 8px;
+ width: 70px;
+ border:0px solid #861602;
+ cursor: pointer;
+}
+.login-button-3 {
+ background-color:#AC1614;
+ color:#FFB056;
+ font-size: 14px;
+ font-weight: bold;
+ padding: 4px 0px;
+ width: 70px;
+ border:0px solid #861602;
+ cursor: pointer;
+}
+.login-button-4 {
+    background-color: #AC1614;
+    color: #FFB056;
+    font-size: 14px;
+    font-weight: bold;
+    padding: 4px 8px;
+    border: 0px solid #861602;
+    cursor: pointer;
+}
+#login-box-2 {
+ float  : left;
+ width  : 280px;
+ height : 334px;
+ display:inline;
+ margin : 0px 0px 4px 0px;
+ padding  : 20px 0px 0px 0px;
+ /* background : url(../images/bg_login.png) no-repeat top left; */
+}
+#login-box-2 h2 {
+ font-size  :  20px;
+ font-weight  : normal;
+ font-style: italic;
+ text-align: right;
+ color: #000;
+ margin : 0px 0px 10px 0px;
+ padding  : 15px 0px 15px 40px;
+ border-bottom: 3px solid #AC1614;
+}
+#login-box-2 h3 {
+    font-size: 12px;
+    font-weight: bold;
+    text-align: right;
+    margin: 0px 0px 0px 0px;
+    padding: 10px 0px 0px 40px;
+}
+ #verfication-box {
+ float  : left;
+ width  : 380px;
+ min-height : 334px;
+ display:inline;
+ margin : 0px 0px 4px 0px;
+ padding  : 20px 0px 0px 0px;
+ /* background : url(../images/bg_login.png) no-repeat top left; */
+}
+#verfication-box h2 {
+ font-size  :  20px;
+ width  : 380px;
+ font-weight  : normal;
+ font-style: italic;
+ text-align: right;
+ color: #000;
+ margin : 0px 0px 10px 0px;
+ padding  : 15px 0px 15px 40px;
+ border-bottom: 3px solid #AC1614;
+}
+#verfication-box h3 {
+    font-size: 12px;
+    font-weight: bold;
+    text-align: right;
+    margin: 0px 0px 0px 0px;
+    padding: 10px 0px 0px 40px;
+}
+.verification-button {
+    background-color: #AC1614;
+    color: #FFB056;
+    font-size: 14px;
+    font-weight: bold;
+    padding: 4px 8px;
+    margin: 50px 0px 0px 180px;
+    width: 70px;
+    border: 0px solid #861602;
+    cursor: pointer;
+}
+.textarea-verification{
+    background-color: #F7F5F2;
+    font-size: 14px;
+    color: #333;
+    border: 1px solid #ccc;
+    padding: 0px 0px 0px 10px;
+    height: 20px;
+    width: 200px;
+}
+.resetpwd-button {
+    background-color: #AC1614;
+    color: #FFB056;
+    font-size: 14px;
+    font-weight: bold;
+    padding: 4px 8px;
+    margin: 50px 0px 0px 180px;
+    width: 150px;
+    border: 0px solid #861602;
+    cursor: pointer;
+}
+/**************************** LOGIN CSS END ****************************/
+/**************************** LEFT CSS START ****************************/
+
+#left-bar {
+    float: left;
+    width: 213px;
+    height: auto;
+    display: inline;
+    margin: 0px 10px 0px 10px;
+    padding: 0;
+    border-bottom: 1px solid #6699CC;
+    border-right: 1px solid #6699CC;
+    vertical-align: top;
+    align-self: flex-start; /* ensures top alignment */
+}
+#left-box {
+ float  : left;
+ width  : 95%;
+ padding: 0px 1px 0px 1px;
+}
+#left-box-inner {
+ float  : left;
+ width  : 210px;
+ height : auto;
+ display  : inline;
+ margin : 0;
+ padding  : 0;
+ border-top: 1px solid #6699CC;
+ border-left: 1px solid #6699CC;
+ background: #e1e1e1;
+}
+#left-box-inner ul {
+ margin : 0;
+ padding  : 0;
+}
+#left-box-inner li {    
+ margin : 0;
+ padding  : 0px 0px 0px 0px;
+ font-size: 11px;
+ list-style: none;
+}
+#left-box-inner a {
+ text-decoration:none;
+}
+.menu-t{
+ line-height: 22px;
+ font-weight:bold;
+ text-decoration:none;
+ color: #000;
+ font-style: normal;
+ font-size: 11px;
+ text-align: left;
+ margin:0;
+ padding:0;
+ cursor:pointer;
+ 
+}
+.menu-t:hover{
+ color:#AC1614;
+}
+
+#left-box-bar {
+ float  : left;
+ width  : 3%;
+ margin : 0;
+ display  : inline; 
+ padding  : 0;
+ background: #000;
+}
+.menu-head-bg {    
+ background : #F3F5F7 url(../images/menu_bg.gif) repeat-x ;
+ height: 25px;
+}
+
+.menu0 {
+    height: 27px;
+    font-weight: bold;
+    color: #ffffff;
+    text-decoration: none;
+    display: block;
+    font-style: normal;
+    text-align: left;
+    margin: 1px;
+    padding: 3px;
+    cursor: pointer;
+    background: #AC1614;
+}
+    .menu0:hover {
+        background: #982726;
+        color: #ffffff;
+        display: block;
+    }
+
+.menu {
+  height: 25px;
+ font-weight:bold;
+ color:#fff;
+ text-decoration:none;
+ line-height: 25px;
+ display:block;
+ background:#6699CC;
+ font-style: normal;
+ text-align: left;
+ margin:0;
+ padding: 0px 0px 0px 25px;
+ border-bottom: 1px solid #fff;
+ }
+.menu:hover {
+ color:#FFFFFF;
+ display:block;
+ background-color:#AC1614;
+}
+
+
+/**************************** LEFT CSS END ****************************/
+/**************************** BUTTON TWO BOX CSS END ****************************/
+#button-top-box {
+ float  : left;
+ width  : 99.9%;
+ height : auto;
+ display:inline;
+ margin : 10px 0px 10px 0px;
+ padding  : 0;
+ border: 1px solid #CCCCCC;
+ background:#eee;
+}
+#button-top-box-left {
+ float  : left;
+ width  : 60%;
+ height : 40px;
+ display:inline;
+ margin : 0;
+ padding  : 7px 0px 7px 0px;
+}
+#button-top-box-left h4 {
+ font-size  :  12px;
+ font-weight  : bold;
+ text-align: left;
+ margin : 0;
+ padding  : 4px 10px 4px 10px;
+}
+#button-top-box-left h5 {
+ font-size  :  12px;
+ font-weight  : bold;
+ text-align: left;
+ margin : 0;
+ padding  : 4px 0px 4px 10px;
+}
+#button-top-box-right {
+ float  : left;
+ width  : 40%;
+ height : auto;
+ display:inline;
+ margin : 0;
+ padding  : 7px 0px 7px 0px;
+}
+#button-top-box-right h4 {
+ font-size  :  12px;
+ font-weight  : bold;
+ text-align: right;
+ margin : 0;
+ padding  : 4px 10px 4px 10px;
+}
+
+#button-top-box-right h5 {
+ font-size  :  12px;
+ font-weight  : bold;
+ text-align: left;
+ margin : 0;
+ padding  : 4px 0px 4px 10px;
+}
+
+/**************************** BUTTON TWO BOX CSS END ****************************/
+/**************************** BUTTON THREE BOX CSS END ****************************/
+#button-three-box {
+ float  : left;
+ width  : 99.9%;
+ height : auto;
+ display:inline;
+ margin : 10px 0px 10px 0px;
+ padding  : 0;
+ border: 1px solid #CCCCCC;
+ background:#eee;
+}
+#button-three-box-left {
+ float  : left;
+ width  : 12%;
+ height : 40px;
+ display:inline;
+ margin : 0;
+ padding  : 7px 0px 7px 0px;
+}
+#button-three-box-left h4 {
+ font-size  :  12px;
+ font-weight  : bold;
+ text-align: left;
+ margin : 0;
+ padding  : 4px 10px 4px 10px;
+}
+#button-three-box-left h5 {
+ font-size  :  12px;
+ font-weight  : bold;
+ text-align: left;
+ margin : 0;
+ padding  : 4px 0px 4px 10px;
+}
+#button-three-box-mid {
+ float  : left;
+ width  : 73%;
+ height : 40px;
+ display:inline;
+ margin : 0;
+ padding  : 7px 0px 7px 0px;
+}
+#button-three-box-mid h4 {
+ font-size  :  12px;
+ font-weight  : bold;
+ text-align: left;
+ margin : 0;
+ padding  : 4px 10px 4px 10px;
+}
+#button-three-box-mid h5 {
+ font-size  :  12px;
+ font-weight  : bold;
+ text-align: left;
+ margin : 0;
+ padding  : 4px 0px 4px 10px;
+}
+#button-three-box-right {
+ float  : left;
+ width  : 15%;
+ height : auto;
+ display:inline;
+ margin : 0;
+ padding  : 7px 0px 7px 0px;
+}
+#button-three-box-right h4 {
+ font-size  :  12px;
+ font-weight  : bold;
+ text-align: right;
+ margin : 0;
+ padding  : 4px 10px 4px 10px;
+}
+
+#button-three-box-right h5 {
+ font-size  :  12px;
+ font-weight  : bold;
+ text-align: left;
+ margin : 0;
+ padding  : 4px 0px 4px 10px;
+}
+
+/**************************** BUTTON THREE BOX CSS END ****************************/
+/**************************** BUTTON BOX CSS END ****************************/
+
+#button-box {
+ float  : left;
+ width  : 99.9%;
+ height : auto;
+ display:inline;
+ margin : 10px 0px 10px 0px;
+ padding  : 0;
+ border: 1px solid #CCCCCC;
+ background:#eee;
+}
+#button-box-right {
+ float  : left;
+ width  : 100%;
+ height : auto;
+ display:inline;
+ margin : 0;
+ padding  : 7px 0px 7px 0px;
+}
+#button-box-right h4 {
+ font-size  :  12px;
+ font-weight  : bold;
+ text-align: right;
+ margin : 0;
+ padding  : 4px 10px 4px 10px;
+}
+
+#button-box-right h5 {
+ font-size  :  12px;
+ font-weight  : bold;
+ text-align: left;
+ margin : 0;
+ padding  : 4px 0px 4px 10px;
+}
+
+/**************************** BUTTON BOX CSS END ****************************/
+
+/**************************** TOP FORM CSS START ****************************/
+
+#top-form {
+ float  : left;
+ width  : 100%;
+ height : auto;
+ display  : inline;
+ margin : 0;
+ padding  : 0;
+}
+#top-form h3 {
+ font-size  :  12px;
+ font-weight  : bold;
+ text-align: left;
+ margin : 0;
+ padding  : 4px 0px 4px 10px;
+}
+#top-form h4 {
+ font-size  :  12px;
+ font-weight  : normal;
+ text-align: left;
+ margin : 0;
+ padding  : 4px 0px 4px 10px;
+}
+#top-form p {
+ font-size  :  12px;
+ font-weight  : normal;
+ text-align: left;
+ margin : 0px 30px 0px 0px;
+ padding: 4px 0px 4px 10px;
+}
+
+#top-form-1 {
+ float  : left;
+ height : auto;
+ display  : inline;
+ margin : 0px 10px 0px 0px;
+ padding  : 0;
+}
+#top-form-2 {
+ float  : left;
+ height : auto;
+ display  : inline;
+ margin : 0;
+ padding  : 0;
+}
+
+#rpt_w_t {
+ float  : left;
+ height : auto;
+ display  : inline;
+ margin : 0;
+ padding  : 0;
+}
+
+
+/**************************** TOP FORM CSS END ****************************/
+
+
+/**************************** MAIN CSS START ****************************/
+
+#main-bar {
+    float: left;
+    width: 100%;
+    height: auto;
+    display: inline;
+    margin: 0;
+    padding: 0;
+    min-width: 1050px;
+    vertical-align: top;
+    align-self: flex-start; /* ensures top alignment */
+}
+#main-bar h2 {
+ text-align: left;
+ font-size : 14px;
+ margin : 0px 0px 10px 0px;
+ padding  : 10px 0px 10px 25px;
+ background :  url(../images/orange_arrow.gif) no-repeat 5px 10px ;
+ border:1px solid #A9A9A9;
+}
+#main-bar p {
+ margin : 0;
+ padding  : 0px 0px 10px 0px;
+}
+#main-bar-full {
+ float  : left;
+ width  : 99.8%;
+ height : auto;
+ display  : inline;
+ margin : 0;
+ padding  : 0;
+ min-width: 1050px;
+}
+#main-bar-full h2 {
+ text-align: left;
+ font-size : 14px;
+ margin : 0px 0px 10px 0px;
+ padding  : 10px 0px 10px 25px;
+ background :  url(../images/orange_arrow.gif) no-repeat 5px 10px ;
+ border:1px solid #A9A9A9;
+}
+#main-bar-full p {
+ margin : 0;
+ padding  : 0px 0px 10px 0px;
+}
+#water-mark {
+ float  : left;
+ width  : 100%;
+ height : 410px;
+ display  : inline;
+ margin : 0;
+ padding  : 0;
+ background :  url(../images/logo-watermark.gif) no-repeat center ;
+}
+#water-mark h3 {
+ font-size  :  16px;
+ font-weight  : bold;
+ text-align: center;
+ color: #990000;
+ margin : 0;
+ padding  : 210px 5px 10px 20px;
+}
+
+.floatbox {
+  float: left;
+  clear:both;
+  height: 485px;
+  overflow:auto;
+  border:1px solid #B1B1B1;
+}
+
+
+/**************************** MAIN CSS END ****************************/
+
+
+
+/**************************** PAGEING CSS START ****************************/
+
+#page-box {
+ float  : left;
+ width  : 100%;
+ height : auto;
+ display:inline;
+ margin : 10px 0px 4px 0px;
+ padding  : 0;
+ border: 1px solid #CCCCCC;
+ background:#eee;
+}
+#page-box h3 {
+ font-size  :  12px;
+ font-weight  : bold;
+ text-align: left;
+ margin : 0px 0px 0px 0px;
+ padding  : 4px 0px 4px 10px;
+}
+#page-box-left {
+ float  : left;
+ width  : 15%;
+ height : auto;
+ display:inline;
+ margin : 2px 0px 0px 0px;
+ padding  : 0;
+}
+#page-box-left h5 {
+ font-size  :  11px;
+ font-weight  : bold;
+ text-align: left;
+ margin : 0px 0px 0px 0px;
+ padding  : 8px 0px 4px 10px;
+}
+#page-box-right {
+ float  : right;
+ width  : 84%;
+ height : auto;
+ display:inline;
+ margin : 2px 0px 0px 0px;
+ padding  : 7px 7px 7px 0px;
+
+}
+#page-box-right h5 {
+ font-size  :  12px;
+ font-weight  : bold;
+ text-align: right;
+ margin : 0px 0px 0px 0px;
+ padding  : 4px 0px 4px 10px;
+}
+#page-box-right a {
+ font-size  :  11px;
+ font-weight  : bold;
+ text-align: left;
+ margin : 0px 7px 0px 0px;
+ padding  : 4px;
+ border: 1px solid #999;
+}
+
+/**************************** PAGEING CSS END ****************************/
+
+
+/**************************** FOOTER CSS START ****************************/
+#footer {
+ width: 100%;
+ float: left;
+ padding: 0;
+ margin: 5px auto;
+ background : #EDEDED;/* url(../images/bg_footer.png) repeat-x ;*/
+ border-top: 1px solid #B1B1B1;
+ border-bottom: 1px solid #B1B1B1;
+ min-width: 1300px;
+}
+.footer {
+ font-style: normal;
+ font-weight: bold;
+ color: #000000;
+ padding: 0;
+ margin:0;
+ line-height: 25px;
+ text-align: center;
+ text-decoration: none;
+}
+/**************************** FOOTER CSS END ****************************/
+
+
+
+
+
+
+#main-table {
+ font-size  :  12px;
+ font-weight  : normal;
+ text-align: left;
+ line-height: 18px;
+ margin : 0;
+ padding  : 0;
+ border-right: 1px solid #EFEEE4;
+}
+
+#main-table p {
+ font-size  :  12px;
+ font-weight  : normal;
+ text-align: left;
+ line-height: 18px;
+ margin : 0px 0px 0px 10px;
+ padding  : 11px 0px 11px 0px;
+ border-right: 1px solid #EFEEE4;
+}
+
+#main-table-1 {
+ float  : left;
+ height : auto;
+ margin : 0;
+ padding  : 0;
+ border-bottom: 0px solid #EFEEE4;
+}
+#main-table-1 h2 {
+ font-size  :  11px;
+ font-weight  : bold;
+ text-align: center;
+ color  : #000;
+ margin : 0;
+ height: 25px;
+ padding  : 5px 0px 5px 0px;
+ background: #ccc;
+ border-right: 1px solid #fff;
+}
+#main-table-1 h3 {
+ font-size  :  11px;
+ font-weight  : bold;
+ text-align: center;
+ color  : #000;
+ margin : 0;
+ height: 50px;
+ padding  : 5px 0px 5px 0px;
+ background: #ccc;
+ border-right: 1px solid #fff;
+}
+#main-table-1 h5 {
+ font-size  :  11px;
+ font-weight  : bold;
+ text-align: center;
+ color  : #000;
+ margin : 0;
+ height: 30px;
+ padding  : 5px 0px 5px 0px;
+ background: #fff;
+ border-right: 1px solid #fff;
+}
+#main-table-1 h6 {
+ font-size  :  11px;
+ font-weight  : bold;
+ color  : #000;
+ margin : 0;
+ padding  : 0px 0px 5px 0px;
+ background: #fff;
+ border-right: 1px solid #fff;
+}
+
+
+#main-box-message-1 {
+ float  : left;
+ width  : 400px;
+ display:inline;
+ margin : 0;
+ padding  : 0;
+}
+
+#main-box-message-2 {
+ float  : right;
+ width  : 400px;
+ display:inline;
+ margin: 0px 10px 0px 0px;
+ padding  : 0;
+ 
+}
+#main-box-message-2 p {
+ font-size  : 14px;
+ padding  : 0px 0px 0px 5px;
+ margin : 0;
+ text-align: right;
+}
+#divHelp
+{
+ position : absolute;
+ z-index : 32;
+  width : 400px;
+  background : #fff;
+  margin: 5px 0px 0px 0px;
+}
+.relative   {position:relative;}
+.note {
+ color: #333;
+ background : #FFFFE0 url(../images/notify.jpg) no-repeat 6px 10px;
+ padding: 18px 0px 20px 45px;
+ margin: 0;
+ border: 1px solid #E6DB55;
+ font-weight: normal;
+ font-size: 14px;
+}
+#message_header {
+    padding: 15px;
+    margin: 10px 0px 1px 0px;
+}
+
+#message_header p {
+    margin: 0;
+    padding: 12px 8px 18px 45px;
+}
+.success {
+    color: #86C440;
+    background: #FFF6D9 url(../images/success.png) no-repeat 6px 6px;
+    padding: 15px 0px 20px 45px;
+    margin: 0px 0px 10px 0px;
+    border: 1px solid #66CC66;
+    font-weight: bold;
+    font-size: 13px;
+}
+
+.error {
+    color: #FF0033;
+    background: #FFF6D9 url(../images/error.png) no-repeat 6px 6px;
+    padding: 15px 0px 20px 45px;
+    margin: 0px 0px 10px 0px;
+    border: 1px solid #FF0033;
+    font-weight: bold;
+    font-size: 13px;
+}
+
+.datepicker {
+    font-size: 0.85rem; /* slightly smaller text */
+    width: 280px; /* moderate width */
+    padding: 6px;
+    border-radius: 0.4rem;
+}
+
+.datepicker table tr td,
+.datepicker table tr th {
+    padding: 6px; /* smaller clickable area */
+}
+
+.datepicker table tr td.active,
+.datepicker table tr td.active:hover {
+    background-color: #0d6efd;
+    color: #fff;
+    border-radius: 50%;
+}
+
+    .datepicker table tfoot tr th {
+        display: inline-block;
+        width: auto;
+        padding: 4px 8px;
+    }
+
+.form-group {
+    display: block;
+    margin-bottom: 15px;
+}
+
+
+
+    .form-group input {
+        display: block;
+        margin-bottom: 5px;
+    }
+.form-label {
+    font-weight: bold;
+}
+/* Base style: no border, transparent background */
+.icon-view {
+    border: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+}
+
+/* Hover/focus: green border with subtle background */
+.icon-view:hover,
+.icon-view:focus {
+    border: 1px solid green !important;
+    background: rgba(0, 128, 0, 0.1) !important; /* light green tint */
+    outline: none !important;
+}
+
+.modal input:disabled,
+.modal select:disabled,
+.modal textarea:disabled {
+    background-color: #fff9c4;
+    color: #555;
+    opacity: 1;
+}
+
+/* When update is success, it hight lights the updated row for 2 sec */
+.highlight-row {
+    background-color: #d4edda !important; /* light green */
+    animation: flashHighlight 2s ease;
+}
+
+@keyframes flashHighlight {
+    0% {
+        background-color: #d4edda;
+    }
+
+    50% {
+        background-color: #c3e6cb;
+    }
+
+    100% {
+        background-color: inherit;
+    }
+}
+
+.custom-tooltip .tooltip-inner
+{
+    max-width: 200px; /* set desired width */
+    white-space: normal; /* allow wrapping */
+    word-wrap: break-word; /* break long words if needed */
+}
+.wrap-text {
+    white-space: normal;
+    word-wrap: break-word;
+}
+
+.truncate-text {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 400px;
+}

@@ -1,0 +1,137 @@
+﻿@using Microsoft.AspNetCore.Http;
+@inject IHttpContextAccessor HttpContextAccessor;
+@model List<wwfpp.Models.Personnel.LeaveViewModel>
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var PageTitle = "Leave";
+    var Page_Tips = "Causal Leave can be requested maximum of 2 days on one request.";  //Tool tip message on right side
+    var msg_please_wait = "";
+    var Page_Mode = PageTitle;
+    ViewData["Title"] = "| " + PageTitle;
+    var Help_Tips = GblUtilities.HelpTips(Page_Tips);
+    /*success|fail|error'*/
+    string ShowMsg = GblUtilities.MsgDisplay(Context.Request.Query["msg"].ToString());
+    int emp_id = int.TryParse(HttpContextAccessor.HttpContext.Session.GetString("emp_id"), out int EmpId) ? EmpId : 0;
+}
+@if (emp_id < 1)
+{
+    <div id="message_header">
+        <p id="message" class="warning">
+            <b>NOTE:</b>
+            Your are not suppose to be here.
+        </p>
+    </div>
+}
+else
+{
+        <style>
+            #tblDataList td, #tblDataList th {
+            padding: 15px 10px;
+            font-size: 15px;
+            height: 15px;
+            }
+        </style>
+        @Html.AntiForgeryToken()
+        @Html.Hidden("mode", "")
+        @Html.Hidden("ilaka", "/Personnel/Leave")
+
+        <h2 class="titlebig"><span name="header" id="header">@Page_Mode</span> @Html.Raw(Help_Tips)</h2>
+        <div id="message_header"><p id="loading" class="loading displaynone">@msg_please_wait</p></div>
+        <div id="message_header">@Html.Raw(ShowMsg)</div>
+
+        @if (ViewBag.IsNoSupervisor == "false")
+        {
+            <div id="message_header">
+                <p id="message" class="warning"><b>NOTE:</b> 
+                    No supervisor has been defined.. 
+                    At least one supervisor must be assigned before submitting a request. 
+                    Please contact your HR administrator for assistance.</p>
+            </div>
+        }
+        <div class="row">
+            <div class="col-lg-11"><label class="col-lg-12 col-form-label-lg">Employee : @ViewBag.Employee [@ViewBag.EmployeeStatus] &nbsp;</label></div>
+            <div class="col-lg-1">&nbsp;@Html.Hidden("emp_id", emp_id)</div>
+        </div>
+
+        <div class="row">
+            <div class="col-lg-2"><label class="col-lg-12 col-form-label-lg">Fiscal Year: &nbsp;</label></div>
+            <div class="col-lg-10">
+                @Html.DropDownList("FiscalYearFilter", (SelectList)ViewBag.FiscalYearList, "-- Select --", new { @class = "form-select", style = "width:150px;" })
+            </div>
+        </div>
+
+        <div class="p-0 bg-white rounded mb-3">
+            <div class="row align-items-center">
+                <div class="col-auto ms-auto">
+                    @Html.Raw(ViewBag.ViewButtons)
+                </div>
+            </div>
+        </div>
+
+        <div class="form-group p-2">
+            <table id="tblData" class="display compact nowrap" style="width:100%">
+                <thead>
+                    <tr style="height: 40px; align-items: center;color:white;" class="bg-secondary bg-opacity-27">
+                        <th width = "1%"></th>
+                        <th width = "24%">Leave Type</th>
+                        <th width = "15%">Submit Date</th>
+                        <th width = "15%">Start Date</th>
+                        <th width = "15%">End Date</th>
+                        <th width = "5%">Hour(s)</th>
+                        <th width = "5%">Days(s)</th>
+                        <th width = "10%">Status</th>
+                        <th width = "5%">Action</th>
+                        <th width = "5%"></th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        @await Html.PartialAsync("_SharedModal", new wwfpp.Models.ModalViewModel { ModalId = "ModalID", DialogClass = "modal-lg", BodyId = "ModalBody" })
+
+        @section Scripts {
+        <script>
+            var ilaka = document.getElementById("ilaka").value;
+            var table;
+            $(document).ready(function() {
+                GetAllDataSN(ilaka, "id", [
+                    { data: "description", name: "description", autoWidth: false },
+                    { data: "submit_date", name: "submit_date", autoWidth: false, render: function(data, type, row) { if (type === 'display' || type === 'filter') { return moment(data).format(my_format); } return data; } },
+                    { data: "leave_from_date", name: "leave_from_date", autoWidth: false, render: function(data, type, row) { if (type === 'display' || type === 'filter') { return moment(data).format(my_format); } return data; } },
+                    { data: "leave_to_date", name: "leave_to_date", autoWidth: false, render: function(data, type, row) { if (type === 'display' || type === 'filter') { return moment(data).format(my_format); } return data; } },
+                    { data: "leave_in_hrs", name: "leave_in_hrs", autoWidth: false },
+                    { data: "leave_in_days", name: "leave_in_days", autoWidth: false },
+                    { data: "app_status", name: "app_status", autoWidth: false },
+                    { data: "showBtnCan", name: "showBtnCan", autoWidth: false,orderable: false,
+			            render: function (data, type, row) {
+                            if (data === "Y"){
+				                return '<button type="button" name="btnCan" id="btnCan" class="button" data-id="'
+					            + row.id + '"><img src="/images/delete.png" title="Cancel" width="16" height="16" border="0"></button>';
+                            } else {return "";}
+			            }
+                    }
+                    ],
+                    {
+                        FilterValue1: "FiscalYearFilter"
+                    }
+                );
+            });
+            function collectExtraFields() {
+                return {
+                    SelFiscalYear: $("#FiscalYearFilter").val()
+                };
+            }
+            $(document).on("click", "#tblData .button", function() { ViewData($(this).data("id")); });
+            $(document).off('click', '#btnC').on('click', '#btnC', function() { modalCloseCancel($(this)); });
+            $("#btnBalance").on("click", function () {
+                var balSettings = [];
+                balSettings.push({
+                    empId: parseInt($("#emp_id").val(), 10),
+                    mode: "bal"
+                });
+                ShowData(ilaka+"Balance", balSettings, "Leave Balance");
+            });
+        </script>
+    }
+}

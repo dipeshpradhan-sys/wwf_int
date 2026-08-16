@@ -1,0 +1,138 @@
+﻿@using Microsoft.AspNetCore.Http;
+@inject IHttpContextAccessor HttpContextAccessor;
+@model List<wwfpp.Models.Settings.SalarySettingsViewModel>
+@{
+    string DATE_FORMAT = ViewBag.DATE_FORMAT;
+
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var PageTitle = "Employee salary settings ";
+    var Page_Tips = "Note: C.E.A. = Children Education Allowance | Date format is in : "+ @ViewBag.DATE_FORMAT;  //Tool tip message on right side
+    var msg_please_wait = "";
+    var Page_Mode = PageTitle; 
+    ViewData["Title"] = "| " + PageTitle;
+    var Help_Tips = GblUtilities.HelpTips(Page_Tips);    
+    string ShowMsg = GblUtilities.MsgDisplay(Context.Request.Query["msg"].ToString());/*success|fail|error'*/
+}
+@Html.AntiForgeryToken()
+@Html.Hidden("ilaka", "/Settings/SalarySettings")
+<h2 class="titlebig"><span name="header" id="header">@Page_Mode</span> @Html.Raw(Help_Tips)</h2>
+@Html.Hidden("mode", "") 
+@Html.Hidden("Id", "")
+
+<div id="message_header"><p id="loading" class="loading displaynone">@msg_please_wait</p></div>
+
+<div class="row">
+    <div class="col-lg-2"><label class="col-lg-12 col-form-label-lg">Employee Status : &nbsp;</label></div>
+    <div class="col-lg-10">
+        @Html.DropDownList("StatusFilter", (SelectList)ViewBag.StatusFilter, new { @class = "form-select", style = "width:300px;" })
+    </div>
+</div>
+
+<!-- DataTable -->
+@if (Model == null)
+{
+    <div id="message_header"><p class="note">No record(s) found.</p></div>
+}
+else
+{
+    <div class="form-group p-2">
+        <table id="tblData" class="display compact nowrap" style="width:100%">
+            <thead>
+                <tr style="height: 50px; align-items: center;color:white;" class="bg-secondary bg-opacity-27">
+                    <th width="2%"><input type="checkbox" id="selectAll"></th>
+                    <th width="15%">Employee</th>
+                    <th width="7%">C.E.A.</th>
+                    <th width="6%">Gender</th>                  
+                    <th width="7%">Join Date </th>
+                    <th width="7%">End Date</th >
+                    <th width="7%">Marital<br />Status</th>
+                    <th width="7%">Salary</th>
+                    <th width="7%">RAA</th>
+                    <th width="7%">Yearly<br />RAA Ex-<br />emption</th>
+                    <th width="7%">Payroll<br />Status</th>
+                    <th width="7%">Bank A/C</th>
+                    <th width="7%">PAN Number</th>
+                </tr>
+            </thead>
+            <tbody>
+         
+            </tbody>
+        </table>
+    </div>
+    <div id="message_header">@Html.Raw(ShowMsg)</div>
+    @if (ViewBag.epern == "true")
+    {
+        <div class="form-group row p-1">
+            <label class="col-sm-4 col-form-label">&nbsp;</label>
+            <div class="col-sm-8">
+                <button type="reset" name="btnReset" id="btnReset" class="button btn-secondary">Reset</button>
+                <button type="button" name="btnSave" id="btnSave" class="button btn-primary">Save</button>
+            </div>
+        </div>
+    }
+    <div id="mfTemplate" style="display:none;">@Html.DropDownList("gender", (SelectList)ViewBag.GenderList, "--Select--", new { @class = "form-control", style = "width:85px;" })</div>
+    <div id="msTemplate" style="display:none;">@Html.DropDownList("marital_status", (SelectList)ViewBag.MaritalStatusList, "--Select--", new { @class = "form-control", style = "width:90px;" })</div>
+    <div id="psTemplate" style="display:none;">@Html.DropDownList("emp_pay_status", (SelectList)ViewBag.EmpPayStatusList, "--Select--", new { @class = "form-control", style = "width:70px;" })</div>
+    @section scripts
+    {
+        <script>
+            var ilaka = document.getElementById('ilaka').value;
+            var selectedIds = new Set();
+            var hideviewaction = "yes";
+            var table;
+            $(document).ready(function ()
+            {
+                GetAllData(ilaka, "emp_id", [
+                    { data: "employee", name: "employee", autoWidth: false, render: function (data, type, row) {return '<span style="white-space:normal;">' + data + '</span>';}},
+                    { data: "child_edu_all", name: "child_edu_all", autoWidth: false},
+                    { data: "gender", name: "gender", autoWidth: false, render: function (data, type, row, meta){var ctrlName = "gender" + meta.row;var $select = $("#mfTemplate select").clone();$select.attr("id", ctrlName).attr("name", ctrlName);var val = data != null ? data.toString().trim() : "";$select.find("option:selected").prop("selected", false);$select.find("option").each(function () {if ($(this).val() === val) {$(this).attr("selected", "selected");}});return $select.prop("outerHTML");}},
+                    { data: "join_date", name: "join_date", autoWidth: false, render: function(data, type, row, meta) {if (data == null || data == '') {var Ddata = "";} else {var Ddata = moment(data).format(my_format);}return '<input type="text" name="join_date"' + meta.row +'" id="join_date"' + meta.row +'" value="' + Ddata + '" class="form-control join-date-input" style = "width:125px;", maxlength = "10">';}},
+                    { data: "end_date", name: "end_date", autoWidth: false, render: function(data, type, row, meta) {if (data == null || data == '') {var Ddata = "";} else {var Ddata = moment(data).format(my_format);}return '<input type="text" name="end_date"' + meta.row +'" id="end_date"' + meta.row +'" value="' + Ddata + '" class="form-control end-date-input" style = "width:125px;", maxlength = "10">';}},
+                    { data: "marital_status", name: "marital_status", autoWidth: false, render: function (data, type, row, meta){var ctrlName = "marital_status" + meta.row;var $select = $("#msTemplate select").clone();$select.attr("id", ctrlName).attr("name", ctrlName);var val = data != null ? data.toString().trim() : "";$select.find("option:selected").prop("selected", false);$select.find("option").each(function () {if ($(this).val() === val) {$(this).attr("selected", "selected");}});return $select.prop("outerHTML");}},
+                    { data: "salary", name: "salary", autoWidth: false, render: function(data, type, row, meta) {return '<input type="text" name="salary"' + meta.row +'" id="salary"' + meta.row +'" value="' + data + '" class="form-control salary-input" style = "width:90px;", maxlength = "10">';}},
+                    { data: "remote_area_allow", name: "remote_area_allow", autoWidth: false, render: function(data, type, row, meta) {return '<input type="text" name="remote_area_allow"' + meta.row +'" id="remote_area_allow"' + meta.row +'" value="' + data + '" class="form-control remote-area-allow-input" style = "width:90px;", maxlength = "10">';}},
+                    { data: "yearly_remote_exem", name: "yearly_remote_exem", autoWidth: false, render: function(data, type, row, meta) {return '<input type="text" name="yearly_remote_exem"' + meta.row +'" id="yearly_remote_exem"' + meta.row +'" value="' + data + '" class="form-control yearly-remote-exem-input" style = "width:90px;", maxlength = "10">';}},
+                    { data: "emp_pay_status", name: "emp_pay_status", autoWidth: false, render: function (data, type, row, meta){var ctrlName = "emp_pay_status" + meta.row;var $select = $("#psTemplate select").clone();$select.attr("id", ctrlName).attr("name", ctrlName);var val = data != null ? data.toString().trim() : "";$select.find("option:selected").prop("selected", false);$select.find("option").each(function () {if ($(this).val() === val) {$(this).attr("selected", "selected");}});return $select.prop("outerHTML");}},
+                    { data: "account_no", name: "account_no", autoWidth: false, render: function(data, type, row, meta) {return '<input type="text" name="account_no"' + meta.row +'" id="account_no"' + meta.row +'" value="' + data + '" class="form-control account-no-input" style = "width:175px;", maxlength = "15">';}},
+                    { data: "pan_no", name: "pan_no", autoWidth: false, render: function(data, type, row, meta) {return '<input type="text" name="pan_no"' + meta.row +'" id="pan_no"' + meta.row +'" value="' + data + '" class="form-control pan-no-input" style = "width:125px;", maxlength = "15">';}}
+                ],
+                {
+                    FilterValue: "StatusFilter"
+                });
+                $(document).one('init.dt', '#tblData', function () {table.page.len(-1).draw();})/** Wait for first draw to complete before changing page length*/
+                $('#tblData_filter').hide();
+                $('#tblData_length').hide();
+            });
+            function collectExtraFields() {
+                var extraSettings = [];
+                $("#tblData tbody tr").each(function () {
+                    var row = $(this);
+                    var id = row.find("input.row-checkbox:checked").val();
+                    if (selectedIds.has(id)) {
+                        extraSettings.push({
+                            emp_id: parseInt(id, 10),employee: "",child_edu_all :0,
+                            gender: row.find("select[name^='gender']").val(),
+                            join_date: formatDateToISO(row.find("input[name^='join_date']").val()),
+                            end_date: formatDateToISO(row.find("input[name^='end_date']").val()),
+                            marital_status: row.find("select[name^='marital_status']").val(),
+                            salary: parseFloat(row.find("input[name^='salary']").val()),
+                            remote_area_allow: parseFloat(row.find("input[name^='remote_area_allow']").val()),
+                            yearly_remote_exem: parseFloat(row.find("input[name^='yearly_remote_exem']").val()),
+                            emp_pay_status: row.find("select[name^='emp_pay_status']").val(),
+                            account_no: row.find("input[name^='account_no']").val(),
+                            pan_no: row.find("input[name^='pan_no']").val()                            
+                        });
+                    }
+                });
+                return extraSettings;
+            }
+            $(document).on('blur', '.join-date-input', function () { convert_date(this); });
+            $(document).on('blur', '.end-date-input', function () { convert_date(this); });
+            $(document).on('blur', '.salary-input', function () { OnlyNumericCtrl(this); });
+            $(document).on('blur', '.remote-area-allow-input', function () { OnlyNumericCtrl(this); });
+            $(document).on('blur', '.yearly-remote-exem-input', function () { OnlyNumericCtrl(this); });
+            $(document).off("click", "#btnSave").on("click", "#btnSave", function () {$("#mode").val("update");updateDataJSON(ilaka+"Save");});
+            $("#StatusFilter").off("change").on("change", function () {const statusV = $(this).val();if (!statusV) {return;}const $myButton =  $("#btnSave");if ($myButton.length){if (statusV === "A" ){$myButton.show();$('#tblData_length').hide();table.page.len(-1).draw();} else {$myButton.hide();$('#tblData_length').show();table.page.len(10).draw();}}table.draw();});
+        </script>
+    }
+}

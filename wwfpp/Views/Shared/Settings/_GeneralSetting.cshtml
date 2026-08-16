@@ -1,0 +1,110 @@
+﻿@using wwfpp.Services;
+@using Microsoft.AspNetCore.Http;
+@inject IHttpContextAccessor HttpContextAccessor;
+@inject GlobalOptionServices GlobalOptionServices
+@model List<wwfpp.Models.Settings.GeneralSettingViewModel>
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var PageTitle = "General Setting";
+    var Page_Tips = "";  //Tool tip message on right side
+    var msg_please_wait = "";
+    var Page_Mode = PageTitle; 
+    var Pern = ViewBag.vpern;
+    ViewData["Title"] = "| " + PageTitle;
+    var Help_Tips = GblUtilities.HelpTips(Page_Tips);    
+    string ShowMsg = GblUtilities.MsgDisplay(Context.Request.Query["msg"].ToString());/*success|fail|error'*/
+    double working_hrs_day = double.TryParse(@ViewBag.working_hrs_day.ToString(), out double V0) ? V0 : 1;
+
+    var op_max_cur_an_leave_cf = GlobalOptionServices.OptionServices["op_max_cur_an_leave_cf"];
+    var op_max_cur_an_leave_cf_D = double.TryParse(op_max_cur_an_leave_cf, out double V1) ? Math.Round(V1 / working_hrs_day, 2) : 0;
+
+    var op_max_cur_si_leave_cf = GlobalOptionServices.OptionServices["op_max_cur_si_leave_cf"];
+    var op_max_cur_si_leave_cf_D = double.TryParse(op_max_cur_si_leave_cf, out double V2) ? Math.Round(V2 / working_hrs_day, 2) : 0;
+
+    var op_max_an_leave_cf_accum = GlobalOptionServices.OptionServices["op_max_an_leave_cf_accum"];
+    var op_max_an_leave_cf_accum_D = double.TryParse(op_max_an_leave_cf_accum, out double V3) ? Math.Round(V3 / working_hrs_day, 2) : 0;
+
+    var op_max_si_leave_cf_accum = GlobalOptionServices.OptionServices["op_max_si_leave_cf_accum"];
+    var op_max_si_leave_cf_accum_D = double.TryParse(op_max_si_leave_cf_accum, out double V4) ? Math.Round(V4 / working_hrs_day, 2) : 0;
+}
+@Html.AntiForgeryToken()
+@Html.Hidden("ilaka", "/Settings/GeneralSetting")
+<h2 class="titlebig"><span name="header" id="header">@Page_Mode</span> @Html.Raw(Help_Tips)</h2>
+
+<div id="message_header"><p id="loading" class="loading displaynone">@msg_please_wait</p></div>
+<div id="message_header">@Html.Raw(ShowMsg)</div>
+
+<div class="form-group p-2">
+    <table id="tblExtra" class="display compact nowrap" style="width:100%">
+        <thead>
+            <tr style="height: 50px; align-items: center;color:white;" class="bg-secondary bg-opacity-27">
+                <th width="50%">&nbsp;Description</th>
+                <th width="25%">Hours</th>
+                <th width="25%">Days</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr style="height: 50px; align-items: center;color:black;" class="bg-white bg-opacity-27">
+                <th>&nbsp;Maximum eligible annual leave carry forward from current year</th>
+                <th>@op_max_cur_an_leave_cf</th>
+                <th>@op_max_cur_an_leave_cf_D</th>
+            </tr>
+            <tr style="height: 50px; align-items: center;color:black;" class="bg-window bg-opacity-27">
+                <th>&nbsp;Maximum eligible sick leave carry forward from current year</th>
+                <th>@op_max_cur_si_leave_cf</th>
+                <th>@op_max_cur_si_leave_cf_D</th>
+            </tr>
+            <tr style="height: 50px; align-items: center;color:black;" class="bg-white bg-opacity-27">
+                <th>&nbsp;Maximum accumulation of annual leave carry forwarded</th>
+                <th>@op_max_an_leave_cf_accum</th>
+                <th>@op_max_an_leave_cf_accum_D</th>
+            </tr>
+            <tr style="height: 50px; align-items: center;color:black;" class="bg-window bg-opacity-27">
+                <th>&nbsp;Maximum accumulation of sick leave carry forwarded</th>
+                <th>@op_max_si_leave_cf_accum</th>
+                <th>@op_max_si_leave_cf_accum_D</th>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+
+@if (Model == null)
+{
+    <div id="message_header"><p class="note">No record(s) found.</p></div>
+}
+else
+{
+    <div class="form-group p-2">
+        <table id="tblData" class="display compact nowrap" style="width:100%">
+            <thead>
+                <tr style="height: 40px; align-items: center;color:white;" class="bg-secondary bg-opacity-27">
+                    <th width="1%">SN</th>
+                    <th width="49%">Leave</th>
+                    <th width="25%">Hours</th>
+                    <th width="25%">Days</th>
+                </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
+    </div>
+    @section scripts 
+    {
+        <script>
+            var ilaka = document.getElementById('ilaka').value;
+            var hideviewaction = "yes";
+            $(document).ready(function () 
+            {
+                GetAllDataSN(ilaka, "id", [
+                    { data: "description", name: "description", autoWidth: false },
+                    { data: "max_leave_hours", name: "max_leave_hours", autoWidth: false },
+                    { data: "max_leave_days", name: "max_leave_days", autoWidth: false }
+                ]);
+                // Wait for first draw to complete before changing page length
+                $('#tblData_filter').hide();
+                $('#tblData_length').hide();
+            });
+        </script>
+    }
+}

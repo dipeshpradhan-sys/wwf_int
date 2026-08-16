@@ -1,0 +1,74 @@
+﻿@model wwfpp.Models.Admin.ModulesViewModel
+@{
+    string mode = ViewBag.mode;
+}
+<!-- (A) HTML DIALOG BOX -->
+<partial name="_ConstantValues" view-data='new ViewDataDictionary(ViewData) { { "NoteKey", "RequiredField" } }' />
+    @Html.HiddenFor(m => m.module_id) <!-- Needed for Edit -->
+    <div class="form-group row p-1">
+
+        <label class="col-lg-12 col-form-label-lg">Code<span class="text-danger">*</span></label>
+        <div class="col-lg-12">
+        <input type="text" class="form-control" asp-for="module_code" name="module_code" id="module_code" autocomplete="module_code" placeholder="" maxlength="50" onKeyPress="javascript:goNext(event.keyCode,'module_name');" />
+        </div>
+    
+        <label class="col-lg-12 col-form-label-lg">Name<span class="text-danger">*</span></label>
+        <div class="col-lg-12">
+        <input type="text" class="form-control" asp-for="module_name" name="module_name" id="module_name" autocomplete="module_name" placeholder="" maxlength="250" onKeyPress="javascript:goNext(event.keyCode,'module_label');" />
+        </div>
+        
+        <label class="col-lg-12 col-form-label-lg">Label<span class="text-danger">*</span></label>
+        <div class="col-lg-12">
+        <input type="text" class="form-control" asp-for="module_label" name="module_label" id="module_label" autocomplete="module_label" placeholder="" maxlength="250"  onKeyPress="javascript:goNext(event.keyCode,'module_folder');" />
+        </div>
+        
+        <label class="col-lg-12 col-form-label-lg">Folder<span class="text-danger">*</span></label>
+        <div class="col-lg-12">
+        <input type="text" class="form-control" asp-for="module_folder" name="module_folder" id="module_folder" autocomplete="module_folder" placeholder="" maxlength="250" onKeyPress="javascript:goNext(event.keyCode,'module_sort');" />
+        </div>        
+        
+        <label class="col-lg-12 col-form-label-lg">Sorting<span class="text-danger">*</span></label>
+        <div class="col-lg-12">
+        <input type="text" class="form-control" asp-for="module_sort" name="module_sort" id="module_sort" autocomplete="module_sort" placeholder="" maxlength="2" onblur="javascript:OnlyNumeric('module_sort','modal_message')" onKeyPress="javascript:goNext(event.keyCode,'module_status');" />
+        </div>
+
+        <label class="col-lg-12 col-form-label-lg">Status<span class="text-danger">*</span></label>
+        <div class="col-lg-12">
+        <select name="module_status" id="module_status" asp-for="module_status" class="form-control" onKeyPress="javascript:goNext(event.keyCode,'btnSave');">
+                <option value="">--Select--</option>
+                <option value="A">Active</option>
+                <option value="P">Passive</option>
+            </select>
+        </div>
+
+    </div>
+
+@if (mode == "add" && ViewBag.apern == "true")
+{
+    <script>renderModalButtons("modal-button-list", "Save");</script>
+}
+else if (mode == "edit" && ViewBag.epern == "true")
+{
+    <script>renderModalButtons("modal-button-list", "Edit");</script>
+}else
+{
+    <script>renderModalCloseButton("modal-button-list")</script>
+}
+    <script>
+    // Toggle between Edit and Update
+    $(document).off("click", "#btnSave").on("click", "#btnSave", function () {
+        var btn = $(this);
+        if (btn.text() == "Edit") {$("#ModalID .modal-title").text("Update");btn.text("Update");$("#btnC").text("Cancel");return;}  
+        if (btn.text() === "Update" || btn.text() === "Save") {
+
+            if ( checkInput( 'txt', 'module_code', 'Code is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'txt', 'module_name', 'Name is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'txt', 'module_label', 'Label is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'txt', 'module_folder', 'Folder is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'txt', 'module_sort', 'Sorting is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'cmb', 'module_status', 'Status is required.', 'modal-message') == false ) {return false;}
+
+            submitSaveUpdate('@Url.Content("~/Admin/Modules")');
+        }
+    });
+    </script>

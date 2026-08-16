@@ -1,0 +1,43 @@
+﻿<partial name="_ConstantValues" view-data='new ViewDataDictionary(ViewData) { { "NoteKey", "RequiredField" } }' />
+
+<div class="row">
+    <div class="col-lg-3"><label class="col-lg-12 col-form-label-lg">Fiscal Year: &nbsp;</label></div>
+    <div class="col-lg-9">
+        @Html.DropDownList("FiscalYear", (SelectList)ViewBag.FiscalYear, "-- Select --", new { @class = "form-select", style = "width:150px;" })
+    </div>
+</div>
+<div class="row">
+    <div class="col-lg-3"><label class="col-lg-12 col-form-label-lg">Employee: &nbsp;</label></div>
+    <div class="col-lg-9">
+        @Html.DropDownList("EmployeeList", (SelectList)ViewBag.EmployeeList, "-- Select --", new { @class = "form-select" })
+    </div>
+</div>
+
+@if (ViewBag.apern == "true" || ViewBag.epern == "true")
+{
+    <script>renderModalExportButton("modal-button-list", "Export");</script>
+}
+<script>
+    $(document).off("click", "#btnExport").on("click", "#btnExport", function () {
+        var btn = $(this);
+        if (btn.text().trim() === "Export") 
+        {
+            if (checkInput('cmb', 'FiscalYear', 'Fiscal Year is required.', 'modal-message') == false) { return false; }
+            if (checkInput('cmb', 'EmployeeList', 'Employee is required.', 'modal-message') == false) { return false; }
+            if (confirm(msg_are_you_sure_to_perform_this_action) == false) { return false; }
+            var formData = $("#frm").serialize();
+            
+            $.post("/Employee/EmployeeFundSourceExportDownload", formData).done(function (data) 
+            {
+                if (data.status === "success") { 
+                    showSuccess(msg_data_exported_success, "modal-message"); 
+                    window.location = data.url; // triggers download
+                } else { showError(data.message, "modal-message"); }
+            }).fail(function (xhr) { showError(xhr.responseText, "modal-message"); }); 
+        }
+    });
+    $(document).off("click", "#btnC").on("click", "#btnC", function () {
+        $('#tblData').DataTable().ajax.reload();
+        var modal = bootstrap.Modal.getInstance(document.getElementById("ModalID")); modal.hide();
+    });
+</script>

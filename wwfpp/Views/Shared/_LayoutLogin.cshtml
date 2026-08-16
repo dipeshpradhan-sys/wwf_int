@@ -1,0 +1,65 @@
+﻿@using wwfpp.Services;
+@inject GlobalOptionServices GlobalOptionServices
+@{
+    var OrgOpName = GlobalOptionServices.OptionServices["op_org_name"];
+    var currentAction = ViewContext.RouteData.Values["action"]?.ToString();
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@AppSettings.Value.SITE_TITLE @ViewData["Title"]</title>
+    <link rel="stylesheet" href=@Url.Content("~/lib/bootstrap/dist/css/bootstrap.min.css") />
+    <link rel="stylesheet" href=@Url.Content("~/css/site.css") asp-append-version="true" />
+    <link rel="stylesheet" href=@Url.Content("~/css/Style.css") asp-append-version="true" />
+    @if (string.Equals(currentAction, "Login", StringComparison.OrdinalIgnoreCase))
+    {
+        <script>
+                window.name = "@AppSettings.Value.SITE_TITLE";
+                window.focus();
+                
+                document.addEventListener("DOMContentLoaded", function() {
+                    document.frm.txtun.focus();
+                });
+        </script>
+    }
+</head>
+<body>
+    <header>
+        <div id="top">
+           <div id="curve-left"></div>
+           <div id="logo-00">
+                <div id="top-nav-1"></div>
+            </div>
+
+            <div id="curve-right">
+                <div id="header-txt">
+                    <h5><img src="~/images/flag.png" height="26" width="40" title="@OrgOpName" /></h5>
+                    <h6 class="date">Version : @AppSettings.Value.Version </h6>
+                    <h4 class="date">@DateTime.Now.ToString("MMMM dd, yyyy")</h4>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <main role="main" class="pb-3">
+            @RenderBody()
+        </main>
+    </div>
+    <input type="hidden" name="showjserr" id="showjserr" value="@AppSettings.Value.ShowJsErr" />
+    <!-- Footer -->
+    <div id="footer">
+        <p class="footer">
+            &copy;@OrgOpName 2005 - @DateTime.Now.Year. Designed and Developed by  <a href="https://www.efourcore.com.np" target="_blank">eFour Core Pvt. Ltd.</a>
+        </p>
+    </div>
+    <script src=@Url.Content("~/lib/jquery/dist/jquery.min.js")></script>
+    <script src=@Url.Content("~/lib/bootstrap/dist/js/bootstrap.bundle.min.js")></script>
+    <script src=@Url.Content("~/js/lang.js") asp-append-version="true"></script>
+    <script src=@Url.Content("~/js/site.js") asp-append-version="true"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

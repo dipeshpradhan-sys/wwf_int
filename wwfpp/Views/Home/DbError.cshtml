@@ -1,0 +1,11 @@
+﻿@{
+    Layout = "~/Views/Shared/_LayoutDbError.cshtml";
+    ViewData["Title"] = " | Database Error";
+}
+<h2>Oops!</h2>
+<p>@ViewBag.ErrorMessage</p>
+<ul>
+    <li>Are you sure it exists?</li>
+    <li>Does the user have permission to use the database?</li>
+</ul>
+<p>If you don't know how to set up a database you should <strong>contact your host or system administrator</strong>.</p>

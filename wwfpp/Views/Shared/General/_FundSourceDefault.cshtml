@@ -1,0 +1,86 @@
+﻿@using wwfpp.Services;
+@inject SettingsServices SettingsServices;
+@model wwfpp.Models.General.FundSourceViewModel;
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var PageTitle = "Default Fund Source";
+    var Page_Tips = "";  //Tool tip message on right side
+    var msg_please_wait = "";
+    var Page_Mode = PageTitle;
+    ViewData["Title"] = "| " + PageTitle;
+    var Help_Tips = GblUtilities.HelpTips(Page_Tips);    
+    string ShowMsg = GblUtilities.MsgDisplay(Context.Request.Query["msg"].ToString());/*success|fail|error'*/
+    string s_expiry_date = "";
+    string DATE_FORMAT = ViewBag.DATE_FORMAT;
+    if (Model != null )
+    {
+        if (!string.IsNullOrWhiteSpace(Model.expiry_date.ToString()))
+        {
+           string expiry_date = Model.expiry_date.ToString();
+           s_expiry_date = SettingsServices.DateformatToDt(expiry_date);
+       }
+   }
+}
+@Html.AntiForgeryToken()
+@Html.Hidden("ilaka", "/General/FundSourceDefault")
+<h2 class="titlebig"><span name="header" id="header">@Page_Mode</span> @Html.Raw(Help_Tips)</h2>
+<input type="hidden" id="mode" name="mode" value="@ViewBag.mode" />
+@Html.Hidden("Id", "")
+
+<div id="message_header"><p id="loading" class="loading displaynone">@msg_please_wait</p></div>
+<div id="message_header">@Html.Raw(ShowMsg)</div>
+<partial name="_ConstantValues" view-data='new ViewDataDictionary(ViewData) { { "NoteKey", "RequiredField" } }' />
+
+<div class="form-group row p-1">
+    @Html.HiddenFor(m => m.fund_id) <!-- Needed for Edit -->
+    <label class="col-lg-12 col-form-label-lg">Fund Source<span class="text-danger">*</span>&nbsp;</label>
+    <label class="col-lg-12 col-form-label-sm">(Format : zzz-zzzzzzzz-zzzz Or zzz-zzzzzzzz-zzzzzzzz)</label>
+    <div class="row">
+        <div class="col-lg-7">
+            @Html.TextBoxFor(m => m.fund_source, new { @class = "form-control", maxlength = "50", size ="25", onKeyPress = "goNext(event.keyCode,'fund_desc')" })
+        </div>
+        <div class="col-lg-5">&nbsp;</div>
+    </div>
+    
+    <label class="col-lg-12 col-form-label-lg">Project Description<span class="text-danger">*</span>&nbsp;</label>
+    <div class="row">
+        <div class="col-lg-7">
+            @Html.TextBoxFor(m => m.fund_desc, new { @class = "form-control", maxlength = "250", onKeyPress = "goNext(event.keyCode,'fund_status')" })
+        </div>
+        <div class="col-lg-5">&nbsp;</div>
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Expiry Date<span class="text-danger">*</span>&nbsp;(@DATE_FORMAT)</label>
+    <div class="row">
+        <div class="col-lg-4">
+            @Html.TextBox("expiry_date", @s_expiry_date, new { @class = "form-control", maxlength = "10", onblur = "convert_date(expiry_date,'message')", onKeyPress = "goNext(event.keyCode,'btndate')" })
+        </div>
+        <div class="col-lg-8"><Input Type="Button" name="btndate" Value="Date..." OnClick="show_calendar('frm.expiry_date')" class="button bg-sky"></div>
+    </div>
+    <label class="col-lg-12 col-form-label-sm"> [Provided date will be included in calculation and report]</label>
+</div>
+@if (ViewBag.apern == "true" || ViewBag.epern == "true" )
+{
+    <div class="form-group row p-1">
+        <label class="col-sm-4 col-form-label">&nbsp;</label>
+        <div class="col-sm-8">
+            <button type="reset" name="btnReset" id="btnReset" class="button btn-secondary">Reset</button>
+            <button type="button" name="btnSave" id="btnSave" class="button btn-primary">Save</button>
+        </div>
+    </div>
+}
+    @section scripts
+    {
+        <script>
+            var ilaka = document.getElementById('ilaka').value;
+            $(document).off("click", "#btnSave").on("click", "#btnSave", function () {
+                if ( checkInput( 'txt', 'fund_source', 'Fund Source is required.', 'message') == false ) {return false;}
+                if (validateFundSource(document.getElementById("fund_source").value) == false){showError("Invalid Fund Source.","message");return false};
+                if ( checkInput( 'txt', 'fund_desc', 'Project Description is required.', 'message') == false ) {return false;}
+                if ( checkInput( 'txt', 'expiry_date', 'Expiry date is required.', 'message') == false ) {return false;}
+                submitSaveUpdate(ilaka);
+            });
+        </script>
+    }
+
+

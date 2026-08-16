@@ -1,0 +1,53 @@
+﻿@using wwfpp.Services;
+@inject GlobalOptionServices GlobalOptionServices
+@model UserModuleMenuLeftViewModel
+@{
+    var defaultModule = GlobalOptionServices.OptionServices["op_default_module_selection"];
+    int Cnt_Mdl = 0;
+    string Module_Code = ""; 
+    string MyImg = "";
+    string Module_Folder = "";
+    string Menu_page = "";
+    var currentPath = Context.Request.Path.Value; // e.g. /Controller/Pagename
+    if (Model.UserLeftModuleMenu == null || !Model.UserLeftModuleMenu.Any())
+    {
+        <li>
+            <div class="text-danger" id="message_header">
+                No permission is provided. Please contact your system administrator for assistance.
+            </div>
+        </li>
+    }
+    else
+    {
+        foreach (var module in Model.UserLeftModuleMenu)
+        {
+            Cnt_Mdl = module.module_id;
+            Module_Code = module.module_code;
+            Module_Folder = module.module_folder.ToLower();
+            MyImg = "MyImg" + Cnt_Mdl.ToString();
+               
+            // Check if any menu under this module matches current URL
+            bool isActiveModule = module.Menus.Any(m => currentPath?.StartsWith("/" + Module_Folder + "/" + m.menu_page, StringComparison.OrdinalIgnoreCase) == true);
+            if (isActiveModule == false)
+            {
+                isActiveModule = module.Menus.Any(m => currentPath?.StartsWith(defaultModule, StringComparison.OrdinalIgnoreCase) == true);
+            }
+            <div id="left-box-inner">
+                <a href="#" class="menu-t" data-target="@Module_Code" data-img="@MyImg">
+                    <div class="menu-head-bg"><img src="/images/closedfolder.gif" border="0" name="@MyImg" id="@MyImg" align="left">@module.module_label</div>
+                </a>
+                <ul id="@Module_Code" style="display: @(isActiveModule ? "block" : "none")">
+                    @foreach (var menu in module.Menus)
+                    {
+                        Menu_page = string.Concat("/", Module_Folder, "/", menu.menu_page.ToLower());
+                        bool isActiveMenu = currentPath?.Equals(Menu_page, StringComparison.OrdinalIgnoreCase) == true;
+                        <li>
+                            <a href="@Menu_page" class="@(isActiveMenu ? "menu0" : "menu")">@menu.menu_label</a>
+                        </li>
+                    }
+                </ul>
+            </div>
+        }
+    }
+
+}

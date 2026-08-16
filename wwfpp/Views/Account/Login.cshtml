@@ -1,0 +1,69 @@
+﻿@using Microsoft.AspNetCore.Http;
+@inject IHttpContextAccessor HttpContextAccessor;
+@model LoginViewModel;
+@{
+    Layout = "~/Views/Shared/_LayoutLogin.cshtml";
+    ViewData["Title"] = "| Login";
+    var msg_please_wait = "";
+    string ShowMsg = GblUtilities.MsgDisplay(Context.Request.Query["msg"].ToString());/*logout|sessionout|invalidlogin|error'*/
+    var login_id = @TempData["cookie_login_id"];
+    var RememberMe = @TempData["RememberMe"] as string;
+    var ShowCaptcha = @TempData["ShowCaptcha"];
+}
+<form name="frm" id="frm" onsubmit="return false">@Html.AntiForgeryToken()
+    <div id="wrapper" >
+        <div id="main-login" >
+            <div id="center" >
+                <div id="message_header-1"><p id="loading" class="loading displaynone">@msg_please_wait</p></div>
+                <div id="message_header">@Html.Raw(ShowMsg)</div>
+                <div id="message_header-2"><p id="note" class="note">Please enter your username and password to login.</p></div>
+
+                <div id="login-box-1"><img src=@Url.Content("~/images/logo-big.gif") width="197" height="203" alt="" title="" /></div>
+                <div id="login-box-3">
+                    <h2>Login</h2>
+                    <h3>User Name : @Html.TextBox("txtun", @login_id, new { @class = "textarea-login", maxlength = "20", style="width:150px;" })</h3>
+                    <h3>Password:&nbsp;@Html.Password("txtpw", "7cM@P@55w0rd", new { @class = "textarea-login", maxlength = "20", style = "width:150px;" })</h3>
+                    <div>
+                        <div id="divCaptcha" class="@ShowCaptcha">
+                            <h3>
+                                <img name="cvscaptcha" id="cvscaptcha" width="200" height="50" style="border:1px solid #000;" src="@Url.Action("GenerateCaptcha", "Account")"><br>
+                                Captcha: [ <a href="#" class="refresh-captcha" title="Can't read the image? Click to generate new one."><font size="3">&#x21bb;</font></a> ]
+                                @Html.TextBox("txtcaptcha", null, new { @class = "textbox", maxlength = "6", style = "width:50px;" })
+                            </h3>
+                        </div>
+                    </div>
+                    <div>
+                        
+                        <h3 class="right">@Html.CheckBox("chkRememberMe", RememberMe == "1")<label for="chkRememberMe">Remember Me</label></h3>
+                        <div id="main-box-message-2" class="relative">
+                            <p>
+                                <a href="#" id="helpLink"><img name="imgHelp" id="imgHelp" src=@Url.Content("~/images/help_icon.png") border="0" /></a>
+                            </p>                                  
+                            <div id="divHelp" class="displaynone"><div class="note">This feature will work if your browser support the cookie feature.</div></div>
+                        </div>
+                        
+                    </div><br />
+                    <h4>
+                        <button type="button" class="login-button" name="btnlogin" id="btnlogin">Login</button>
+                        <button type="button" class="login-button" name="btnLoginCancel" id="btnLoginCancel">Cancel</button> <br />
+                    </h4>
+
+                    <div class="right"><a href="/account/passwordforgot">Forgot your password?</a> | <a href="/account/pinforgot">Forgot your PIN?</a></div>
+                    
+                </div>
+
+            </div><!-- center -->
+        </div><!-- main-login -->
+    </div><!-- wrapper -->
+
+</form>
+<script>
+    var postforwardurl = '@Url.Action("Login", "Account")';
+    document.addEventListener("DOMContentLoaded", function () {const Btn = document.getElementById("btnLoginCancel");if (Btn) {Btn.addEventListener("click", function (e) {e.preventDefault();window.location.href = postforwardurl;});}});
+</script>
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+    <script src=@Url.Content("~/js/Account/login-wMJLjmRXl.js") defer></script>
+}

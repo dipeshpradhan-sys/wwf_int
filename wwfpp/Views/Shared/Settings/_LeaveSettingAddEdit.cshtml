@@ -1,0 +1,107 @@
+﻿@using wwfpp.Services
+@inject SettingsServices SettingsServices
+@model wwfpp.Models.Settings.LeaveSettingViewModel
+@{
+    string mode = ViewBag.mode;
+}
+<!-- (A) HTML DIALOG BOX -->
+<partial name="_ConstantValues" view-data='new ViewDataDictionary(ViewData) { { "NoteKey", "RequiredField" } }' />
+@Html.HiddenFor(m => m.indv_leave_id)
+    <div class="form-group row p-1">
+        <label class="col-lg-12 col-form-label-lg">Unit <span class="text-danger">*</span>: @ViewBag.LeaveUnit @Html.HiddenFor(m => m.unit)</label>
+        <label class="col-lg-12 col-form-label-lg">Fiscal Year <span class="text-danger">*</span>: @Model.fiscal_year_to @Html.HiddenFor(m => m.fiscal_year_to)</label>
+
+        <label class="col-lg-12 col-form-label-lg">Employee<span class="text-danger">*</span></label>
+        <div class="col-lg-12">
+        @Html.DropDownList("emp_id", (SelectList)ViewBag.EmployeeList, "-- Select --", new {@class = "form-select",style = "width:300px;"})
+        </div>
+
+        <label class="col-lg-12 col-form-label-lg">Annual Leave Carry Forwarded <span class="text-danger">*</span></label>
+        <div class="col-lg-12">
+        @Html.TextBoxFor(m => m.annual_leave_hours_carry_forward, new {@class = "form-control", style = "width:300px;", maxlength = "5" })
+        </div>
+        
+        <label class="col-lg-12 col-form-label-lg">Annual Leave<span class="text-danger">*</span></label>
+        <div class="col-lg-12">
+        @Html.TextBoxFor(m => m.annual_leave, new {@class = "form-control", style = "width:300px;", maxlength = "5" })
+        </div>
+        
+        <label class="col-lg-12 col-form-label-lg">Sick Leave Carry Forwarded<span class="text-danger">*</span></label>
+        <div class="col-lg-12">
+             @Html.TextBoxFor(m => m.sick_leave_hours_carry_forward, new {@class = "form-control", style = "width:300px;", maxlength = "5" })
+        </div>        
+   
+        <label class="col-lg-12 col-form-label-lg">Sick Leave<span class="text-danger">*</span></label>
+        <div class="col-lg-12">
+             @Html.TextBoxFor(m => m.sick_leave, new {@class = "form-control", style = "width:300px;", maxlength = "5" })
+        </div>
+
+        <label class="col-lg-12 col-form-label-lg">Casual Leave<span class="text-danger">*</span></label>
+        <div class="col-lg-12">
+        @Html.TextBoxFor(m => m.casual_leave, new {@class = "form-control", style = "width:300px;", maxlength = "5" })
+        </div>
+        
+        <label class="col-lg-12 col-form-label-lg">Other Leave<span class="text-danger">*</span></label>
+        <div class="col-lg-12">
+        @Html.TextBoxFor(m => m.other_leave, new {@class = "form-control", style = "width:300px;", maxlength = "5" })
+        </div>
+        
+        <label class="col-lg-12 col-form-label-lg">Maternity Leave<span class="text-danger">*</span></label>
+        <div class="col-lg-12">
+             @Html.TextBoxFor(m => m.maternity, new {@class = "form-control", style = "width:300px;", maxlength = "5" })
+        </div>        
+   
+        <label class="col-lg-12 col-form-label-lg">Paternity Leave<span class="text-danger">*</span></label>
+        <div class="col-lg-12">
+             @Html.TextBoxFor(m => m.paternity, new {@class = "form-control", style = "width:300px;", maxlength = "5" })
+        </div>
+        <label class="col-lg-12 col-form-label-lg">Mourning Leave<span class="text-danger">*</span></label>
+        <div class="col-lg-12">
+             @Html.TextBoxFor(m => m.mourning, new {@class = "form-control", style = "width:300px;", maxlength = "5" })
+        </div>
+        <label class="col-lg-12 col-form-label-lg">Unpaid/Study Leave<span class="text-danger">*</span></label>
+        <div class="col-lg-12">
+             @Html.TextBoxFor(m => m.unpaid_study, new {@class = "form-control", style = "width:300px;", maxlength = "5" })
+        </div>
+    </div>
+
+@if (mode == "add" && ViewBag.apern == "true")
+{
+    <script>renderModalButtons("modal-button-list", "Save");</script>
+}
+else
+{
+    <script>renderModalCloseButton("modal-button-list")</script>
+}
+    <script>
+    // Toggle between Edit and Update
+    $(document).off("click", "#btnSave").on("click", "#btnSave", function () {
+        var btn = $(this);
+        if (btn.text() == "Edit") {$("#ModalID .modal-title").text("Update");btn.text("Update");$("#btnC").text("Cancel");return;}  
+        if (btn.text() === "Update" || btn.text() === "Save") {
+
+            if ( checkInput( 'cmb', 'emp_id', 'Employee is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'txt', 'annual_leave_hours_carry_forward', 'Annual leave carry forwarded is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'txt', 'annual_leave', 'Annual leave is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'txt', 'sick_leave_hours_carry_forward', 'Sick leave carry forwarded is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'txt', 'sick_leave', 'Sick Leave is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'txt', 'casual_leave', 'Casual leave is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'txt', 'other_leave', 'Other leave is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'txt', 'maternity', 'Maternity leave is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'txt', 'paternity', 'Paternity leave is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'txt', 'mourning', 'Mourning leave is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'txt', 'unpaid_study', 'Unpaid/Study leave is required.', 'modal-message') == false ) {return false;}
+            submitSaveUpdate('@Url.Content("/Settings/LeaveSetting")');
+        }
+    });
+    $(document).off('blur', '#annual_leave_hours_carry_forward').on('blur', '#annual_leave_hours_carry_forward', function () { OnlyNumericCtrl(this); });
+    $(document).off('blur', '#annual_leave').on('blur', '#annual_leave', function () { OnlyNumericCtrl(this); });
+    $(document).off('blur', '#sick_leave_hours_carry_forward').on('blur', '#sick_leave_hours_carry_forward', function () { OnlyNumericCtrl(this); });
+    $(document).off('blur', '#sick_leave').on('blur', '#sick_leave', function () { OnlyNumericCtrl(this); });
+    $(document).off('blur', '#casual_leave').on('blur', '#casual_leave', function () { OnlyNumericCtrl(this); });
+    $(document).off('blur', '#other_leave').on('blur', '#other_leave', function () { OnlyNumericCtrl(this); });
+    $(document).off('blur', '#maternity').on('blur', '#maternity', function () { OnlyNumericCtrl(this); });
+    $(document).off('blur', '#paternity').on('blur', '#paternity', function () { OnlyNumericCtrl(this); });
+    $(document).off('blur', '#mourning').on('blur', '#mourning', function () { OnlyNumericCtrl(this); });
+    $(document).off('blur', '#unpaid_study').on('blur', '#unpaid_study', function () { OnlyNumericCtrl(this); });   
+    </script>

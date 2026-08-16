@@ -1,0 +1,77 @@
+﻿@model List<wwfpp.Models.Settings.CalendarSettingViewModel>
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var PageTitle = "Calendar setting";
+    var Page_Tips = "";  //Tool tip message on right side
+    var msg_please_wait = "";
+    var Page_Mode = PageTitle; 
+    ViewData["Title"] = "| " + PageTitle;
+    var Help_Tips = GblUtilities.HelpTips(Page_Tips);    
+    string ShowMsg = GblUtilities.MsgDisplay(Context.Request.Query["msg"].ToString());/*success|fail|error'*/
+}
+@Html.AntiForgeryToken()
+@Html.Hidden("ilaka", "/Settings/CalendarSetting")
+<h2 class="titlebig"><span name="header" id="header">@Page_Mode</span> @Html.Raw(Help_Tips)</h2>
+@Html.Hidden("mode", "")
+@Html.Hidden("Id", "")
+
+<div class="row">
+    <div class="col-lg-12 col-form-label-lg">Pay Period : @ViewBag.PayPeriod</div>
+</div>
+
+<div id="message_header"><p id="loading" class="loading displaynone">@msg_please_wait</p></div>
+<div id="message_header">@Html.Raw(ShowMsg)</div>
+
+<!-- Controls row under the header -->
+<div class="p-0 bg-white rounded mb-3">
+    <div class="row align-items-center">
+        <div class="col-auto ms-auto">
+            @Html.Raw(ViewBag.ViewButtons)
+        </div>
+    </div>
+</div>
+<!-- DataTable -->
+@if (Model == null)
+{
+    <div id="message_header"><p class="note">No record(s) found.</p></div>
+}
+else
+{
+    <div class="form-group p-2">
+        <table id="tblData" class="display compact nowrap" style="width:100%">
+            <thead>
+                <tr style="height: 40px; align-items: center;color:white;" class="bg-secondary bg-opacity-27">
+                    <th width="1%"><input type="checkbox" id="selectAll"></th>
+                    <th width="39%">Year</th>
+                    <th width="50%">Month</th>
+                    <th width="10%">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Data dynamically injected here -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Modal for Add/Edit -->
+    @await Html.PartialAsync("_SharedModal", new wwfpp.Models.ModalViewModel { ModalId = "ModalID", DialogClass = "modal-lg", BodyId = "ModalBody" })
+
+    @section scripts 
+    {
+        <script>
+            var ilaka = document.getElementById('ilaka').value;
+            var selectedIds = new Set();
+            $(document).ready(function () 
+            {
+                var table;
+                GetAllData(ilaka, "cal_id", [
+                    { data: "cal_year", name: "cal_year", autoWidth: false },
+                    { data: "cal_month", name: "cal_month", autoWidth: false, render: function (data, type, row) {if (type === 'display' || type === 'filter') {return moment().month(data - 1).format("MMMM");}return data;}}
+                ]);
+                $('#tblData_filter').hide();               
+            });
+            $(document).on("click", "#tblData .button", function () {ViewData($(this).data("id"));});
+            $(document).off('click', '#btnC').on('click', '#btnC', function () {modalCloseCancel($(this));});
+        </script>
+    }
+}

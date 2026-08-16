@@ -1,0 +1,111 @@
+﻿@using Microsoft.AspNetCore.Http;
+@inject IHttpContextAccessor HttpContextAccessor;
+@model List<wwfpp.Models.Employee.EmployeeManagerViewModel>
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var PageTitle = "Employee Managers ";
+    var Page_Tips = "";  //Tool tip message on right side
+    var msg_please_wait = "";
+    var Page_Mode = PageTitle; 
+    ViewData["Title"] = "| " + PageTitle;
+    var Help_Tips = GblUtilities.HelpTips(Page_Tips);    
+    string ShowMsg = GblUtilities.MsgDisplay(Context.Request.Query["msg"].ToString());/*success|fail|error'*/
+}
+@Html.AntiForgeryToken()
+@Html.Hidden("ilaka", "/Employee/Manager")
+<h2 class="titlebig"><span name="header" id="header">@Page_Mode</span> @Html.Raw(Help_Tips)</h2>
+@Html.Hidden("mode", "") 
+@Html.Hidden("Id", "")
+
+<div id="message_header"><p id="loading" class="loading displaynone">@msg_please_wait</p></div>
+
+<div class="row">
+    <div class="col-lg-2"><label class="col-lg-12 col-form-label-lg">Employee Status : &nbsp;</label></div>
+    <div class="col-lg-10">
+        @Html.DropDownList("EmployeeStatusFilter", (SelectList)ViewBag.EmployeeStatusFilter, new { @class = "form-select", style = "width:300px;" })
+    </div>
+</div>
+
+@if (Model == null)
+{
+    <div id="message_header"><p class="note">No record(s) found.</p></div>
+}
+else
+{
+    <div class="form-group p-2">
+        <table id="tblData" class="display compact nowrap" style="width:100%">
+            <thead>
+                <tr style="height: 50px; align-items: center;color:white;" class="bg-secondary bg-opacity-27">
+                    <th width="1%"><input type="checkbox" id="selectAll"></th>
+                    <th width="19%">Employee</th>
+                    <th width="20%">Immediate Supervisor</th>
+                    <th width="20%">Line Director</th>
+                    <th width="20%">Alt. Immediate Supervisor</th>
+                    <th width="20%">Alt. Line Director</th>
+                </tr>
+            </thead>
+            <tbody>
+         
+            </tbody>
+        </table>
+    </div>
+    <div id="message_header">@Html.Raw(ShowMsg)</div>
+    @if (ViewBag.epern == "true")
+    {
+        <div class="form-group row p-1">
+            <label class="col-sm-4 col-form-label">&nbsp;</label>
+            <div class="col-sm-8">
+                <button type="reset" name="btnReset" id="btnReset" class="button btn-secondary">Reset</button>
+                <button type="button" name="btnSave" id="btnSave" class="button btn-primary">Save</button>
+            </div>
+        </div>
+    }
+    <div id="miTemplate" style="display:none;">@Html.DropDownList("manager_id", (SelectList)ViewBag.ManagerList, "--Select--", new { @class = "form-control", style = "width:220px;" })</div>
+    <div id="ldTemplate" style="display:none;">@Html.DropDownList("line_manager_id", (SelectList)ViewBag.ManagerList, "--Select--", new { @class = "form-control", style = "width:220px;" })</div>
+    <div id="amTemplate" style="display:none;">@Html.DropDownList("alt_manager_id", (SelectList)ViewBag.ManagerList, "--Select--", new { @class = "form-control", style = "width:220px;" })</div>
+    <div id="alTemplate" style="display:none;">@Html.DropDownList("alt_line_manager_id", (SelectList)ViewBag.ManagerList, "--Select--", new { @class = "form-control", style = "width:220px;" })</div>
+    @section scripts
+    {
+        <script>
+            var ilaka = document.getElementById('ilaka').value;
+            var selectedIds = new Set();
+            var hideviewaction = "yes";
+            var table;
+            $(document).ready(function ()
+            {
+                GetAllData(ilaka, "emp_id", [
+                    { data: "employee", name: "employee", autoWidth: false, render: function (data, type, row) {return '<span style="white-space:normal;">' + data + '</span>';}},
+                    { data: "manager_id", name: "manager_id", autoWidth: false, render: function(data, type, row, meta) { var ctrlName = "manager_id" + meta.row; var $select = $("#miTemplate select").clone(); $select.attr("id", ctrlName).attr("name", ctrlName); var val = data != null ? data.toString().trim() : ""; $select.find("option:selected").prop("selected", false); $select.find("option").each(function() { if ($(this).val() === val) { $(this).attr("selected", "selected"); } }); return $select.prop("outerHTML"); } },
+                    { data: "line_manager_id", name: "line_manager_id", autoWidth: false, render: function(data, type, row, meta) { var ctrlName = "line_manager_id" + meta.row; var $select = $("#ldTemplate select").clone(); $select.attr("id", ctrlName).attr("name", ctrlName); var val = data != null ? data.toString().trim() : ""; $select.find("option:selected").prop("selected", false); $select.find("option").each(function() { if ($(this).val() === val) { $(this).attr("selected", "selected"); } }); return $select.prop("outerHTML"); } },
+                    { data: "alt_manager_id", name: "alt_manager_id", autoWidth: false, render: function(data, type, row, meta) { var ctrlName = "alt_manager_id" + meta.row; var $select = $("#amTemplate select").clone(); $select.attr("id", ctrlName).attr("name", ctrlName); var val = data != null ? data.toString().trim() : ""; $select.find("option:selected").prop("selected", false); $select.find("option").each(function() { if ($(this).val() === val) { $(this).attr("selected", "selected"); } }); return $select.prop("outerHTML"); } },
+                    { data: "alt_line_manager_id", name: "alt_line_manager_id", autoWidth: false, render: function(data, type, row, meta) { var ctrlName = "alt_line_manager_id" + meta.row; var $select = $("#alTemplate select").clone(); $select.attr("id", ctrlName).attr("name", ctrlName); var val = data != null ? data.toString().trim() : ""; $select.find("option:selected").prop("selected", false); $select.find("option").each(function() { if ($(this).val() === val) { $(this).attr("selected", "selected"); } }); return $select.prop("outerHTML"); } }
+                ],
+                {
+                    FilterValue: "EmployeeStatusFilter"
+                });
+                $(document).one('init.dt', '#tblData', function () {table.page.len(-1).draw();})/** Wait for first draw to complete before changing page length*/
+                $('#tblData_filter').hide();
+                $('#tblData_length').hide();
+            });
+            function collectExtraFields() {
+                var extraSettings = [];
+                $("#tblData tbody tr").each(function () {
+                    var row = $(this);
+                    var id = row.find("input.row-checkbox:checked").val();
+                    if (selectedIds.has(id)) {
+                        extraSettings.push({
+                            emp_id: parseInt(id, 10),employee: "",emp_status :"",
+                            manager_id: row.find("select[name^='manager_id']").val(),
+                            line_manager_id: row.find("select[name^='line_manager_id']").val(),
+                            alt_manager_id: row.find("select[name^='alt_manager_id']").val(),
+                            alt_line_manager_id: row.find("select[name^='alt_line_manager_id']").val()
+                        });
+                    }
+                });
+                return extraSettings;
+            }
+            $(document).off("click", "#btnSave").on("click", "#btnSave", function () {$("#mode").val("update");updateDataJSON(ilaka+"Save");});
+            $("#EmployeeStatusFilter").off("change").on("change", function () {const statusV = $(this).val();if (!statusV) {return;}const $myButton =  $("#btnSave");if ($myButton.length){if (statusV === "A" ){$myButton.show();$('#tblData_length').hide();table.page.len(-1).draw();} else {$myButton.hide();$('#tblData_length').show();table.page.len(10).draw();}}table.draw();});
+        </script>
+    }
+}

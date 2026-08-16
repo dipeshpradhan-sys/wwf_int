@@ -1,0 +1,82 @@
+﻿@using Microsoft.AspNetCore.Http;
+@inject IHttpContextAccessor HttpContextAccessor;
+@model List<wwfpp.Models.Settings.FiscalYearViewModel>
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var PageTitle = "Fiscal year";
+    var Page_Tips = "";  //Tool tip message on right side
+    var msg_please_wait = "";
+    var Page_Mode = PageTitle; 
+    ViewData["Title"] = "| " + PageTitle;
+    var Help_Tips = GblUtilities.HelpTips(Page_Tips);    
+    string ShowMsg = GblUtilities.MsgDisplay(Context.Request.Query["msg"].ToString());/*success|fail|error'*/
+}
+@Html.AntiForgeryToken()
+@Html.Hidden("ilaka", "/Settings/FiscalYearSetting")
+<h2 class="titlebig"><span name="header" id="header">@Page_Mode</span> @Html.Raw(Help_Tips)</h2>
+@Html.Hidden("mode", "") 
+@Html.Hidden("Id", "")
+
+<div id="message_header"><p id="loading" class="loading displaynone">@msg_please_wait</p></div>
+<div id="message_header">@Html.Raw(ShowMsg)</div>
+
+<!-- Controls row under the header -->
+<div class="p-0 bg-white rounded mb-3">
+    <div class="row align-items-center">
+        <div class="col-auto ms-auto">
+            @Html.Raw(ViewBag.ViewButtons)
+        </div>
+    </div>
+</div>
+<!-- DataTable -->
+@if (Model == null)
+{
+    <div id="message_header"><p class="note">No record(s) found.</p></div>
+}
+else
+{
+    <div class="form-group p-2">
+        <table id="tblData" class="display compact nowrap" style="width:100%">
+            <thead>
+                <tr style="height: 50px; align-items: center;color:white;" class="bg-secondary bg-opacity-27">
+                    <th width="1%"><input type="checkbox" id="selectAll"></th>
+                    <th width="29%">Fiscal Year</th>
+                    <th width="10%">Abbr</th>
+                    <th width="15%">Start Date</th>
+                    <th width="15%">End Date</th>
+                    <th width="10%">Status</th>
+                    <th width="10%">Total Working Hours</th>
+                    <th width="10%">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Data dynamically injected here -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Modal for Add/Edit -->
+    @await Html.PartialAsync("_SharedModal", new wwfpp.Models.ModalViewModel { ModalId = "ModalID", DialogClass = "modal-lg", BodyId = "ModalBody" })
+
+    @section scripts 
+    {
+        <script>
+            var ilaka = document.getElementById('ilaka').value;
+            var selectedIds = new Set();
+            $(document).ready(function () 
+            {
+                var table;
+                GetAllData(ilaka, "fiscal_year", [
+                    { data: "fiscal_year", name: "fiscal_year", autoWidth: false },
+                    { data: "fiscal_year_abb", name: "fiscal_year_abb", autoWidth: false },
+                    { data: "date_from", name: "date_from", autoWidth: false,render: function (data, type, row) {if (type === 'display' || type === 'filter') {return moment(data).format(my_format);}return data;}},
+                    { data: "date_to", name: "date_to", autoWidth: false,render: function (data, type, row) {if (type === 'display' || type === 'filter') {return moment(data).format(my_format);}return data;}},
+                    { data: "is_active", name: "is_active", autoWidth: false, render: function(data, type,row){if(data === "Y"){return "Active";} else {return "Inactive";}}},
+                    { data: "yearly_working_hrs", name: "yearly_working_hrs", autoWidth: false }
+                ]);
+                $(document).on("click", "#tblData .button", function () { var specid = $(this).data("id"); ViewData(specid);});
+                $(document).off('click', '#btnC').on('click', '#btnC', function () {modalCloseCancel($(this));});
+            });
+        </script>
+    }
+}

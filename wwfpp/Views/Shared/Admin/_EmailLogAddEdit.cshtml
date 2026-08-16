@@ -1,0 +1,43 @@
+﻿@model wwfpp.Models.Admin.EmailLogViewModel
+@{
+    string mode = ViewBag.mode;
+    var status = "";
+    if (@Model.status == "Y") { status = @"<span><img src=""/images/success.png""></span>"; } else { status = @"<span><img src=""/images/error.png""></span>"; ; }
+}
+<!-- (A) HTML DIALOG BOX -->
+    @Html.HiddenFor(m => m.id) <!-- Needed for Edit -->
+    <div class="form-group row p-1">
+        
+        <label class="col-lg-12 col-form-label-lg">Category</label>
+        <div class="col-lg-12">@Model.category</div>
+
+        <label class="col-lg-12 col-form-label-lg">Sent Status | Submit Date | Sent Date</label>
+        <div class="col-lg-12">@Html.Raw(status) @Model.submit_date | @Model.sent_date</div>
+
+        @if (!string.IsNullOrWhiteSpace(Model.to_add))
+        {
+            <label class="col-lg-12 col-form-label-lg">To</label>
+            <div class="col-lg-12">@Model.to_add</div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(Model.cc_add))
+        {
+            <label class="col-lg-12 col-form-label-lg">CC</label>
+            <div class="col-lg-12">@Model.cc_add</div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(Model.bcc_add))
+        {
+            <label class="col-lg-12 col-form-label-lg">BCC</label>
+            <div class="col-lg-12">@Model.bcc_add</div>
+        }
+
+        <label class="col-lg-12 col-form-label-lg">Subject</label>
+        <div class="col-lg-12">@Model.subject</div>
+
+        <label class="col-lg-12 col-form-label-lg">Message</label>
+        <div class="col-lg-12">@Model.e_message</div>
+
+    </div>
+
+    <script>renderModalCloseButton("modal-button-list")</script>

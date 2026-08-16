@@ -1,0 +1,149 @@
+﻿@using Microsoft.AspNetCore.Http;
+@inject IHttpContextAccessor HttpContextAccessor;
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var PageTitle = "Welfare Interest";
+    var Page_Tips = "Put 0 (zero) on amount and Save to delete the record for the selected period";  //Tool tip message on right side
+    var msg_please_wait = "";
+    var Page_Mode = PageTitle;
+    var Pern = ViewBag.vpern;
+    ViewData["Title"] = "| " + PageTitle;
+    var Help_Tips = GblUtilities.HelpTips(Page_Tips);
+    /*success|fail|error'*/
+    string ShowMsg = GblUtilities.MsgDisplay(Context.Request.Query["msg"].ToString());
+}
+
+@Html.AntiForgeryToken()
+<h2 class="titlebig"><span name="header" id="header">@Page_Mode</span> @Html.Raw(Help_Tips)</h2>
+@Html.Hidden("mode", "")
+
+<div id="message_header"><p id="loading" class="loading displaynone">@msg_please_wait</p></div>
+
+<div class="row">
+    <div class="col-lg-2"><label class="col-lg-12 col-form-label-lg">Employee Status:</label></div>
+    <div class="col-lg-10">
+        @Html.DropDownList("EmployeeStatusFilter", (SelectList)ViewBag.EmployeeStatusFilter, new { @class = "form-select", style = "width:300px;" })
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-2"><label class="col-lg-12 col-form-label-lg">Year:</label></div>
+    <div class="col-lg-10">
+        @Html.DropDownList("YearFilter", (SelectList)ViewBag.YearDropDown, new { @class = "form-select", style = "width:300px;" })
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-2"><label class="col-lg-12 col-form-label-lg">Month:</label></div>
+    <div class="col-lg-10">
+        @Html.DropDownList("MonthFilter", (SelectList)ViewBag.MonthDropDown, new { @class = "form-select", style = "width:300px;" })
+    </div>
+</div>
+
+<div class="row"><span id="blnShow" class="normal red">@ViewBag.msg_cant_edit_salary_processed</span></div>
+
+<div class="p-0 bg-white rounded mb-3">
+    <div class="row align-items-center">
+        <div class="col-auto ms-auto">
+            @Html.Raw(ViewBag.ViewButtons)
+        </div>
+    </div>
+</div>
+
+<div class="form-group p-2">
+    <table id="tblData" class="display compact nowrap" style="width:100%">
+        <thead>
+            <tr style="background-color:silver; height:40px;">
+                <th width="1%"><input type="checkbox" id="selectAll"></th>
+                <th width="50%">Employee</th>
+                <th width="49%">Interest Amount</th>
+            </tr>
+        </thead>
+    </table>
+</div>
+<div id="message_header">@Html.Raw(ShowMsg)</div>
+@if (ViewBag.epern == "true")
+{
+    <div class="form-group row p-1">
+        <label class="col-sm-4 col-form-label">&nbsp;</label>
+        <div class="col-sm-8">
+            <button type="reset" name="btnReset" id="btnReset" class="button btn-secondary">Reset</button>
+            <button type="button" name="btnSave" id="btnSave" class="button btn-primary">Save</button>
+        </div>
+    </div>
+}
+@await Html.PartialAsync("_SharedModal", new wwfpp.Models.ModalViewModel { ModalId = "ModalID", DialogClass = "modal-lg", BodyId = "ModalBody", })
+
+@section scripts
+{
+    <script>
+        var ilaka = "/Payroll/WelfareInterest";
+        var selectedIds = new Set();
+        var hideviewaction = "yes";
+        var table;
+        $(document).ready(function () {
+            GetAllData(ilaka, "emp_id", [
+                { data: "employee", name: "employee", autoWidth: false, render: function (data, type, row) { return data; } },
+                { data: "wl_amount", name: "wl_amount", autoWidth: false, render: function (data, type, row, meta) { return '<input type="number" name="wl_amount' + meta.row + '" id="wl_amount' + meta.row + '" value="' + data + '" class="form-control wl-amount-input" style = "width:200px; "min="0" max="99999" aria-label="Welfare Interest">'; } },
+            ],
+                {
+                    Status: "EmployeeStatusFilter",
+                    Year: "YearFilter",
+                    Month: "MonthFilter"
+                }
+            );
+        });
+        $(document).on("blur", "input[type=number]", function () {
+            let val = $(this).val();
+            if (val < 0 || val.length > 10) {
+                showError("Invalid input: must be positive and up to 10 digits.");
+                $(this).val(""); // reset
+            }
+        });
+        $(document).off("click", "#btnSave").on("click", "#btnSave", function () { $("#mode").val("update"); updateDataJSON(ilaka + "Save"); });
+        $(document).off('click', '#btnDownLoadFormat').on('click', '#btnDownLoadFormat', function () { postdata(ilaka + 'DownloadFormat'); });
+        $(document).off('click', '#btnImport').on('click', '#btnImport', function () {
+            $("#modal-message").text("").hide();
+            $("#ModalBody").html("");
+            var _year = $("#YearFilter").val();
+            var _month = $("#MonthFilter").val();
+            $.get(ilaka + "Import", { wl_year: _year, wl_month: _month }, function (data) {
+                $("#ModalBody").html(data);
+                $("#ModalID .modal-title").text("Import");
+                var modal = new bootstrap.Modal(document.getElementById("ModalID"));
+                modal.show();
+            }).fail(function (xhr) { showError("Error occured while loading record(s): " + xhr.responseText); });
+        });
+        function collectExtraFields() {
+            var extraSettings = [];
+            $("#tblData tbody tr").each(function () {
+                var row = $(this);
+                var id = row.find("input.row-checkbox:checked").val();
+                if (selectedIds.has(id)) {
+                    extraSettings.push({
+                        emp_id: parseInt(id, 10),
+                        wl_year: $("#YearFilter").val() || 0,
+                        wl_month: $("#MonthFilter").val() || 0,
+                        wl_amount: row.find("input[name^='wl_amount']").val(),
+                    });
+                }
+            });
+            return extraSettings;
+        }
+        $(document).off("click", "#btnExport").on("click", "#btnExport", function () {
+            var btn = $(this);
+            if (btn.text().trim() === "Export") {
+                if (checkInput('cmb', 'YearFilter', 'Year is required.', 'modal-message') == false) { return false; }
+                if (checkInput('cmb', 'MonthFilter', 'Month is required.', 'modal-message') == false) { return false; }
+                if (confirm(msg_are_you_sure_to_perform_this_action) == false) { return false; }
+                var formData = $("#frm").serialize();
+                $.post("/Payroll/WelfareInterestExport", formData).done(function (data) {
+                    if (data.status === "success") {
+                        showSuccess(msg_data_exported_success, "modal-message");
+                        window.location = data.url; // triggers download
+                    } else { showError(data.message, "modal-message"); }
+                }).fail(function (xhr) { showError(xhr.responseText, "modal-message"); });
+            }
+        });
+    </script>
+}

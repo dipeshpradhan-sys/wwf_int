@@ -1,0 +1,203 @@
+﻿@model List<wwfpp.Models.Payroll.PaySlipViewModel>
+<table class="table table-bordered">
+    <tr>
+        <td colspan="2" class="text-center">
+            <h5>@ViewBag.op_org_name<br />@ViewBag.op_org_addr</h5>
+        </td>
+    </tr>
+    <tr>
+        <td colspan="2" class="text-center">
+            <h5>@ViewBag.Period</h5>
+        </td>
+    </tr>
+</table>
+
+
+@foreach (var slip in Model)
+{
+    <div class="mb-4">
+        <!-- Employee Header -->
+        <table class="table table-bordered">
+            <tr>
+                <td colspan="2" class="text-center">
+                    <h5>@slip.FullName (@slip.EmpCode)</h5>
+                </td>
+            </tr>
+            <tr><td>Designation</td><td>@slip.Post</td></tr>
+            @if (!string.IsNullOrEmpty(slip.AccountNo))
+            {
+                <tr><td>Bank Account</td><td>@slip.AccountNo</td></tr>
+            }
+            @if (!string.IsNullOrEmpty(slip.PFNo))
+            {
+                <tr><td>PF Number</td><td>@slip.PFNo</td></tr>
+            }
+            @if (!string.IsNullOrEmpty(slip.CITNo))
+            {
+                <tr><td>CIT Number</td><td>@slip.CITNo</td></tr>
+            }
+            @if (!string.IsNullOrEmpty(slip.PanNo))
+            {
+                <tr><td>PAN Number</td><td>@slip.PanNo</td></tr>
+            }
+            @if (!string.IsNullOrEmpty(slip.GratuityNo))
+            {
+                <tr><td>Gratuity No</td><td>@slip.GratuityNo</td></tr>
+            }
+            @if (!string.IsNullOrEmpty(slip.SSFNo))
+            {
+                <tr><td>SSF No</td><td>@slip.SSFNo</td></tr>
+            }
+        </table>
+
+        <!-- Earnings -->
+        <table class="table table-bordered">
+            <thead>
+                <tr><th>Description</th><th style="text-align:right;">Amount [ @ViewBag.op_currency_symbol ]</th></tr>
+                <tr class="table-secondary"><th>Your Earnings ( A )</th><th style="text-align:right;">@slip.TotalEarnings.ToString("F2")</th></tr>
+            </thead>
+            <tbody>
+                @if ((bool)ViewBag.DiffMonth)
+                {
+                    <tr><td>Basic Salary</td><td style="text-align:right;">@slip.BasicSalary.ToString("F2")</td></tr>
+                    <tr><td>Differential Salary</td><td style="text-align:right;">@slip.DiffBasicSalary.ToString("F2")</td></tr>
+                    <tr><td>PF Contributions by Employer</td><td style="text-align:right;">@slip.PFEmployer.ToString("F2")</td></tr>
+                    <tr><td>Differential PF Contributions by Employer</td><td style="text-align:right;">@slip.DiffPFEmployer.ToString("F2")</td></tr>
+                }
+                else
+                {
+                    <tr><td>Basic Salary</td><td style="text-align:right;">@slip.BasicSalary.ToString("F2")</td></tr>
+                    <tr><td>PF Contributions by Employer</td><td style="text-align:right;">@slip.PFEmployer.ToString("F2")</td></tr>
+                }
+                @if (slip.Gratuity > 0)
+                {
+                    <tr><td>Gratuity</td><td style="text-align:right;">@slip.Gratuity.ToString("F2")</td></tr>
+                }
+                @if (slip.SSF > 0)
+                {
+                    <tr><td>SSF</td><td style="text-align:right;">@slip.SSF.ToString("F2")</td></tr>
+                }
+                @if (slip.ChildrenEduAllowance > 0)
+                {
+                    <tr><td>Children Education Allowance</td><td style="text-align:right;">@slip.ChildrenEduAllowance.ToString("F2")</td></tr>
+                }
+                @if (slip.Insurance > 0)
+                {
+                    <tr><td>Insurance</td><td style="text-align:right;">@slip.Insurance.ToString("F2")</td></tr>
+                }
+                @if (slip.Overtime > 0)
+                {
+                    if ((bool)ViewBag.DiffMonth)
+                    {
+                        <tr><td>Overtime</td><td style="text-align:right;">@slip.overtime_amt.ToString("F2")</td></tr>
+                        @if (slip.ot_diff > 0)
+                        {
+                            <tr><td>Differential Overtime</td><td style="text-align:right;">@slip.ot_diff.ToString("F2")</td></tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr><td>Overtime</td><td style="text-align:right;">@slip.Overtime.ToString("F2")</td></tr>
+
+                    }
+                }
+                @if (slip.RemoteAreaAllowance > 0)
+                {
+                    <tr><td>Remote Area Allowance</td><td style="text-align:right;">@slip.RemoteAreaAllowance.ToString("F2")</td></tr>
+                }
+                @if (slip.DashainBonus > 0)
+                {
+                    <tr><td>Dashain Bonus</td><td style="text-align:right;">@slip.DashainBonus.ToString("F2")</td></tr>
+                }
+                @if (slip.PerformanceBonus > 0)
+                {
+                    <tr><td>Performance Bonus</td><td style="text-align:right;">@slip.PerformanceBonus.ToString("F2")</td></tr>
+                }
+                @if (slip.MedicalReimbursement > 0)
+                {
+                    <tr><td>Medical Reimbursement</td><td style="text-align:right;">@slip.MedicalReimbursement.ToString("F2")</td></tr>
+                }
+                @if (slip.LeaveEncash > 0)
+                {
+                    <tr><td>Leave Encashment</td><td style="text-align:right;">@slip.LeaveEncash.ToString("F2")</td></tr>
+                }
+                @if (slip.Others > 0)
+                {
+                    <tr><td>Others</td><td style="text-align:right;">@slip.Others.ToString("F2")</td></tr>
+                }
+            </tbody>
+        </table>
+
+        <!-- Deductions -->
+        <table class="table table-bordered">
+            <thead class="table-secondary">
+                <tr class="table-secondary"><th>Your Deductions ( B )</th><th style="text-align:right;">@slip.TotalDeductions.ToString("F2")</th></tr>
+            </thead>
+            <tbody>
+                @if (slip.cit_d > 0)
+                {
+                    <tr><td>CIT Deduction</td><td style="text-align:right;">@slip.cit_d.ToString("F2")</td></tr>
+                }
+                @if (slip.gratuity_ded > 0)
+                {
+                    <tr><td>Gratuity Deduction</td><td style="text-align:right;">@slip.gratuity_ded.ToString("F2")</td></tr>
+                }
+                @if (slip.ssf_ded > 0)
+                {
+                    <tr><td>SSF Deduction</td><td style="text-align:right;">@slip.ssf_ded.ToString("F2")</td></tr>
+                }
+                @if ((bool)ViewBag.DiffMonth)
+                {
+                    <tr><td>Provident Fund (PF)</td><td style="text-align:right;">@slip.act_pf_d.ToString("F2")</td></tr>
+                    <tr><td>Differential Provident Fund (PF)</td><td style="text-align:right;">@slip.diff_act_pf_d.ToString("F2")</td></tr>
+                }
+                else
+                {
+                    <tr><td>Provident Fund (PF)</td><td style="text-align:right;">@slip.pf_d.ToString("F2")</td></tr>
+                }
+                <tr><td>Tax on remuneration</td><td style="text-align:right;">@slip.incometax_d.ToString("F2")</td></tr>
+                @if (slip.betalibi_d > 0)
+                {
+                    <tr><td>Betalibi Deduction</td><td style="text-align:right;">@slip.betalibi_d.ToString("F2")</td></tr>
+                }
+                @if (slip.tel_per_adv > 0)
+                {
+                    <tr><td>Personal Advance</td><td style="text-align:right;">@slip.tel_per_adv.ToString("F2")</td></tr>
+                }
+                @if (slip.pr_adv > 0)
+                {
+                    <tr><td>Program Advance</td><td style="text-align:right;">@slip.pr_adv.ToString("F2")</td></tr>
+                }
+                @if (slip.travel_prog_adv > 0)
+                {
+                    <tr><td>Travel Advance</td><td style="text-align:right;">@slip.travel_prog_adv.ToString("F2")</td></tr>
+                }
+                @if (slip.fd_adv > 0)
+                {
+                    <tr><td>Field Drawing</td><td style="text-align:right;">@slip.fd_adv.ToString("F2")</td></tr>
+                }
+                @if (slip.wl_adv > 0)
+                {
+                    <tr><td>Welfare Advance</td><td style="text-align:right;">@slip.wl_adv.ToString("F2")</td></tr>
+                }
+                @if (slip.adv_PF_loan > 0)
+                {
+                    <tr><td>PF Loan</td><td style="text-align:right;">@slip.adv_PF_loan.ToString("F2")</td></tr>
+                }
+                @if (slip.welfare_fund > 0)
+                {
+                    <tr><td>Welfare Contribution</td><td style="text-align:right;">@slip.welfare_fund.ToString("F2")</td></tr>
+                }
+            </tbody>
+        </table>
+        <!-- Net -->
+        <table class="table table-bordered">
+            <thead class="table-secondary">
+                <tr><th colspan="2">Net take home earning ( A - B )</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>Net In Hand</td><td style="text-align:right;">@slip.NetInHand.ToString("F2")</td></tr>
+            </tbody>
+        </table>
+    </div>
+}

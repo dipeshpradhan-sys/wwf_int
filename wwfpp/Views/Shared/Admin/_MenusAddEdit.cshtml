@@ -1,0 +1,86 @@
+﻿@model wwfpp.Models.Admin.MenusViewModel
+@{
+    string mode = ViewBag.mode;
+}
+<!-- (A) HTML DIALOG BOX -->
+<partial name="_ConstantValues" view-data='new ViewDataDictionary(ViewData) { { "NoteKey", "RequiredField" } }' />
+    @Html.HiddenFor(m => m.menu_id) <!-- Needed for Edit -->
+    <div class="form-group row p-1">
+    
+        <label class="col-lg-12 col-form-label-lg">Menu Code<span class="text-danger">*</span></label>
+        <div class="col-lg-12">
+        @Html.TextBoxFor(m => m.menu_code, new { @class = "form-control", maxlength = "10" })
+        </div>
+        
+        <label class="col-lg-12 col-form-label-lg">Menu Name<span class="text-danger">*</span></label>
+        <div class="col-lg-12">
+        @Html.TextBoxFor(m => m.menu_name, new { @class = "form-control", maxlength = "50" })
+        </div>
+
+        <label class="col-lg-12 col-form-label-lg">Menu Label<span class="text-danger">*</span></label>
+        <div class="col-lg-12">
+        @Html.TextBoxFor(m => m.menu_label, new { @class = "form-control", maxlength = "50" })
+        </div>
+        
+        <label class="col-lg-12 col-form-label-lg">Menu Page<span class="text-danger">*</span></label>
+        <div class="col-lg-12">
+        @Html.TextBoxFor(m => m.menu_page, new { @class = "form-control", maxlength = "50" })
+        </div>
+
+        <label class="col-lg-12 col-form-label-lg">Sorting<span class="text-danger">*</span></label>
+        <div class="col-lg-12">
+        @Html.TextBoxFor(m => m.menu_sort, new { @class = "form-control", maxlength = "2" })
+        </div>
+
+        <label class="col-lg-12 col-form-label-lg">Status<span class="text-danger">*</span></label>
+        <div class="col-lg-12">
+        @Html.DropDownList("menu_status", (SelectList)ViewBag.MenuStatus, "--Select--", new
+        {
+            @class = "form-select",
+            style = "width:300px;"
+        })
+        </div>
+
+        <label class="col-lg-12 col-form-label-lg">Module</label>
+        <div class="col-lg-12">
+        @Html.DropDownList("module_id", (SelectList)ViewBag.ModuleList, "--Select--", new
+        {
+            @class = "form-select",
+            style = "width:300px;"
+        })
+        </div>
+    </div>
+
+@if (string.Equals(mode, "add", StringComparison.OrdinalIgnoreCase) && string.Equals(ViewBag.apern, "true", StringComparison.OrdinalIgnoreCase))
+{ 
+    <script>renderModalButtons("modal-button-list", "Save");</script>
+}
+else if (string.Equals(mode, "edit", StringComparison.OrdinalIgnoreCase) && string.Equals(ViewBag.epern, "true", StringComparison.OrdinalIgnoreCase))
+{ 
+    <script>renderModalButtons("modal-button-list", "Edit");</script>
+}
+else
+{
+    <script>renderModalCloseButton("modal-button-list")</script>
+}
+    <script>
+    var menusUrl = '@Url.Content("~/Admin/Menus")';
+    $(document).off("click", "#btnSave").on("click", "#btnSave", function () {
+        var btn = $(this);
+        var btntext = btn.text().trim().toLowerCase();
+        if (btntext === "edit") {$("#ModalID .modal-title").text("Update");btn.text("Update");$("#btnC").text("Cancel");return;}  
+        if (btntext === "update" || btntext === "save") {
+
+            if ( checkInput( 'txt', 'menu_code', 'Menu Code is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'txt', 'menu_name', 'Menu Name is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'txt', 'menu_label', 'Menu Label is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'txt', 'menu_page', 'Menu Page is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'txt', 'menu_sort', 'Sorting is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'cmb', 'menu_status', 'Status is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'cmb', 'module_id', 'Module is required.', 'modal-message') == false ) {return false;}
+    
+            submitSaveUpdate(menusUrl);
+        }
+    });
+    $(function() {$("#menu_sort").on("blur", function() {OnlyNumeric('menu_sort', 'modal-message');});});
+    </script>

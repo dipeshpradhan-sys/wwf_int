@@ -1,0 +1,70 @@
+﻿@using wwfpp.Services
+@inject SettingsServices SettingsServices
+@model wwfpp.Models.General.FundSourceViewModel
+@{
+    string mode = ViewBag.mode;
+    string DATE_FORMAT = ViewBag.DATE_FORMAT;
+    string expiry_date = Model.expiry_date.ToString();
+    string s_expiry_date = SettingsServices.DateformatToDt(expiry_date);
+}
+<!-- (A) HTML DIALOG BOX -->
+<partial name="_ConstantValues" view-data='new ViewDataDictionary(ViewData) { { "NoteKey", "RequiredField" } }' />
+@Html.HiddenFor(m => m.fund_id) <!-- Needed for Edit -->
+    <div class="form-group row p-1">
+
+        <label class="col-lg-12 col-form-label-lg">Fund Source<span class="text-danger">*</span>&nbsp;</label>
+        <label class="col-lg-12 col-form-label-sm">(Format : zzz-zzzzzzzz-zzzz Or zzz-zzzzzzzz-zzzzzzzz)</label>
+        <div class="col-lg-12">
+            @Html.TextBoxFor(m => m.fund_source, new { @class = "form-control", maxlength = "50" })
+        </div>
+
+        <label class="col-lg-12 col-form-label-lg">Project Description<span class="text-danger">*</span>&nbsp;</label>
+        <div class="col-lg-12">
+            @Html.TextBoxFor(m => m.fund_desc, new { @class = "form-control", maxlength = "250" })
+        </div>
+
+        <label class="col-lg-12 col-form-label-lg">Fund Status</label>
+        <div class="col-lg-12">
+        @Html.DropDownListFor(m => m.fund_status, (SelectList)ViewBag.FundStatus, "-- Select --", new { @class = "form-select" })
+        </div>
+
+        <label class="col-lg-12 col-form-label-lg">Expiry Date<span class="text-danger">*</span>&nbsp;(@DATE_FORMAT)</label>
+        <div class="row">
+        <div class="col-lg-4">
+            @Html.TextBox("expiry_date", s_expiry_date, new { @class = "form-control", maxlength = "10" })
+        </div>
+        <div class="col-lg-8"><button type="Button" name="btndate" id="btndate" class="button bg-sky">Date...</button></div>
+        </div>
+        <label class="col-lg-12 col-form-label-sm"> [Provided date will be included in calculation and report]</label>
+</div>
+@if (mode == "add" && ViewBag.apern == "true")
+{
+    <script>renderModalButtons("modal-button-list", "Save");</script>
+}
+else if (mode == "edit" && ViewBag.epern == "true")
+{
+    <script>renderModalButtons("modal-button-list", "Edit");</script>
+}
+else
+{
+    <script>renderModalCloseButton("modal-button-list")</script>
+}
+    <script>
+    // Toggle between Edit and Update
+    $(document).off("click", "#btnSave").on("click", "#btnSave", function () {
+        var btn = $(this);
+        if (btn.text() == "Edit") {$("#ModalID .modal-title").text("Update");btn.text("Update");$("#btnC").text("Cancel");return;}  
+        if (btn.text() === "Update" || btn.text() === "Save") {
+            
+            if ( checkInput( 'txt', 'fund_source', 'Fund Source is required.', 'modal-message') == false ) {return false;}
+            if (validateFundSource(document.getElementById("fund_source").value) == false){showError("Invalid Fund Source.","modal-message");return false};
+            if ( checkInput( 'txt', 'fund_desc', 'Project Description is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'cmb', 'fund_status', 'Fund Status is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'txt', 'expiry_date', 'Expiry date is required.', 'modal-message') == false ) {return false;}
+            submitSaveUpdate('@Url.Content("~/General/FundSource")');
+        }
+    });
+    $(document).off('blur', '#expiry_date').on('blur', '#expiry_date', function () {convert_date(expiry_date,'modal-message');});
+    $(document).off('click', '#btndate').on('click', '#btndate', function () {show_calendar('frm.expiry_date');});
+
+</script>

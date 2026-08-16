@@ -1,0 +1,37 @@
+﻿namespace wwfpp.Models.Payroll
+{
+    public class SwfLoanViewModel
+    {
+        public string id { get; set; }  //[nvarchar](255) NOT NULL,
+        public int? emp_id { get; set; }//[int] NULL,
+        public string? start_month { get; set; }  //[nvarchar](2) NULL,
+        public string? start_year { get; set; }  //[nvarchar](4) NULL,
+        public decimal? amount { get; set; }  //[money] NULL,
+        public decimal? int_amount { get; set; }  //[money] NULL,
+        public int? no_of_installment { get; set; }  //[int] NULL,
+        public string? status { get; set; }  //[nvarchar](1) NULL,
+        public string? remarks { get; set; }  //[ntext] NULL,
+        public string? fiscal_year { get; set; }  //[nvarchar](10) NULL,
+        public byte? emp_week { get; set; }  //[tinyint] NULL,
+        public decimal? total_loan { get; set; }  //[money] NULL,
+        public decimal? month_installment { get; set; }  //[money] NULL,
+        public decimal? s_amount { get; set; }
+        public DateTime? s_date { get; set; }
+        public string? s_remarks { get; set; }
+        public decimal? paid_amount { get; set; }
+        public string? emp_code { get; set; }
+        public string? firstname { get; set; }
+        public string? middlename { get; set; }
+        public string? lastname { get; set; }
+        public string? employee {  get; set; }
+        public string? emp_status { get; set; }
+
+    }
+    public class SwfLoanTotalViewModel
+    {
+        public decimal? amount { get; set; }  //[money] NULL,
+        public decimal? int_amount { get; set; }  //[money] NULL,
+        public decimal? paid_amount { get; set; }  //[money] NULL,
+    }
+
+}

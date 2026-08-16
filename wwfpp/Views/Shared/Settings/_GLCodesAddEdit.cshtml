@@ -1,0 +1,63 @@
+﻿@model wwfpp.Models.Settings.SettingsGlCodesViewModel
+@{
+    string mode = ViewBag.mode;
+}
+<!-- (A) HTML DIALOG BOX -->
+<partial name="_ConstantValues" view-data='new ViewDataDictionary(ViewData) { { "NoteKey", "RequiredField" } }' />
+    <input type="hidden" name="id" id="id" value="@Model.id">
+
+    <div class="form-group row p-1">
+
+        <label class="col-lg-12 col-form-label-lg">GL Code<span class="text-danger">*</span></label>
+        <div class="col-lg-12">
+        @Html.TextBoxFor(m => m.gl_code, new { @class = "form-control", maxlength = "5" })
+        </div>
+    
+        <label class="col-lg-12 col-form-label-lg">GL Type<span class="text-danger">*</span></label>
+        <div class="col-lg-12">
+
+        @Html.DropDownList("gl_type", (SelectList)ViewBag.GLType, "-- Select --", new
+        {
+            @class = "form-select",
+            style = "width:300px;"
+        })
+        </div>
+        
+        <label class="col-lg-12 col-form-label-lg">Staff Type<span class="text-danger">*</span></label>
+        <div class="col-lg-12">
+        @Html.DropDownList("staff_type", (SelectList)ViewBag.StaffType, "-- Select --", new
+        {
+            @class = "form-select",
+            style = "width:300px;"
+        })
+        </div>
+
+    </div>
+
+@if (mode == "add" && ViewBag.apern == "true")
+{
+    <script>renderModalButtons("modal-button-list", "Save");</script>
+}
+else if (mode == "edit" && ViewBag.epern == "true")
+{
+    <script>renderModalButtons("modal-button-list", "Edit");</script>
+}
+else
+{
+    <script>renderModalCloseButton("modal-button-list")</script>
+}
+    <script>
+    // Toggle between Edit and Update
+    $(document).off("click", "#btnSave").on("click", "#btnSave", function () {
+        var btn = $(this);
+        if (btn.text() == "Edit") {$("#ModalID .modal-title").text("Update");btn.text("Update");$("#btnC").text("Cancel");return;}  
+        if (btn.text() === "Update" || btn.text() === "Save") {
+
+            if ( checkInput( 'txt', 'gl_code', 'GL Code is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'cmb', 'gl_type', 'GL Type is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'cmb', 'staff_type', 'Staff Type is required.', 'modal-message') == false ) {return false;}
+
+            submitSaveUpdate('@Url.Content("~/Settings/GLCodes")');
+        }
+    });
+    </script>

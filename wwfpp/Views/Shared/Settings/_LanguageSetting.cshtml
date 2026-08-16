@@ -1,0 +1,35 @@
+﻿@using Microsoft.AspNetCore.Http;
+@using wwfpp.Services;
+@inject GlobalOptionServices GlobalOptionServices
+@inject IHttpContextAccessor HttpContextAccessor;
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var PageTitle = "Language";
+    var Page_Tips = "";  //Tool tip message on right side
+    var msg_please_wait = "";
+    var Page_Mode = PageTitle;
+    ViewData["Title"] = "| " + PageTitle;
+    var Help_Tips = GblUtilities.HelpTips(Page_Tips);
+    string ShowMsg = GblUtilities.MsgDisplay(Context.Request.Query["msg"].ToString());/*success|fail|error'*/
+}
+@Html.AntiForgeryToken()
+@Html.Hidden("ilaka", "/Settings/LanguageSetting")
+<h2 class="titlebig"><span name="header" id="header">@Page_Mode</span> @Html.Raw(Help_Tips)</h2>
+
+<div id="message_header"><p id="loading" class="loading displaynone">@msg_please_wait</p></div>
+<div id="message_header">@Html.Raw(ShowMsg)</div>
+
+<div class="form-group p-2">
+    <table id="tblData" class="display compact nowrap" style="width:100%">
+        <thead>
+            <tr style="height: 50px; align-items: center;color:white;" class="bg-secondary bg-opacity-27">
+                <th width="100%">&nbsp;Selected Language</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr style="height: 50px; align-items: center;color:black;" class="bg-lsky bg-opacity-27">
+                <th width="100%">&nbsp;@GblUtilities.ToProperCase(GlobalOptionServices.OptionServices["op_lang"])</th>
+            </tr>
+        </tbody>
+    </table>
+</div>

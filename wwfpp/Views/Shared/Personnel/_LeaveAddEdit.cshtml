@@ -1,0 +1,222 @@
+﻿@using Microsoft.AspNetCore.Http;
+@inject IHttpContextAccessor HttpContextAccessor;
+@model wwfpp.Models.Personnel.LeaveViewModel
+@{
+    string? DATE_FORMAT = ViewBag.DATE_FORMAT; 
+    string mode = ViewBag.mode;
+
+    string str_app_status = "";
+    string str_can_status = "";
+
+    string emp_status = Model.emp_status == "A" ? "Active" : "Inactive";
+
+    DateTime start_fiscal_date = Convert.ToDateTime(Model.start_fiscal_date);
+    string s_start_fiscal_date = start_fiscal_date.ToString(DATE_FORMAT);
+
+    DateTime end_fiscal_date = Convert.ToDateTime(Model.end_fiscal_date);
+    string s_end_fiscal_date = end_fiscal_date.ToString(DATE_FORMAT);
+
+    string cur_fiscal_year = HttpContextAccessor.HttpContext.Session.GetString("fiscal_year") ?? "";
+    string cur_emp_id = HttpContextAccessor.HttpContext.Session.GetString("emp_id") ?? "";
+    bool IsAbleToSubmit = false;
+    if (Model.emp_status == "A" &&
+        cur_fiscal_year == Model.fiscal_year &&
+        cur_emp_id == Model.emp_id.ToString() &&
+        (Model.app_status == "" || Model.app_status == "Pending")
+    )
+    {
+        IsAbleToSubmit = true;
+    }
+}
+<partial name="_ConstantValues" view-data='new ViewDataDictionary(ViewData) { { "NoteKey", "RequiredField" } }' />
+@Html.HiddenFor(m => m.id)
+@Html.HiddenFor(m => m.emp_id)
+@Html.HiddenFor(m => m.fiscal_year)
+@Html.HiddenFor(m => m.workingHoursDays)
+@Html.HiddenFor(m => m.start_fiscal_date, "{0:" + DATE_FORMAT + "}")
+@Html.HiddenFor(m => m.end_fiscal_date, "{0:" + DATE_FORMAT + "}")
+<div class="form-group row p-1">
+        
+    <label class="col-lg-12 col-form-label-lg">Employee:<span class="text-danger">*</span> @Model.employee [@emp_status]</label>
+    <label class="col-lg-12 col-form-label-lg">Fiscal Year:<span class="text-danger">*</span>@Model.fiscal_year_abb</label>
+
+    <label class="col-lg-12 col-form-label-lg">Leave<span class="text-danger">*</span></label>
+    <div class="col-lg-12">
+        @Html.DropDownListFor(m => m.leave_type_id, (SelectList)ViewBag.LeaveTypeList, "-- Select Leave --", new { @class = "form-control-sm" })
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Start Date <span class="text-danger">*</span>&nbsp;(@DATE_FORMAT)</label>
+    <div class="row">
+        <div class="col-lg-4">
+            @Html.TextBoxFor(m => m.leave_from_date, "{0:" + DATE_FORMAT + "}", new { @class = "form-control form-control-sm", @ReadOnly = "readonly" })
+        </div>
+        <div class="col-lg-8">
+            <Button type="Button" name="btnStartDate" id="btnStartDate" class="button bg-sky">Date...</Button>
+        </div>
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">End Date<span class="text-danger">*</span>&nbsp;(@DATE_FORMAT)</label>
+    <div class="row">
+        <div class="col-lg-4">
+            @Html.TextBoxFor(m => m.leave_to_date, "{0:" + DATE_FORMAT + "}", new { @class = "form-control form-control-sm", @ReadOnly = "readonly" })
+        </div>
+        <div class="col-lg-8">
+            <Button type="Button" name="btnEndDate" id="btnEndDate" class="button bg-sky">Date...</Button>
+        </div>
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Leave in Hours<span class="text-danger">*</span></label>
+    <div class="col-lg-12">
+        @Html.TextBoxFor(m => m.leave_in_hrs, new { @class = "form-control", @ReadOnly = "readonly", style = "width: 80px;" })
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Leave in Days<span class="text-danger">*</span></label>
+    <div class="col-lg-12" id="leaveindays">
+        @Model.leave_in_days
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Reason for Leave<span class="text-danger">*</span></label>
+    <div class="col-lg-12">
+        @Html.TextAreaFor(m => m.leave_desc, new { @class = "form-control", rows = "3", cols = "50", maxlength="250" })
+    </div>
+
+    @if (mode == "edit")
+    {
+        if (Model.app_status == "Cancelled")
+        {
+            str_app_status = "Approved";
+            str_can_status = "Approved";
+        }
+        else if (Model.app_status == "Approved")
+        {
+
+            str_app_status = "Approved";
+            if (Model.can_by != null && Model.can_by > 0) { str_can_status = "Pending"; }
+        }
+        else if (Model.app_status == "Declined")
+        {
+            str_app_status = "Declined";
+        }
+	    else
+        {
+            str_app_status = "Pending";
+        }
+        DateTime app_date = Model.app_date ?? DateTime.MinValue;
+        string s_app_date = app_date == DateTime.MinValue ? "N/A" : app_date.ToString(DATE_FORMAT);
+
+        DateTime can_date = Model.can_date ?? DateTime.MinValue;
+        string s_can_date = can_date == DateTime.MinValue ? "N/A" : can_date.ToString(DATE_FORMAT);
+
+        <br /><hr />
+        <label class="col-lg-12 col-form-label-lg">Status</label>
+        <div class="col-lg-4">@str_app_status</div>
+
+        <label class="col-lg-12 col-form-label-lg">Action By</label>
+        <div class="col-lg-4">@Model.app_by_name</div>
+
+        <label class="col-lg-12 col-form-label-lg">Date</label>
+        <div class="col-lg-4">@s_app_date</div>
+
+        <label class="col-lg-12 col-form-label-lg">Remarks</label>
+        <div class="col-lg-4">@Model.app_remarks</div>
+
+        if (str_can_status == "Approved" || str_can_status == "Pending")
+        {
+            <hr />
+            <label class="col-lg-12 col-form-label-lg">Cancellation</label>
+            <hr />
+            
+            <label class="col-lg-12 col-form-label-lg">Reason for cancellation</label>
+            <div class="col-lg-4">@Model.can_desc</div>
+
+            <label class="col-lg-12 col-form-label-lg">Status</label>
+            <div class="col-lg-4">@str_can_status</div>
+
+            <label class="col-lg-12 col-form-label-lg">Action By</label>
+            <div class="col-lg-4">@Model.can_by_name</div>
+
+            <label class="col-lg-12 col-form-label-lg">Date</label>
+            <div class="col-lg-4">@s_can_date</div>
+
+            <label class="col-lg-12 col-form-label-lg">Remarks</label>
+            <div class="col-lg-4">@Model.can_remarks</div>
+        }
+    }
+
+    <div class="col-lg-12"></div>
+    <div id="message_header">
+        <p class="notify">
+            Note:<br/>
+            - Please provide the Leave Start Date and End Date within fiscal year <u>@s_start_fiscal_date</u> and <u>@s_end_fiscal_date</u>.<br />
+            - Two types of leave or full day and half day leave can't be fill up in one leave request. <br />
+            - For this separate leave request should be submitted.
+        </p>
+    </div>
+</div>
+@if (IsAbleToSubmit == true && mode == "add" && ViewBag.apern == "true")
+{
+    <script>renderModalSubmitButtons("", "Submit");</script>
+}
+else if (IsAbleToSubmit == true && mode == "edit" && ViewBag.epern == "true")
+{
+    <script>renderModalSubmitButtons("", "Submit Update");</script>
+}
+else
+{
+    <script>renderModalCloseButton("modal-button-list")</script>
+}
+<script>
+    $(document).off("click", "#btnSubmit").on("click", "#btnSubmit", function() 
+    {
+        var workingHrsEl = $("#workingHoursDays").val();
+        var fromDateEl = new Date($("#leave_from_date").val());
+        var toDateEl = new Date($("#leave_to_date").val());
+        var fiscal_from = new Date($("#start_fiscal_date").val());
+        var fiscal_to = new Date($("#end_fiscal_date").val());
+
+        if (checkInput('cmb', 'leave_type_id', 'Leave Type is required.', 'modal-message') == false) { return false; }
+        
+        if (checkInput('txt', 'leave_from_date', 'Start Date required.', 'modal-message') == false) { return false; }
+        if (checkInput('txt', 'leave_to_date', 'End Date is required.', 'modal-message') == false) { return false; }
+
+        if (fromDateEl < fiscal_from || fromDateEl > fiscal_to) {
+            showError("Select Leave within fiscal year.", "modal-message");
+        }
+        if (toDateEl < fiscal_from || toDateEl > fiscal_to) {
+            showError("Select Leave within fiscal year.", "modal-message");
+        }
+
+        if (checkInput('txt', 'leave_in_hrs', 'Leave in Hours is required.', 'modal-message') == false) { return false; }
+        const fullDayTypes = ["1", "3", "5", "9", "12", "13", "14", "15"];
+        const halfDayTypes = ["2", "4", "6", "10"];
+        const leaveHours = Number($("#leave_in_hrs").val());
+        if (leaveHours <= 0) {
+            showError("Positive leave hour(s) is required.", "modal-message");
+        } else if (fullDayTypes.includes(leave_type_id)) {
+            if (leaveHours % working_hrs !== 0) {
+                showError("Valid leave hour(s) is required.", "modal-message");
+            }
+        } else if (halfDayTypes.includes(leave_type_id)) {
+            if (leaveHours % (working_hrs / 2) !== 0 || leaveHours > working_hrs / 2) {
+                showError("Valid leave hour(s) is required.", "modal-message");
+            }
+        }
+        /*Restric to apply more than 2 days of leave in one request [Since 01-Sep-2025] */
+        if ((leave_type_id === "3" || leave_type_id === "4") && (leaveHours / working_hrs) > 2) {
+            strError += "\nCausal Leave cannot be requested more than 2 days in one request.";
+        }
+        /*Leave reason is mandatory [Since 01-Sep-2025] */
+        if (checkInput('txt', 'leave_desc', 'Reason for Leave is required.', 'modal-message') == false) { return false; }
+
+        submitSaveUpdate("/Personnel/Leave");
+    });
+
+    $(document).off('change', '#leave_type_id').on('change', '#leave_type_id', function () { calculateLeaveHours(); });
+    $(document).off('blur', '#leave_from_date').on('blur', '#leave_from_date', function () { convert_date(leave_from_date, 'modal-message'); calculateLeaveHours(); });
+    $(document).off('blur', '#leave_to_date').on('blur', '#leave_to_date', function () { convert_date(leave_to_date, 'modal-message'); calculateLeaveHours() });
+    $(document).off('click', '#btnStartDate').on('click', '#btnStartDate', function () { show_calendar('frm.leave_from_date'); });
+    $(document).off('click', '#btnEndDate').on('click', '#btnEndDate', function () { show_calendar('frm.leave_to_date'); });
+    $(document).off('focus', '#leave_in_hrs').on('focus', '#leave_in_hrs', function () { calculateLeaveHours(); });
+    $(document).off('focus', '#btnStartDate').on('focus', '#btnStartDate', function () { calculateLeaveHours(); });
+    $(document).off('focus', '#btnEndDate').on('focus', '#btnEndDate', function () { calculateLeaveHours(); });
+</script>

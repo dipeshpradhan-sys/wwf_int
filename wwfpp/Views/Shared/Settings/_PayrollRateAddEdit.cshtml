@@ -1,0 +1,86 @@
+﻿@using wwfpp.Services
+@inject SettingsServices SettingsServices
+@model wwfpp.Models.Settings.SettingRateViewModel
+@{
+    string mode = ViewBag.mode;
+    string DATE_FORMAT = ViewBag.DATE_FORMAT;
+    string setting_rate_date = Model.setting_rate_date.ToString();
+    string s_setting_rate_date = SettingsServices.DateformatToDt(setting_rate_date);
+}
+<!-- (A) HTML DIALOG BOX -->
+<partial name="_ConstantValues" view-data='new ViewDataDictionary(ViewData) { { "NoteKey", "RequiredField" } }' />
+@Html.HiddenFor(m => m.setting_rate_id) <!-- Needed for Edit -->
+    <div class="form-group row p-1">
+
+        <label class="col-lg-12 col-form-label-lg">Fiscal Year<span class="text-danger">*</span></label>
+        <div class="col-lg-12">
+        @Html.DropDownList("fiscal_year", (SelectList)ViewBag.fiscal_year, "-- Select --", new {@class = "form-select",style = "width:300px;"})
+        </div>
+    
+        <label class="col-lg-12 col-form-label-lg">Date<span class="text-danger">*</span></label>
+        <div class="row">
+            <div class="col-lg-12">
+             @Html.TextBox("setting_rate_date", s_setting_rate_date, new { @class = "form-control", maxlength = "10" })
+            </div>
+        <div class="col-lg-8"><button type="Button" name="btndate" id="btndate" class="button bg-sky">Date...</button></div>
+        </div>
+        
+        <label class="col-lg-12 col-form-label-lg">Rate<span class="text-danger">*</span></label>
+        <div class="col-lg-12">
+        @Html.TextBoxFor(m => m.setting_rate, new { @class = "form-control", maxlength = "10" })
+        </div>
+        
+        <label class="col-lg-12 col-form-label-lg">Month<span class="text-danger">*</span></label>
+        <div class="col-lg-12">
+        @Html.DropDownList("setting_rate_period_name", (SelectList)ViewBag.MonthList, "-- Select --", new { @class = "form-select", style = "width:300px;" })
+        </div>        
+        
+        <label class="col-lg-12 col-form-label-lg">Year<span class="text-danger">*</span></label>
+        <div class="col-lg-12">
+        @Html.DropDownList("setting_rate_year", (SelectList)ViewBag.YearList, "-- Select --", new { @class = "form-select", style = "width:300px;" })
+        </div>
+
+        <label class="col-lg-12 col-form-label-lg">Description</label>
+        <div class="col-lg-12">
+        @Html.TextBoxFor(m => m.setting_rate_desc, new { @class = "form-control", maxlength = "100" })
+        </div>
+
+        <label class="col-lg-12 col-form-label-lg">Status<span class="text-danger">*</span></label>
+        <div class="col-lg-12">
+        @Html.DropDownList("setting_rate_status", (SelectList)ViewBag.SettingRateStatus, "-- Select --", new { @class = "form-select", style = "width:300px;" })
+        </div>
+
+    </div>
+
+@if (mode == "add" && ViewBag.apern == "true")
+{
+    <script>renderModalButtons("modal-button-list", "Save");</script>
+}
+else if (mode == "edit" && ViewBag.epern == "true")
+{
+    <script>renderModalButtons("modal-button-list", "Edit");</script>
+}
+else
+{
+    <script>renderModalCloseButton("modal-button-list")</script>
+}
+    <script>
+    // Toggle between Edit and Update
+    $(document).off("click", "#btnSave").on("click", "#btnSave", function () {
+        var btn = $(this);
+        if (btn.text() == "Edit") {$("#ModalID .modal-title").text("Update");btn.text("Update");$("#btnC").text("Cancel");return;}  
+        if (btn.text() === "Update" || btn.text() === "Save") {
+
+            if ( checkInput( 'cmb', 'fiscal_year', 'Fiscal_year is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'txt', 'setting_rate_date', 'Date is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'txt', 'setting_rate', 'Rate is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'cmb', 'setting_rate_period_name', 'Month is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'cmb', 'setting_rate_year', 'Year is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'cmb', 'setting_rate_status', 'Status is required.', 'modal-message') == false ) {return false;}
+            submitSaveUpdate('@Url.Content("~//Settings/PayrollRate")');
+        }
+    });
+    $(document).off('blur', '#setting_rate_date').on('blur', '#setting_rate_date', function () {convert_date(setting_rate_date,'modal-message');});
+    $(document).off('click', '#btndate').on('click', '#btndate', function () {show_calendar('frm.setting_rate_date');});
+    $(document).off('keyup', '#setting_rate').on('keyup', '#setting_rate', function () {OnlyNumeric('setting_rate','modal-message');});  
+    </script>

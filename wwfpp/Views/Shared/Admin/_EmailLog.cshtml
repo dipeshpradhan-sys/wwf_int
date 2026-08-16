@@ -1,0 +1,83 @@
+﻿@using Microsoft.AspNetCore.Http;
+@inject IHttpContextAccessor HttpContextAccessor;
+@model List<wwfpp.Models.Admin.EmailLogViewModel>
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var PageTitle = "Email Log";
+    var Page_Tips = "";  //Tool tip message on right side
+    var msg_please_wait = "";
+    var Page_Mode = PageTitle; 
+    ViewData["Title"] = "| " + PageTitle;
+    var Help_Tips = GblUtilities.HelpTips(Page_Tips);    
+    string ShowMsg = GblUtilities.MsgDisplay(Context.Request.Query["msg"].ToString());/*success|fail|error'*/
+}
+@Html.AntiForgeryToken()
+@Html.Hidden("ilaka", "/Admin/EmailLog")
+<h2 class="titlebig"><span name="header" id="header">@Page_Mode</span> @Html.Raw(Help_Tips)</h2>
+@Html.Hidden("mode", "")
+@Html.Hidden("Id", "")
+
+<div id="message_header"><p id="loading" class="loading displaynone">@msg_please_wait</p></div>
+<div id="message_header">@Html.Raw(ShowMsg)</div>
+
+<!-- Controls row under the header -->
+<div class="p-0 bg-white rounded mb-3">
+    <div class="row align-items-center">
+        <div class="col-auto ms-auto">
+            @Html.Raw(ViewBag.ViewButtons)
+        </div>
+    </div>
+</div>
+<!-- DataTable -->
+@if (Model == null)
+{
+    <div id="message_header"><p class="note">No record(s) found.</p></div>
+}
+else
+{
+    <div class="form-group p-2">
+        <table id="tblData" class="display compact nowrap" style="width:100%">
+            <thead>
+                <tr style="height: 40px; align-items: center;color:white;" class="bg-secondary bg-opacity-27">
+                    <th width="1%"><input type="checkbox" id="selectAll"></th>
+                    <th width="10%">Submit Date</th>
+                    <th width="10%">Sent Date</th>
+                    <th width="9%">Status</th>
+                    <th width="20%">To</th>
+                    <th width="30%">Subject</th>
+                    <th width="15%">Category</th>
+                    <th width="5%">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Data dynamically injected here -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Modal for Add/Edit -->
+    @await Html.PartialAsync("_SharedModal", new wwfpp.Models.ModalViewModel { ModalId = "ModalID", DialogClass = "modal-lg", BodyId = "ModalBody", })
+
+    @section scripts 
+    {
+        <script>
+            var ilaka = document.getElementById('ilaka').value;
+            var selectedIds = new Set();
+            $(document).ready(function () 
+            {
+                var table;
+                GetAllData(ilaka, "id", [
+                    { data: "submit_date", name: "submit_date", autoWidth: false,render: function (data, type, row) {if (type === 'display' || type === 'filter') {return moment(data).format(my_format +' hh:mm A');}return data;}},
+                    { data: "sent_date", name: "sent_date", autoWidth: false,render: function (data, type, row) {if (type === 'display' || type === 'filter') {return moment(data).format(my_format +' hh:mm A');}return data;}},
+                    { data: "status", name: "status", autoWidth: false },
+                    { data: "to_add", name: "to_add", autoWidth: false },
+                    { data: "subject", name: "subject", autoWidth: false },
+                    { data: "category", name: "category", autoWidth: false }
+                ]);
+                $(document).on("click", "#tblData .button", function () {ViewData($(this).data("id"));});
+                $(document).off('click', '#btnC').on('click', '#btnC', function () {modalCloseCancel($(this));});
+            });
+            document.addEventListener("DOMContentLoaded", function () {const btnSetAsSent = document.getElementById("btnSetAsSent");if (btnSetAsSent) {btnSetAsSent.addEventListener("click", function (e) {e.preventDefault();updateStatus(ilaka+'UpdateStatus','Y');});}});
+        </script>
+    }
+}

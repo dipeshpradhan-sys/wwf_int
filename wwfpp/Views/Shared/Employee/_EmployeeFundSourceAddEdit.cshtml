@@ -1,0 +1,86 @@
+﻿@using wwfpp.Services
+@inject SettingsServices SettingsServices
+@model wwfpp.Models.Employee.EmployeeFundSourceViewModel
+@{
+    string? mode = ViewBag.mode;
+    string? DATE_FORMAT = ViewBag.DATE_FORMAT;
+}
+<partial name="_ConstantValues" view-data='new ViewDataDictionary(ViewData) { { "NoteKey", "RequiredField" } }' />
+@Html.HiddenFor(m => m.emp_fund_id)
+<div class="form-group row p-1">
+    <label class="col-lg-12 col-form-label-lg">Fiscal Year: @ViewBag.FiscalYearAbb</label>
+    
+    @if (mode == "add")
+    {
+        <label class="col-lg-12 col-form-label-lg">Employee<span class="text-danger">*</span></label>
+        <div class="col-lg-12">
+            @Html.DropDownListFor(m => m.emp_id, (SelectList)ViewBag.EmployeeList, "-- Select --", new { @class = "form-select" })
+        </div>
+        <label class="col-lg-12 col-form-label-lg">Fund Source<span class="text-danger">*</span></label>
+        <div class="col-lg-12">
+            @Html.DropDownListFor(m => m.fund_id, (SelectList)ViewBag.FundSource, "-- Select --", new { @class = "form-select", style = "width:100%;" })
+        </div>
+    }
+    else
+    {
+        string empStatus = Model.emp_status == "A" ? "Active" : "Inactive";
+        <label class="col-lg-12 col-form-label-lg">Employee: @ViewBag.Employee [@empStatus] @Html.HiddenFor(m => m.emp_id)</label>
+        <label class="col-lg-12 col-form-label-lg">Fund Source: @ViewBag.FundSource @Html.HiddenFor(m => m.fund_id)</label>
+    }
+    <label class="col-lg-12 col-form-label-lg">Annual Hours<span class="text-danger">*</span></label>
+    <div class="col-lg-12">
+        @Html.TextBoxFor(m => m.annual_hrs, new { @class = "form-control", style = "width:100px;", maxlength = "5" })
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Fiscal Start Date<span class="text-danger">*</span>&nbsp;(@DATE_FORMAT)</label>
+    <div class="row">
+        <div class="col-lg-4">@Html.TextBoxFor(m => m.start_date, "{0:" + DATE_FORMAT + "}", new { @class = "form-control", style = "width:100%;", maxlength = "10", @ReadOnly = "readonly" })</div>
+        <div class="col-lg-8">&nbsp;</div>
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Date of Birth<span class="text-danger">*</span>&nbsp;(@DATE_FORMAT)</label>
+    <div class="row">
+        <div class="col-lg-4">@Html.TextBoxFor(m => m.end_date, "{0:" + DATE_FORMAT + "}", new { @class = "form-control", maxlength = "10", @ReadOnly = "readonly" })</div>
+        <div class="col-lg-8">&ensp;</div>
+    </div>
+    @if (mode == "edit")
+    {
+        DateTime expiry_date = Convert.ToDateTime(Model.expiry_date);
+        string str_expiry_date = expiry_date.ToString(DATE_FORMAT);
+
+        <label class="col-lg-12 col-form-label-lg">Fund Expiry Date: @Html.Raw(str_expiry_date)</label>
+        <label class="col-lg-12 col-form-label-lg">Used Hours: @ViewBag.used_hrs</label>
+        <label class="col-lg-12 col-form-label-lg">Pending Hours: @ViewBag.pending_hrs</label>
+        <label class="col-lg-12 col-form-label-lg">Total Used Hours: @ViewBag.t_used_hrs</label>
+    }
+</div>
+
+@if (mode == "add" && ViewBag.apern == "true")
+{
+    <script>renderModalButtons("modal-button-list", "Save");</script>
+}
+else if (mode == "edit" && ViewBag.epern == "true" && Model.emp_status == "A")
+{
+    <script>renderModalButtons("modal-button-list", "Edit");</script>
+}
+else
+{
+    <script>renderModalCloseButton("modal-button-list")</script>
+}
+<script>
+        $(document).off("click", "#btnSave").on("click", "#btnSave", function () {
+        var btn = $(this);
+        if (btn.text() == "Edit") {$("#ModalID .modal-title").text("Update");btn.text("Update");$("#btnC").text("Cancel");return;}
+        if (btn.text() === "Update" || btn.text() === "Save") {
+            if ($("#mode").val() === "add") {
+                if (checkInput('cmb', 'emp_id', 'Employee is required.', 'modal-message') == false) { return false; }
+                if (checkInput('cmb', 'fund_id', 'Fund Source is required.', 'modal-message') == false) { return false; }
+            }
+            if ( checkInput( 'txt', 'annual_hrs', 'Annual Hour is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'txt', 'start_date', 'Start Date is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'txt', 'end_date', 'End Date is required.', 'modal-message') == false ) {return false;}
+
+            submitSaveUpdate("/Employee/EmployeeFundSource");
+        }
+    });
+</script>

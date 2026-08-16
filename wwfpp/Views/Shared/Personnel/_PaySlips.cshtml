@@ -1,0 +1,273 @@
+﻿@using Microsoft.AspNetCore.Http;
+@inject IHttpContextAccessor HttpContextAccessor;
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var PageTitle = "Pay Slip(s)";
+    var Page_Tips = "";  //Tool tip message on right side
+    var msg_please_wait = "";
+    var Page_Mode = PageTitle;
+    ViewData["Title"] = "| " + PageTitle;
+    var Help_Tips = GblUtilities.HelpTips(Page_Tips);
+    /*success|fail|error'*/
+    string ShowMsg = GblUtilities.MsgDisplay(Context.Request.Query["msg"].ToString());
+    int emp_id = int.TryParse(HttpContextAccessor.HttpContext.Session.GetString("emp_id"), out int EmpId) ? EmpId : 0;
+}
+@if (emp_id < 1)
+{
+    <div id="message_header">
+        <p id="message" class="warning">
+            <b>NOTE:</b>
+            Your are not suppose to be here.
+        </p>
+    </div>
+}
+else
+{
+    <style>
+        #tblDataList td, #tblDataList th {
+        padding: 15px 10px;
+        font-size: 15px;
+        height: 15px;
+        }
+    </style>
+        
+    <partial name="_ConstantValues" view-data='new ViewDataDictionary(ViewData) { { "NoteKey", "RequiredField" } }' />
+
+    @Html.AntiForgeryToken()
+    @Html.Hidden("mode", "")
+    @Html.Hidden("ilaka", "/Personnel/PaySlip")
+
+    <h2 class="titlebig"><span name="header" id="header">@Page_Mode</span> @Html.Raw(Help_Tips)</h2>
+    <div id="message_header"><p id="loading" class="loading displaynone">@msg_please_wait</p></div>
+    <div id="message_header">@Html.Raw(ShowMsg)</div>
+
+    <div class="row">
+        <div class="col-lg-11"><label class="col-lg-12 col-form-label-lg">Employee : @ViewBag.Employee [@ViewBag.EmployeeStatus] &nbsp;</label></div>
+        <div class="col-lg-1">&nbsp;@Html.Hidden("emp_id", emp_id)</div>
+    </div>
+    <div class="row">
+        <div class="col-lg-2"><label class="col-lg-12 col-form-label-lg">Display: <span class="text-danger">*</span>&nbsp;</label></div>
+        <div class="col-lg-10">
+        @Html.DropDownList("ReportDisplayType", (SelectList)ViewBag.ReportDisplayType, new { @class = "form-select", style = "width:150px;" })
+        </div>
+    </div>
+
+    <div id="button-box"><div id="button-box-right"><h5>Single Period</h5></div></div>
+    <div class="row">
+        <div class="col-lg-3"><label class="col-lg-12 col-form-label-lg">Year: <span class="text-danger">*</span>&nbsp;</label></div>
+        <div class="col-lg-9">
+            <div class="row col-lg-12">
+                <div class="col-lg-3">
+                    @Html.DropDownList("sal_year_SM", (SelectList)ViewBag.SalYear, new { @class = "form-select", style = "width:150px;" })
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-lg-3"><label class="col-lg-12 col-form-label-lg">Month: <span class="text-danger">*</span>&nbsp;</label></div>
+        <div class="col-lg-9">
+            <div class="row col-lg-12">
+                <div class="col-lg-3">
+                    @Html.DropDownList("sal_month_SM", (SelectList)ViewBag.SalMonth, new { @class = "form-select", style = "width:150px;" })
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div id="button-box">
+            <div id="button-box-right">
+                <h5>
+                    <Button type="Button" name="btnSM" id="btnSM" class="button bg-blue">Show</Button>
+                </h5>
+            </div>
+        </div>
+    </div>
+
+    <div id="button-box"><div id="button-box-right"><h5>Single Year</h5></div></div>
+    <div class="row">
+        <div class="col-lg-3"><label class="col-lg-12 col-form-label-lg">Month: <span class="text-danger">*</span>&nbsp;</label></div>
+        <div class="col-lg-9">
+            <div class="row col-lg-12">
+                <div class="col-lg-3">
+                    @Html.DropDownList("sal_fiscal_year_SY", (SelectList)ViewBag.SalFiscalYear, new { @class = "form-select", style = "width:150px;" })
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div id="button-box">
+            <div id="button-box-right">
+                <h5>
+                    <Button type="Button" name="btnSY" id="btnSY" class="button bg-blue">Show</Button>
+                </h5>
+            </div>
+        </div>
+    </div>
+
+    <div id="button-box"><div id="button-box-right"><h5>Multi Period</h5></div></div>
+
+    <div class="row">
+        <div class="col-lg-3"><label class="col-lg-12 col-form-label-lg">Start:<span class="text-danger">*</span> &nbsp;</label></div>
+        <div class="col-lg-9">
+            <div class="row col-lg-12">
+                <div class="col-lg-6">
+                    @Html.DropDownList("sal_year_MM_s", (SelectList)ViewBag.SalYear, new { @class = "form-select", style = "width:150px;" })
+                    </div>
+                <div class="col-lg-6">
+                    @Html.DropDownList("sal_month_MM_s", (SelectList)ViewBag.SalMonth, new { @class = "form-select", style = "width:150px;" })
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-lg-3"><label class="col-lg-12 col-form-label-lg">End:<span class="text-danger">*</span>&nbsp;</label></div>
+        <div class="col-lg-9">
+            <div class="row col-lg-12">
+                <div class="col-lg-6">
+                    @Html.DropDownList("sal_year_MM_e", (SelectList)ViewBag.SalYear, new { @class = "form-select", style = "width:150px;" })
+                </div>
+                <div class="col-lg-6">
+                    @Html.DropDownList("sal_month_MM_e", (SelectList)ViewBag.SalMonth, new { @class = "form-select", style = "width:150px;" })
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div id="button-box">
+            <div id="button-box-right">
+                <h5>
+                    <Button type="Button" name="btnMM" id="btnMM" class="button bg-blue">Show</Button>
+                </h5>
+            </div>
+        </div>
+    </div>
+
+    <div id="button-box"><div id="button-box-right"><h5>Multi Year</h5></div></div>
+
+    <div class="row">
+        <div class="col-lg-3"><label class="col-lg-12 col-form-label-lg">Start: <span class="text-danger">*</span>&nbsp;</label></div>
+        <div class="col-lg-9">
+            <div class="row col-lg-12">
+            @Html.DropDownList("sal_fiscal_year_MY_s", (SelectList)ViewBag.SalFiscalYear, new { @class = "form-select", style = "width:150px;" })
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-lg-3"><label class="col-lg-12 col-form-label-lg">End: <span class="text-danger">*</span>&nbsp;</label></div>
+        <div class="col-lg-9">
+            <div class="row col-lg-12">
+            @Html.DropDownList("sal_fiscal_year_MY_e", (SelectList)ViewBag.SalFiscalYear, new { @class = "form-select", style = "width:150px;" })
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div id="button-box">
+            <div id="button-box-right">
+                <h5>
+                <Button type="Button" name="btnMY" id="btnMY" class="button bg-blue">Show</Button>
+                </h5>
+            </div>
+        </div>
+    </div>
+
+    @await Html.PartialAsync("_SharedModal", new wwfpp.Models.ModalViewModel { ModalId = "ModalID", DialogClass = "modal-lg", BodyId = "ModalBody" })
+
+    @section Scripts {
+        <script>
+            var ilaka = document.getElementById("ilaka").value;
+            var table;
+            $("#btnSM").on("click", function() {
+                if (checkInput('cmb', 'ReportDisplayType', 'Report Type is required.', 'message') == false) { return false; }
+                if (checkInput('cmb', 'sal_year_SM', 'Year is required.', 'message') == false) { return false; }
+                if (checkInput('cmb', 'sal_month_SM', 'Month is required.', 'message') == false) { return false; }
+                var extraSM = [];
+                extraSM.push({
+                    empId: parseInt($("#emp_id").val(), 10),
+                    startYear: $("#sal_year_SM").val(),
+                    startMonth: $("#sal_month_SM").val(),
+                    startFiscalYear: "0",
+                    endYear: "0",
+                    endMonth: "0",
+                    endFiscalYear: "0",
+                    mode: $("#ReportDisplayType").val(),
+                    type: "SM"
+                });
+                ShowData(ilaka + "Report", extraSM, "Pay Slip");
+            });
+            $("#btnSY").on("click", function() {
+                if (checkInput('cmb', 'ReportDisplayType', 'Report Type is required.', 'message') == false) { return false; }
+                if (checkInput('cmb', 'sal_fiscal_year_SY', 'Fiscal Year is required.', 'message') == false) { return false; }
+                var extraSY = [];
+                extraSY.push({
+                    empId: parseInt($("#emp_id").val(), 10),
+                    startYear: "0",
+                    startMonth: "0",
+                    startFiscalYear: $("#sal_fiscal_year_SY").val(),
+                    endYear: "0",
+                    endMonth: "0",
+                    endFiscalYear: "0",
+                    mode: $("#ReportDisplayType").val(),
+                    type: "SM"
+                });
+                ShowData(ilaka + "Report", extraSY, "Pay Slip");
+            });
+            $("#btnMM").on("click", function() {
+                if (checkInput('cmb', 'ReportDisplayType', 'Report Type is required.', 'message') == false) { return false; }
+                if (checkInput('cmb', 'sal_year_MM_s', 'Start Year is required.', 'message') == false) { return false; }
+                if (checkInput('cmb', 'sal_month_MM_s', 'Start Month is required.', 'message') == false) { return false; }
+                if (checkInput('cmb', 'sal_year_MM_e', 'End Year is required.', 'message') == false) { return false; }
+                if (checkInput('cmb', 'sal_month_MM_e', 'End Month is required.', 'message') == false) { return false; }
+
+                var start_year = $("#sal_year_MM_s").val();
+                var start_month = $("#sal_month_MM_s").val();
+                var end_year = $("#sal_year_MM_e").val();
+                var end_month = $("#sal_month_MM_e").val();
+
+                var start_year_month = new Date(start_month + "/15/" + start_year);
+                var end_year_month = new Date(end_month + "/15/" + end_year);
+                if (end_year_month < start_year_month) {
+                    showError("End year should be greater than start year");
+                    return false;
+                }
+                var extraMM = [];
+                extraMM.push({
+                    empId: parseInt($("#emp_id").val(), 10),
+                    startYear: $("#sal_year_MM_s").val(),
+                    startMonth: $("#sal_month_MM_s").val(),
+                    startFiscalYear: "0",
+                    endYear: $("#sal_year_MM_e").val(),
+                    endMonth: $("#sal_month_MM_e").val(),
+                    endFiscalYear: "0",
+                    mode: $("#ReportDisplayType").val(),
+                    type: "SM"
+                });
+                ShowData(ilaka + "Report", extraMM, "Pay Slip");
+            });
+            $("#btnMY").on("click", function() {
+                if (checkInput('cmb', 'ReportDisplayType', 'Report Type is required.', 'message') == false) { return false; }
+                if (checkInput('cmb', 'sal_fiscal_year_MY_s', 'Start Fiscal Year is required.', 'message') == false) { return false; }
+                if (checkInput('cmb', 'sal_fiscal_year_MY_e', 'End Fiscal Year is required.', 'message') == false) { return false; }
+
+                var start_year_ = parseFloat($("#sal_fiscal_year_MY_e").val().substring(0, 4));
+                var end_year_ = parseFloat($("#sal_fiscal_year_MY_e").val().substring(0, 4));
+                if (end_year_ < start_year_) {
+                    showError("End fiscal year should be greater than start fiscal year");
+                    return false;
+                }
+                var extraMY = [];
+                extraMY.push({
+                    empId: parseInt($("#emp_id").val(), 10),
+                    startYear: "0",
+                    startMonth: "0",
+                    startFiscalYear: $("#sal_fiscal_year_MY_s").val(),
+                    endYear: "0",
+                    endMonth: "0",
+                    endFiscalYear: $("#sal_fiscal_year_MY_e").val(),
+                    mode: $("#ReportDisplayType").val(),
+                    type: "SM"
+                });
+                ShowData(ilaka + "Report", extraMY, "Pay Slip");
+            });
+        </script>
+    }
+}

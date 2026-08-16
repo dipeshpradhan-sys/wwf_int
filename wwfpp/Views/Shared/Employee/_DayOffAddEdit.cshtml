@@ -1,0 +1,73 @@
+﻿@using wwfpp.Services
+@inject SettingsServices SettingsServices
+@model wwfpp.Models.Employee.EmployeeDayOffViewModel
+@{
+    string? mode = ViewBag.mode;
+    string? DATE_FORMAT = ViewBag.DATE_FORMAT;
+    string? dayoff_date = Model.dayoff_date.ToString();
+    string? s_dayoff_date = SettingsServices.DateformatToDt(dayoff_date ?? string.Empty);
+}
+<partial name="_ConstantValues" view-data='new ViewDataDictionary(ViewData) { { "NoteKey", "RequiredField" } }' />
+@Html.HiddenFor(m => m.id) 
+@Html.HiddenFor(m => m.fiscal_year) 
+<div class="form-group row p-1">
+
+    
+    @if (mode == "add")
+    {
+        <label class="col-lg-12 col-form-label-lg">Fiscal Year:<span class="text-danger">*</span> @ViewBag.FiscalYearAbb</label>
+        <div class="col-lg-12">
+            &nbsp;
+        </div>
+        <label class="col-lg-12 col-form-label-lg">Employee<span class="text-danger">*</span></label>
+        <div class="col-lg-12">
+            @Html.DropDownListFor(m => m.emp_id, (SelectList)ViewBag.EmployeeList, "-- Select --", new { @class = "form-select" })
+        </div>
+    }
+    else
+    {
+        <label class="col-lg-12 col-form-label-lg">Fiscal Year:<span class="text-danger">*</span> @Model.fiscal_year_abb</label>
+        <div class="col-lg-12">
+            &nbsp;
+        </div>
+        string empStatus = Model.emp_status == "A" ? "Active" : "Inactive";
+        <label class="col-lg-12 col-form-label-lg">Employee:<span class="text-danger">*</span> @Model.employee [@empStatus] @Html.HiddenFor(m => m.emp_id)</label>
+        <div class="col-lg-12">
+            &nbsp;
+        </div>
+    }
+    <label class="col-lg-12 col-form-label-lg">Day Off Date<span class="text-danger">*</span>&nbsp;(@DATE_FORMAT)</label>
+    <div class="col-lg-4">
+        @Html.TextBox("dayoff_date", s_dayoff_date, new { @class = "form-control", maxlength = "10" })
+        <div class="col-lg-8"><button Type="button" id="btndate" name="btndate" class="button bg-sky">Date...</button></div>
+    </div>
+</div>
+
+@if (mode == "add" && ViewBag.apern == "true")
+{
+    <script>renderModalButtons("modal-button-list", "Save");</script>
+}
+else if (mode == "edit" && ViewBag.epern == "true" && Model.emp_status == "A")
+{
+    <script>renderModalButtons("modal-button-list", "Edit");</script>
+}
+else
+{
+    <script>renderModalCloseButton("modal-button-list")</script>
+}
+<script>
+
+    $(document).off("click", "#btnSave").on("click", "#btnSave", function () {
+        var btn = $(this);
+        if (btn.text() == "Edit") { $("#ModalID .modal-title").text("Update"); btn.text("Update"); $("#btnC").text("Cancel"); return; }
+        if (btn.text() === "Update" || btn.text() === "Save") {
+
+            if (checkInput('txt', 'dayoff_date', 'Dayoff Date is required.', 'modal-message') == false) { return false; }
+
+            submitSaveUpdate("/Employee/DayOff");
+        }
+    });
+    $(document).off('blur', '#dayoff_date').on('blur', '#dayoff_date', function () { convert_date(end_date, 'modal-message'); });
+    $(document).off('click', '#btndate').on('click', '#btndate', function () { show_calendar('frm.dayoff_date'); });
+
+</script>

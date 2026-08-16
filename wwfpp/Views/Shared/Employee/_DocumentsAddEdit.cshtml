@@ -1,0 +1,265 @@
+﻿@using wwfpp.Services
+@inject SettingsServices SettingsServices
+@model wwfpp.Models.Employee.EmployeeDocumentsClassicViewModel
+@{
+    string? mode = ViewBag.mode;
+    string empStatus = Model.emp_status == "A" ? "Active" : "Inactive";
+}
+<partial name="_ConstantValues" view-data='new ViewDataDictionary(ViewData) { { "NoteKey", "RequiredField" } }' />
+@Html.HiddenFor(m => m.id)
+
+<label class="col-lg-12 col-form-label-lg">Employee:<span class="text-danger">*</span> @ViewBag.Employee [@empStatus] @Html.HiddenFor(m => m.id)</label>
+<div class="col-lg-12">&nbsp;</div>
+<div class="form-group row p-1">
+    <label class="col-lg-12 col-form-label-sm">Note: The document should be in jpg, jpeg, gif, bmp, png or pdf format.</label>
+    <label class="col-lg-12 col-form-label-lg">Citizenship<span class="text-danger">*</span>&nbsp;</label>
+    <div class="col-lg-12">
+        @if (mode == "edit" && ViewBag.epern == "true" && Model.emp_status == "A")
+        {
+            @Html.TextBox("filecitizenship", "", new { type = "file", id = "filecitizenship", name = "file" })<br />
+            <button id="citizenshipUpdate" type="button" class="button btn-primary" style="height: 40px;">Save</button>
+        }
+    </div>
+
+    @if (mode == "edit" && !string.IsNullOrWhiteSpace(@Model.citizenship_copy))
+    {
+        <div id="citizenshipContainer">
+            <label class="col-lg-12 col-form-label-sm">
+                @Html.Raw(ViewBag.previewCitizenship)
+                <br>@ViewBag.fileSizeCitizen<br>
+                @if (ViewBag.dpern == "true" && Model.emp_status == "A")
+                {
+                    <button id="citizenshipDeleteLink" name="citizenshipDeleteLink" type="button" class="button bg-red" style="height: 40px;">Delete</button>
+                }
+            </label>
+        </div>
+    }
+    <hr />
+    <label class="col-lg-12 col-form-label-lg">Passport<span class="text-danger">*</span>&nbsp;</label>
+    <div class="col-lg-12">
+        @if (mode == "edit" && ViewBag.epern == "true" && Model.emp_status == "A")
+        {
+            @Html.TextBox("filepassport", "", new { type = "file", id = "filepassport", name = "file" })<br/>
+            <button id="passportUpdate" type="button" class="button btn-primary" style="height: 40px;">Save</button>
+        }
+    </div>
+
+    @if (mode == "edit" && !string.IsNullOrWhiteSpace(@Model.passport_copy))
+    {
+        <div id="passportContainer">
+            <label class="col-lg-12 col-form-label-sm">
+                @Html.Raw(ViewBag.previewPassport)
+                <br>@ViewBag.fileSizePassport<br>
+                @if (ViewBag.dpern == "true" && Model.emp_status == "A")
+                {
+                    <button id="passportDeleteLink" name="passportDeleteLink" type="button" class="button bg-red" style="height: 40px;">Delete</button>
+                }
+            </label>
+        </div>
+    }
+    <hr />
+    <label class="col-lg-12 col-form-label-lg">PAN<span class="text-danger">*</span>&nbsp;</label>
+    <div class="col-lg-12">
+        @if (mode == "edit" && ViewBag.epern == "true" && Model.emp_status == "A")
+        {
+            @Html.TextBox("filepan", "", new { type = "file", id = "filepan", name = "file" })<br />
+            <button id="panUpdate" type="button" class="button btn-primary" style="height: 40px;">Save</button>
+        }
+    </div>
+
+    @if (mode == "edit" && !string.IsNullOrWhiteSpace(@Model.pan_copy))
+    {
+        <div id="panContainer">
+            <label class="col-lg-12 col-form-label-sm">
+                @Html.Raw(ViewBag.previewPan)
+                <br>@ViewBag.fileSizePan<br>
+                @if (ViewBag.dpern == "true" && Model.emp_status == "A")
+                {
+                    <button id="panDeleteLink" name="panDeleteLink" type="button" class="button bg-red" style="height: 40px;">Delete</button>
+                }               
+            </label>
+        </div>
+    }
+    <hr />
+    <label class="col-lg-12 col-form-label-lg">NID<span class="text-danger">*</span>&nbsp;</label>
+    <div class="col-lg-12">
+        @if (mode == "edit" && ViewBag.epern == "true" && Model.emp_status == "A")
+        {
+            @Html.TextBox("filenid", "", new { type = "file", id = "filenid", name = "file" })<br />
+            <button id="nidUpdate" type="button" class="button btn-primary" style="height: 40px;">Save</button>
+        }
+    </div>
+
+    @if (mode == "edit" && !string.IsNullOrWhiteSpace(@Model.nin_copy))
+    {
+        <div id="ninContainer">
+            <label class="col-lg-12 col-form-label-sm">
+                @Html.Raw(ViewBag.previewNid)
+                <br>@ViewBag.fileSizeNid<br>
+                @if (ViewBag.dpern == "true" && Model.emp_status == "A")
+                {
+                    <button id="ninDeleteLink" name="ninDeleteLink" type="button" class="button bg-red" style="height: 40px;">Delete</button>
+                }
+            </label>
+        </div>
+    }
+</div>
+<script>
+    renderModalCloseButton("modal-button-list");
+    $(document).off("click", "#btnSave").on("click", "#btnSave", function() {
+        var btn = $(this);
+        if (btn.text().trim() === "Edit") { $("#ModalID .modal-title").text("Update"); btn.text("Update"); $("#btnC").text("Cancel"); return; }
+        if (btn.text().trim() === "Update" || btn.text().trim() === "Save") {
+
+            submitSaveUpdateUpload("/Employee/Documents");
+        }
+    });
+    function confirmDelete(delFile, delType) {
+        var emp_id = $('#id').val();
+        var delFileName = "";
+        if (confirm(msg_are_you_sure_to_perform_this_action)) {
+            // Check if vError is NULL or has error message
+            $.ajax({
+                url: "/Employee/DocumentsDelete",
+                type: 'POST',
+                headers: { "RequestVerificationToken": $('input[name="__RequestVerificationToken"]').val() },
+                data: { id: emp_id, delType: delType },
+                success: function(data) {
+                    if (data.status === "success") {
+                        $('#modal-message').removeClass().addClass('success').html(data.message).show();
+                        if (data.delType == "citizenship") {
+                            $('#tblData').DataTable().ajax.reload(null, false);
+                            $('#citizenshipContainer').hide();
+                        }
+                        if (data.delType == "passport") {
+                            $('#tblData').DataTable().ajax.reload(null, false);
+                            $('#passportContainer').hide();
+                        }
+                        if (data.delType == "pan") {
+                            $('#tblData').DataTable().ajax.reload(null, false);
+                            $('#panContainer').hide();
+                        }
+                        if (data.delType == "nin") {
+                            $('#tblData').DataTable().ajax.reload(null, false);
+                            $('#ninContainer').hide();
+                        }
+                    }
+                },
+                error: function(xhr) {
+                    $('#modal-message').removeClass().addClass('error').html('Something went wrong, please try again').show();
+                }
+            });
+        }
+    }
+
+    function UploadFile(file, fileType) {
+        var emp_id = $('#id').val();
+        var formData = new FormData();
+
+        formData.append("id", emp_id);
+        formData.append("file", file);
+        formData.append("fileType", fileType);
+
+        $.ajax({
+            url: "/Employee/DocumentsSave",
+            type: "POST",
+            headers: { "RequestVerificationToken": $('input[name="__RequestVerificationToken"]').val() },
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(data) {
+                if (data.status === "success") {
+                    $('#modal-message').removeClass().addClass('success').html(data.message + " Use Refresh to view the file").show();
+                    $('#tblData').DataTable().ajax.reload(null, false);
+                    if (data.fileType == "citizenship") {
+                        $('#citizenshipContainer').show();
+                    }
+                    if (data.fileType == "passport") {
+                        $('#passportContainer').show();
+                    }
+                    if (data.fileType == "pan") {
+                        $('#panContainer').show();
+                    }
+                    if (data.fileType == "nin") {
+                        $('#ninContainer').show();
+                    }
+                } else {
+                    $('#modal-message').removeClass().addClass('error').html(data.message).show();
+                }
+            },
+            error: function(xhr) {
+                console.log(xhr.responseText);
+                $('#modal-message').removeClass().addClass('error').html('Something went wrong, please try again').show();
+            }
+        });
+    }
+
+    $(function() {
+        $("#citizenshipDeleteLink").on("click", function(e) {
+            e.preventDefault();
+            confirmDelete('@Model.citizenship_copy', 'citizenship');
+        });
+        $("#citizenshipUpdate").on("click", function(e) {
+            e.preventDefault();
+            var fileInput = document.getElementById("filecitizenship");
+            var files = fileInput.files;
+            if (files.length > 0) {
+                var file = files[0];
+                UploadFile(file, "citizenship");
+            } else {
+                $('#modal-message').removeClass().addClass('error').html('Please select a file first.').show();
+            }
+        });
+    });
+    $(function() {
+        $("#passportDeleteLink").on("click", function(e) {
+            e.preventDefault();
+            confirmDelete('@Model.passport_copy', 'passport');
+        });
+        $("#passportUpdate").on("click", function(e) {
+            e.preventDefault();
+            var fileInput = document.getElementById("filepassport");
+            var files = fileInput.files;
+            if (files.length > 0) {
+                var file = files[0];
+                UploadFile(file, "passport");
+            } else {
+                $('#modal-message').removeClass().addClass('error').html('Please select a file first.').show();
+            }
+        });
+    });
+    $(function() {
+        $("#panDeleteLink").on("click", function(e) {
+            e.preventDefault(); // prevent navigation
+            confirmDelete('@Model.pan_copy', 'pan');
+        });
+        $("#panUpdate").on("click", function(e) {
+            e.preventDefault();
+            var fileInput = document.getElementById("filepan");
+            var files = fileInput.files;
+            if (files.length > 0) {
+                var file = files[0];
+                UploadFile(file, "pan");
+            } else {
+                $('#modal-message').removeClass().addClass('error').html('Please select a file first.').show();
+            }
+        });
+    });
+    $(function() {
+        $("#ninDeleteLink").on("click", function(e) {
+            e.preventDefault(); // prevent navigation
+            confirmDelete('@Model.nin_copy', 'nin');
+        });
+        $("#nidUpdate").on("click", function(e) {
+            e.preventDefault();
+            var fileInput = document.getElementById("filenid");
+            var files = fileInput.files;
+            if (files.length > 0) {
+                var file = files[0];
+                UploadFile(file, "nin");
+            } else {
+                $('#modal-message').removeClass().addClass('error').html('Please select a file first.').show();
+            }
+        });
+    });
+</script>

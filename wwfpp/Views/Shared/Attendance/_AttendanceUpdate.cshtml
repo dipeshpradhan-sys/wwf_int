@@ -1,0 +1,173 @@
+﻿@using Microsoft.AspNetCore.Http;
+@using wwfpp.Services;
+@inject SettingsServices SettingsServices;
+@inject AttendanceServices AttendanceServices;
+@inject IHttpContextAccessor HttpContextAccessor;
+@model List<wwfpp.Models.Attendance.DailyCheckInOutStaffUpdateViewModel>
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var PageTitle = "Attendance Update";
+    var Page_Tips = "";  //Tool tip message on right side
+    var msg_please_wait = "";
+    var Page_Mode = PageTitle;
+    ViewData["Title"] = "| " + PageTitle;
+    var Help_Tips = GblUtilities.HelpTips(Page_Tips);
+    string ShowMsg = GblUtilities.MsgDisplay(Context.Request.Query["msg"].ToString());/*success|fail|error'*/
+
+    string DATE_FORMAT = ViewBag.DATE_FORMAT;
+    string in_out_date = ViewBag.InOutDay.ToString();
+    string s_in_out_date = SettingsServices.DateformatToDt(in_out_date);
+}
+@Html.AntiForgeryToken()
+@Html.Hidden("ilaka", "/Attendance/AttendanceUpdate")
+<h2 class="titlebig"><span name="header" id="header">@Page_Mode</span> @Html.Raw(Help_Tips)</h2>
+@Html.Hidden("mode", "")
+@Html.Hidden("Id", "")
+
+<div id="message_header"><p id="loading" class="loading displaynone">@msg_please_wait</p></div>
+
+<div class="row">
+    <div class="col-lg-3"><label class="col-lg-12 col-form-label-lg">Employee Status : &nbsp;</label></div>
+    <div class="col-lg-9">
+        @Html.DropDownList("EmployeeStatusFilter", (SelectList)ViewBag.EmployeeStatusFilter, new { @class = "form-select", style = "width:300px;" })
+    </div>
+</div>
+<div class="row">
+    <div class="col-lg-3"><label class="col-lg-12 col-form-label-lg">Employee Type: &nbsp;</label></div>
+    <div class="col-lg-9">
+        @Html.DropDownList("EmployeeTypeFilter", (SelectList)ViewBag.EmployeeTypeFilter, "-- Select --", new { @class = "form-select", style = "width:300px;" })
+    </div>
+</div>
+<div class="row">
+    <div class="col-lg-3"><label class="col-lg-12 col-form-label-lg">Duty Station: &nbsp;</label></div>
+    <div class="col-lg-9">
+        @Html.DropDownList("DutyStationFilter", (SelectList)ViewBag.DutyStationFilter, new { @class = "form-select", style = "width:300px;" })
+    </div>
+</div>
+<div class="row">
+    <div class="col-lg-3"><label class="col-lg-12 col-form-label-lg">Date: &nbsp;</label></div>
+    <div class="col-lg-9">
+        <div class="row col-lg-12">
+            <div class="col-lg-4">@Html.TextBox("in_out_date", s_in_out_date, new { @class = "form-control", maxlength = "10", style = "width:200px;", @Readonly = "readonly" })&nbsp;</br>@DATE_FORMAT</div>
+            <div class="col-lg-8">
+                <Button type="Button" name="btnDate" id="btnDate" class="button bg-sky">Date...</Button>
+                <Button type="Button" name="btnShow" id="btnShow" class="button bg-sky">Show</Button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (Model == null)
+{
+    <div id="message_header"><p class="note">No record(s) found.</p></div>
+}
+else
+{
+    <div class="form-group p-2">
+        <table id="tblData" class="display compact nowrap" style="width:100%">
+            <thead>
+                <tr style="height: 50px; align-items: center;color:white;" class="bg-secondary bg-opacity-27">
+                    <th width="1%"><input type="checkbox" id="selectAll"></th>
+                    <th width="24%">Employee</th>
+                    <th width="10%">First Check In</th>
+                    <th width="10%">Last Check Out</th>
+                    <th width="15%">Remarks</th>
+                    <th width="25%">Narration</th>
+                    <th width="10%">Status</th>
+                    <th width="5%">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
+    </div>
+    @if (@Model.Count > 0 && @ViewBag.epern == "true")
+    {
+        <div id="message_header"><p class="note">Bulk Update of Attendance.</p></div>
+        <div class="row">
+            <div class="col-lg-3"><label class="col-lg-12 col-form-label-sm">Remarks: &nbsp;<span class="text-danger">*</span></label></div>
+            <div class="col-lg-9">
+                @Html.DropDownList("remarksB", (SelectList)ViewBag.RemarksList, "-- Select --", new { @class = "form-select", style = "width:300px;" })
+            </div>
+        </div>
+        <br>
+        <div class="row">
+            <div class="col-lg-3"><label class="col-lg-12 col-form-label-sm">Narration: &nbsp;<span class="text-danger">*</span></label></div>
+            <div class="col-lg-9">
+                @Html.DropDownList("cmbNarrationB", (SelectList)ViewBag.NarrationList, "-- Select --", new { @class = "form-select", style = "width:300px;" })
+                @Html.TextBox("narrationB", "", new { @class = "form-control", maxlength = "50" })
+            </div>
+        </div>
+        <br>
+        <div class="row">
+            <div class="col-lg-3"><label class="col-lg-12 col-form-label-sm">Reason(s) of change: &nbsp;<span class="text-danger">*</span></label></div>
+            <div class="col-lg-9">
+                @Html.TextArea("reasonB", new { @class = "form-control", rows = "2", cols = "50", maxlength = "50" })
+            </div>
+        </div>
+        <br>
+        <div class="row">
+            <div class="col-lg-3"><label class="col-lg-12 col-form-label-sm">&nbsp;</label></div>
+            <div class="col-lg-9">
+                <button type="button" name="btnSaveB" id="btnSaveB" class="button btn-primary">Save</button>
+                <button type="reset" name="btnReset" id="btnReset" class="button btn-secondary">Reset</button>
+            </div>
+        </div>
+    }
+    <div id="message_header">@Html.Raw(ShowMsg)</div>
+    @await Html.PartialAsync("_SharedModal", new wwfpp.Models.ModalViewModel { ModalId = "ModalID", DialogClass = "modal-lg", BodyId = "ModalBody" })
+    @section scripts
+    {
+        <script>
+            var ilaka = document.getElementById('ilaka').value;
+            var selectedIds = new Set();
+            var table;
+            $(document).ready(function() {
+                GetAllData(ilaka, "main_id", [
+                    { data: "employee", name: "employee", autoWidth: false },
+                    { data: "check_in", name: "check_in", autoWidth: false },
+                    { data: "check_out", name: "check_out", autoWidth: false },
+                    { data: "remarks", name: "remarks", autoWidth: false },
+                    { data: "narration", name: "narration", autoWidth: false },
+                    { data: "status", name: "status", autoWidth: false }
+                ],
+                    {
+                        FilterValue1: "EmployeeStatusFilter",
+                        FilterValue2: "EmployeeTypeFilter",
+                        FilterValue3: "DutyStationFilter",
+                        FilterValue4: "in_out_date"
+                    });
+            });
+            $(document).off('blur', '#in_out_date').on('blur', '#in_out_date', function() { convert_date(in_out_date, 'message'); });
+            $(document).off('change', '#in_out_date').on('change', '#in_out_date', function() { if (table) { table.draw(); } });
+            $(document).off('click', '#btnDate').on('click', '#btnDate', function () { show_calendar('frm.in_out_date'); });
+            $(document).off('click', '#btnShow').on('click', '#btnShow', function () { if (table) { table.draw(); }});
+            $(document).on("click", "#tblData .button", function () { ViewData($(this).data("id")); });
+            
+            $(document).off("click", "#btnSaveB").on("click", "#btnSaveB", function () 
+            {
+                if (checkInput('cmb', 'remarksB', 'Remarks is required.', 'message') == false) { return false; }
+                if (checkInput('txt', 'narrationB', 'Narration is required.', 'message') == false) { return false; }
+                if (checkInput('txt', 'reasonB', 'Reason is required.', 'message') == false) { return false; }
+                $("#mode").val("update"); updateDataJSON(ilaka + "BulkSave");
+            });
+            function collectExtraFields() {
+                var extraSettings = [];
+                $("#tblData tbody tr").each(function () {
+                    var row = $(this);
+                    var id = row.find("input.row-checkbox:checked").val();
+                    if (selectedIds.has(id)) {
+                        extraSettings.push({
+                            Field1: $("#remarksB").val() || "", 
+                            Field2: $("#narrationB").val() || "", 
+                            Field3: $("#reasonB").val() || ""
+                        });
+                    }
+                });
+                return extraSettings;
+            }
+            $(document).off('change', '#cmbNarrationB').on('change', '#cmbNarrationB', function () { $("#narrationB").val(this.value); });
+            $(document).off('click', '#btnC').on('click', '#btnC', function() { modalCloseCancel($(this)); });
+        </script>
+    }
+}

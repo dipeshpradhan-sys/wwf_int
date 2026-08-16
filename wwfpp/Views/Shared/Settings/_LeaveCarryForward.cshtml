@@ -1,0 +1,103 @@
+﻿@using Microsoft.AspNetCore.Http;
+@inject IHttpContextAccessor HttpContextAccessor;
+@model wwfpp.Models.Settings.LeaveCarryForwardViewModel
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var PageTitle = "Leave Carry Forward";
+    var Page_Tips = "1. Leave Carry Forward to new Fiscal Year of Active Employees<br>2. Transfer of Leave booking for upcoming fiscal year to main table from booking table";  //Tool tip message on right side
+    var msg_please_wait = "";
+    var Page_Mode = PageTitle; 
+    var Pern = ViewBag.vpern;
+    ViewData["Title"] = "| " + PageTitle;
+    var Help_Tips = GblUtilities.HelpTips(Page_Tips);    
+    string ShowMsg = GblUtilities.MsgDisplay(Context.Request.Query["msg"].ToString());/*success|fail|error'*/
+    var isButton = "Y";
+}
+@Html.AntiForgeryToken()
+@Html.Hidden("ilaka", "/Settings/LeaveCarryForward")
+<h2 class="titlebig"><span name="header" id="header">@Page_Mode</span> @Html.Raw(Help_Tips)</h2>
+@Html.HiddenFor(m => m.Mode)
+@Html.HiddenFor(m => m.FyFrom)
+@Html.HiddenFor(m => m.FyTo)
+@Html.HiddenFor(m => m.IsCarryForwarded)
+<div id="message_header"><p id="loading" class="loading displaynone">@msg_please_wait</p></div>
+<div id="message_header">@Html.Raw(ShowMsg)</div>
+
+<div id="message_header"><p class="note">Note: Bofore Carry Forward of leaves, define holidays for running year. If there are any Future Leave(s) approved, the holiday(s) hours will be deducted on transferring leaves to carry forwared year.</p></div>
+
+<div class="form-group p-2">
+    <table id="tblExtra" class="display compact nowrap" style="width:100%">
+        <thead>
+            <tr style="height: 50px; align-items: center;color:white;" class="bg-secondary bg-opacity-27">
+                <th width="50%">&nbsp;Description</th>
+                <th width="50%">Fiscal Year</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr style="height: 50px; align-items: center;color:black;" class="bg-white bg-opacity-27">
+                <th>&nbsp;Running Fiscal Year</th>
+                <th>@Model.FyCurAbbr</th>
+            </tr>
+            <tr style="height: 50px; align-items: center;color:black;" class="bg-window bg-opacity-27">
+                <th>&nbsp;Carry Forward From</th>
+                <th>@Model.FyFromAbbr</th>
+            </tr>
+            <tr style="height: 50px; align-items: center;color:black;" class="bg-white bg-opacity-27">
+                <th>&nbsp;Carry Forward To</th>
+                <th>@Model.FyToAbbr</th>
+            </tr>
+            <tr style="height: 50px; align-items: center;color:black;" class="bg-window bg-opacity-27">
+                <th></th>
+                <th>@Html.Raw(ViewBag.ViewButtons)</th>
+            </tr>
+        </tbody>
+    </table>
+</div>
+@if (Model.IsAnyPendingLeave)
+{
+    isButton = "N";
+    <div id="message_header"><p class="error">Leave balances cannot be carry forwarded due to some pending leave application(s) in leave request section.</p></div>
+}
+@if (Model.IsCarryForwarded)
+{
+    isButton = "N";
+    <div id="message_header"><p class="notify">Leave has already been carried forward into the current fiscal year.</p></div>
+}
+@if (isButton == "Y")
+{ 
+    @section scripts
+    {
+        <script>
+            var ilaka = document.getElementById('ilaka').value;
+            $(document).off("click", "#btnSave").on("click", "#btnSave", function () {
+                SaveCarryFor(ilaka);
+            });
+
+            function SaveCarryFor(ilaka) 
+            {
+	            if (confirm(msg_are_you_sure_to_perform_this_action) == false) { return false; }
+	
+	            var formData = $("#frm").serialize();
+	            $("#btnSave").prop("disabled", true);
+	
+	            $.post(ilaka + "Save", formData).done(function (data) 
+	            {
+		            if (data.status === "success") 
+		            {
+			            showSuccess(data.message);
+			            $("#btnSave").hide(); 
+		            }
+		            else 
+		            {
+			            showError(data.message);
+			            $("#btnSave").prop("disabled", false);
+		            }
+	            })
+		            .fail(function (xhr) {
+			            showError(xhr.responseText);
+			            $("#btnSave").prop("disabled", false);
+		            });
+            }
+        </script>
+    }
+}

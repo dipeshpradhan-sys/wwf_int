@@ -1,0 +1,199 @@
+﻿@using Microsoft.AspNetCore.Http;
+@inject IHttpContextAccessor HttpContextAccessor;
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var PageTitle = "PF";
+    var Page_Tips = "";  //Tool tip message on right side
+    var msg_please_wait = "";
+    var Page_Mode = PageTitle;
+    ViewData["Title"] = "| " + PageTitle;
+    var Help_Tips = GblUtilities.HelpTips(Page_Tips);
+    /*success|fail|error'*/
+    string ShowMsg = GblUtilities.MsgDisplay(Context.Request.Query["msg"].ToString());
+}
+@Html.AntiForgeryToken()
+<h2 class="titlebig"><span name="header" id="header">@Page_Mode</span> @Html.Raw(Help_Tips)</h2>
+@Html.Hidden("mode", "")
+@Html.Hidden("Id", "")
+
+<div id="message_header"><p id="loading" class="loading displaynone">@msg_please_wait</p></div>
+
+<div class="row">
+    <div class="col-lg-2"><label class="col-lg-12 col-form-label-lg">Employee Status : &nbsp;</label></div>
+    <div class="col-lg-10">
+        @Html.DropDownList("EmployeeStatusFilter", (SelectList)ViewBag.EmployeeStatusFilter, new { @class = "form-select", style = "width:300px;" })
+    </div>
+</div>
+
+<div class="form-group p-2">
+    <table id="tblData" class="display compact nowrap" style="width:100%">
+        <thead>
+            <tr style="background-color:silver; height:40px;">
+                <th class="text-center" style="width:1%;"><input type="checkbox" id="selectAll"></th>
+                <th width="1%">S.N.</th>
+                <th width="15%">Employee</th>
+                <th width="10%">Salary</th>
+                <th width="15%">PF Number</th>
+                <th width="20%">PF Group</th>
+                <th width="20%">Type</th>
+                <th width="10%">Addition</th>
+                <th width="10%">Deduction</th>
+            </tr>
+        </thead>
+        <tbody>
+
+        </tbody>
+    </table>
+</div>
+
+<div id="message_header">@Html.Raw(ShowMsg)</div>
+
+@if (ViewBag.epern == "true")
+{
+    <div class="form-group row p-1">
+        <label class="col-sm-4 col-form-label">&nbsp;</label>
+        <div class="col-sm-8">
+            <button type="reset" name="btnReset" id="btnReset" class="button btn-secondary">Reset</button>
+            <button type="button" name="btnCalculate" id="btnCalculate" class="button bg-blue">Calculate All</button>
+            <button type="button" name="btnSave" id="btnSave" class="button btn-primary">Save</button>
+        </div>
+    </div>
+}
+<div id="pfgTemplate" style="display:none;">@Html.DropDownList("pf_group", (SelectList)ViewBag.PFGroupList, "--Select--", new { @class = "form-control", style = "width:200px;" })</div>
+<div id="pftTemplate" style="display:none;">@Html.DropDownList("pf_type", (SelectList)ViewBag.PFTypeList, "--Select--", new { @class = "form-control", style = "width:200px;" })</div>
+@section scripts
+{
+    <script>
+        var ilaka = "/Payroll/PF";
+        var selectedIds = new Set();
+        var hideviewaction = "yes";
+        var table;
+        $(document).ready(function () {
+            GetAllData(ilaka, "emp_id", [
+                {
+                    data: null,
+                    name: "serial",
+                    autoWidth: false,
+                    render: function (data, type, row, meta) {
+                        return meta.row + 1; // serial number starting from 1
+                    }
+                },
+                { data: "employee", name: "employee", autoWidth: false, render: function (data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "salary", name: "salary", autoWidth: false, render: function (data, type, row, meta) { return '<span id="salary' + meta.row + '" name="salary' + meta.row + '" style="white-space:normal;">' + data + '</span>'; } },
+                { data: "pf_no", name: "pf_no", autoWidth: false, render: function (data, type, row, meta) { return '<input type="text" name="pf_no' + meta.row + '" id="pf_no' + meta.row + '" value="' + data + '" class="form-control pf_no-input" style = "width:120px;", maxlength = "10"><input type="hidden" name="h_pf_no' + meta.row + '" id="h_pf_no' + meta.row + '" value="' + data + '">'; } },
+                {
+                    data: "pf_group",
+                    name: "pf_group",
+                    autoWidth: false,
+                    render: function (data, type, row, meta) {
+                        var ctrlName = "pf_group" + meta.row;
+                        var $select = $("#pfgTemplate select").clone();
+                        $select.attr("id", ctrlName)
+                            .attr("name", ctrlName)
+                            .addClass("pf_group")                 // add class
+                            .attr("data-serial", meta.row)        // add serial
+                            .attr("style", "width:150px;");
+
+                        var val = data != null ? data.toString().trim() : "";
+                        $select.find("option:selected").prop("selected", false);
+                        $select.find("option").each(function () {
+                            if ($(this).val() === val) {
+                                $(this).attr("selected", "selected");
+                            }
+                        });
+                        return $select.prop("outerHTML");
+                    }
+                },
+                {
+                    data: "pf_type",
+                    name: "pf_type",
+                    autoWidth: false,
+                    render: function (data, type, row, meta) {
+                        var ctrlName = "pf_type" + meta.row;
+                        var $select = $("#pftTemplate select").clone();
+                        $select.attr("id", ctrlName)
+                            .attr("name", ctrlName)
+                            .addClass("pf_type")                  // add class
+                            .attr("data-serial", meta.row)        // add serial
+                            .attr("style", "width:150px;");
+
+                        var val = data != null ? data.toString().trim() : "";
+                        $select.find("option:selected").prop("selected", false);
+                        $select.find("option").each(function () {
+                            if ($(this).val() === val) {
+                                $(this).attr("selected", "selected");
+                            }
+                        });
+                        return $select.prop("outerHTML");
+                    }
+                },
+                { data: "add_percent_amount", name: "add_percent_amount", autoWidth: false, render: function (data, type, row, meta) { return '<input type="text" name="add_percent_amount' + meta.row + '" id="add_percent_amount' + meta.row + '" value="' + data + '" class="form-control add_amount-input" style = "width:120px;", maxlength = "10">'; } },
+                { data: "ded_percent_amount", name: "ded_percent_amount", autoWidth: false, render: function (data, type, row, meta) { return '<input type="text" name="ded_percent_amount' + meta.row + '" id="ded_percent_amount' + meta.row + '" value="' + data + '" class="form-control ded_amount-input" style = "width:120px;", maxlength = "10">'; } },
+            ],
+                {
+                    FilterValue: "EmployeeStatusFilter"
+                });
+            $(document).one('init.dt', '#tblData', function () { table.page.len(-1).draw(); })/** Wait for first draw to complete before changing page length*/
+            $('#tblData_filter').hide();
+            $('#tblData_length').hide();
+        });
+
+        function collectExtraFields() {
+            var extraSettings = [];
+            $("#tblData tbody tr").each(function () {
+                var row = $(this);
+                var id = row.find("input.row-checkbox:checked").val();
+                if (selectedIds.has(id)) {
+                    extraSettings.push({
+                        emp_pf_id: 0,
+                        emp_id: parseInt(id, 10),
+                        pf_no: row.find("input[name^='pf_no']").val() || "",
+                        h_pf_no: row.find("input[name^='h_pf_no']").val() || "",
+                        pf_group: row.find("select[name^='pf_group']").val() || "",
+                        pf_type: row.find("select[name^='pf_type']").val() || "",
+                        add_percent_amount: parseFloat(row.find("input[name^='add_percent_amount']").val()) || 0,
+                        ded_percent_amount: parseFloat(row.find("input[name^='ded_percent_amount']").val()) || 0
+                    });
+                }
+            });
+            return extraSettings;
+        }
+        $(document).on('blur', '.add_amount-input', function () { OnlyNumericCtrl(this); });
+        $(document).on('blur', '.ded_amount-input', function () { OnlyNumericCtrl(this); });
+        $(document).on('change', '.pf_group', function () { var serial = $(this).data("serial"); change_pf_add_ded_amount(serial); });
+        $(document).on('change', '.pf_type', function () { var serial = $(this).data("serial"); change_pf_add_ded_amount(serial); });
+        $(document).off("click", "#btnCalculate").on("click", "#btnCalculate", function () { calculateAllPF(); });
+
+        $(document).off("click", "#btnSave").on("click", "#btnSave", function () { $("#mode").val("update"); updateDataJSON(ilaka + "Save"); });
+        $("#EmployeeStatusFilter").off("change").on("change", function () { const statusV = $(this).val(); if (!statusV) { return; } const $myButton = $("#btnSave"); if ($myButton.length) { if (statusV === "A") { $myButton.show(); $('#tblData_length').hide(); table.page.len(-1).draw(); } else { $myButton.hide(); $('#tblData_length').show(); table.page.len(10).draw(); } } table.draw(); });
+        function calculateAllPF() {
+            $("#tblData tbody tr").each(function (index) {
+                var $row = $(this);
+                var rowData = table.row($row).data();
+                if (!rowData) { return; }
+
+                var serial = index;                                // read salary from rowData (already in JSON payload)
+                change_pf_add_ded_amount(serial);
+            });
+        }
+
+        function change_pf_add_ded_amount(serial) {
+            var pfGroup = $("select[name='pf_group" + serial + "']").val();
+            var pfType = $("select[name='pf_type" + serial + "']").val();
+            var salary = parseFloat($("#salary" + serial).text()) || 0;
+            var dblAdd = 0, dblDed = 0;
+
+            if (pfGroup === "A" && pfType === "B") {
+                // 10% add and 20% ded
+                dblAdd = (salary * 10) / 100;
+                dblDed = 2 * (salary * 10) / 100;
+            } else if (pfGroup === "B" && pfType === "B") {
+                // 20% ded only
+                dblDed = 2 * (salary * 10) / 100;
+            }
+
+            $("input[name='add_percent_amount" + serial + "']").val(dblAdd.toFixed(2));
+            $("input[name='ded_percent_amount" + serial + "']").val(dblDed.toFixed(2));
+        }
+    </script>
+}

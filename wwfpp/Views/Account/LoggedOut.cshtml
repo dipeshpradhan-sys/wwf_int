@@ -1,0 +1,35 @@
+﻿@using Microsoft.AspNetCore.Http;
+@model LoggedOutViewModel;
+@{
+    Layout = "~/Views/Shared/_LayoutLogin.cshtml";
+    ViewData["Title"] = "| Logout";
+    
+    var msg = Context.Request.Query["msg"].ToString();
+    var flag = "true"; 
+    var IncCtrl = $"/account/login/?msg={msg}&flag={flag}"; 
+}
+<form name="frm" id="frm" method="post" action="@IncCtrl">
+    @Html.AntiForgeryToken()
+    <div id="wrapper" >
+        <div id="main-login" >
+            <div id="center">
+                <div id="message_header-1"><p id="loading" class="loading">Please wait you are loging out...</p></div>
+                <div id="message_header">&nbsp;<input type="hidden" name="isFromLoggedOut" id="isFromLoggedOut" value="y3s!amfr9mlog66ed0ut"></></div>
+                <div id="message_header-2"><p id="note" class="note">Logout successful. Please proceed to the login page by clicking the Login button below if you are not redirected automatically.</p></div>
+
+                <div id="login-box-1"><img src=@Url.Content("~/images/logo-big.gif") width="197" height="203" alt="" title="" /></div>
+                <div id="login-box-3">
+                    <h2>Logout ...</h2>
+                    <h4>
+                        <button type="button" class="login-button" name="btnLogout" id="btnLogout">Logout</button>
+                    </h4>
+                </div>
+
+            </div><!-- center -->
+        </div><!-- main-login -->
+    </div><!-- wrapper -->
+
+</form>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {document.getElementById("frm").submit();document.getElementById("btnLogout").addEventListener("click", function (e) {e.preventDefault();document.getElementById("frm").submit();});});
+</script>

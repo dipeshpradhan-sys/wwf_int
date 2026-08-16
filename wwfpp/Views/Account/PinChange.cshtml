@@ -1,0 +1,156 @@
+﻿@using Microsoft.AspNetCore.Http;
+@inject IHttpContextAccessor HttpContextAccessor;
+@model PinChangeViewModel;
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+
+    var PageTitle = "Change Pin";
+    var Page_Tips = "";  //Tool tip message on right side
+    var msg_please_wait = "";
+    var Btn_Val = "Save";   //if Add new  [Save] or [Submit]=if also email send | Update
+
+    var Page_Mode = PageTitle + "[ Add New ]"; // will switch on 
+    var Mode 	 = "add";   //to know if page is add new or edit and posted from hidden from here
+    var Btn_Edit = " Edit ";// on view page initial will [Edit] after clicking it will hide 
+    var Div_view = "block";
+    var Div_edit = "displaynone";
+    var Pern = ViewBag.apern;
+
+    ViewData["Title"] = "| " + PageTitle;
+    var Help_Tips = GblUtilities.HelpTips(Page_Tips);    
+    string ShowMsg = GblUtilities.MsgDisplay(Context.Request.Query["msg"].ToString());/*success|fail|error'*/
+
+    var Id = ViewBag.Id;
+
+    var UserName = "";
+
+    if ( !string.IsNullOrWhiteSpace(Id.ToString()) )
+    {
+        Page_Mode = PageTitle + "[ View ]";
+        Mode      = "edit";
+        Btn_Val = "Update";		
+        Pern 	 = ViewBag.epern;
+
+        UserName = Context.Session.GetString("username");
+    }
+    var Will_Able_Change_Pin = ViewBag.Will_Able_Change_Pin;
+    var Show_Message = @"<div class=""error"">You are not allowed to change PIN due to your login type option.</div>";
+}
+@Html.AntiForgeryToken()
+<h2 class="titlebig"><span name="header" id="header">@Page_Mode</span> @Html.Raw(Help_Tips)</h2>
+
+<partial name="_ConstantValues" view-data='new ViewDataDictionary(ViewData) { { "NoteKey", "RequiredField" } }' />
+@Html.Hidden("mode", @Mode)
+@Html.Hidden("username", @UserName)
+<input type="hidden" id="Id" name="Id" value="@Id" />
+
+<div id="message_header"><p id="loading" class="loading displaynone">@msg_please_wait</p></div>
+<div id="message_header">@Html.Raw(ShowMsg)</div>
+
+<div id="message_header"><p id="note-pwd-2" class="note-pwd">@Lang.Pincode_policy</p></div>
+<br/>
+
+<div id="div_view" class="@Div_view">
+    <div class="f-left w-100" >
+        <table width="100%" border="0" cellspacing="1" cellpadding="0" bgcolor="#b1b1b1">
+            <tr>
+                <td bgcolor="#ffffff" align="center" class="normal">
+                    <table width="100%"  border="0" cellpadding="4" cellspacing="2" class="normal_text">
+                        <tr bgcolor="#eeeeee" >
+                            <td class="title left w-20">User Name:<font color="red">*</font></td>
+                            <td class="normal left w-80">@UserName&nbsp;</td>
+                        </tr>
+                    </table>
+                </td>
+                </tr>
+        </table>   
+    </div>
+                
+    <div id="button-box">
+        <div id="button-box-right">
+            <h5>
+                @if (string.Equals(Pern, "true", StringComparison.OrdinalIgnoreCase) && string.Equals(Will_Able_Change_Pin, "Y", StringComparison.OrdinalIgnoreCase))
+                {
+                    <button type="button" class="button bg-ygreen" name="btnOpenEdit" id="btnOpenEdit" data-update="@($"{PageTitle} [ Update ]")">@Btn_Edit</button>
+                } else
+                {
+                                    
+                        @Html.Raw(Show_Message);
+                }
+                &nbsp;
+            </h5>
+        </div>
+    </div>
+</div> <!--end div id="div-view"-->
+@if (Pern == "true" && Will_Able_Change_Pin == "Y")
+{
+<div id = "div_edit"  class="@Div_edit">
+
+    <div class="f-left w-100">
+        <table width="100%" border="0" cellspacing="1" cellpadding="0" bgcolor="#b1b1b1">
+            <tr>
+                <td bgcolor="#ffffff" align="center" class="normal">
+                    <table width="100%" border="0" cellpadding="4" cellspacing="2" class="normal_text">
+                        <tr bgcolor="#eeeeee">
+                            <td class="title left w-20">User Name:<font color=red>*</font></td>
+                            <td class="normal left w-80">
+                                    @UserName &nbsp;
+                            </td>
+                        </tr>
+                        <tr bgcolor="#EEEEEE">
+                            <td class="title left">Password:<font color=red>*</font></td>
+                            <td class="normal left">
+                                    @Html.Password("pwd", null, new { @class = "textbox", maxlength = "20", style = "width:100px;" })
+                            </td>
+                        </tr>
+                        <tr bgcolor="#EEEEEE">
+                            <td class="title left">New Pin:<font color=red>*</font></td>
+                            <td class="normal left">
+                                    @Html.Password("npin", null, new { @class = "textbox", maxlength = "6", style = "width:100px;" })
+                            </td>
+                        </tr>
+                        <tr bgcolor="#EEEEEE">
+                            <td class="title left">Confirm Pin:<font color=red>*</font></td>
+                            <td class="normal left">
+                                    @Html.Password("cpin", null, new { @class = "textbox", maxlength = "6", style = "width:100px;" })
+                            </td>
+                        </tr>
+                        <tr bgcolor="#EEEEEE">
+                            <td class="title left" height="25">Pin Strength:</td>
+                            <td class="normal left">
+                                <span id="pin_strength_color">&nbsp;</span>&nbsp;<span id="pin_strength_text"></span>
+                            </td>
+                        </tr>
+
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <div id="button-box">
+        <div id="button-box-right">
+            <h5>
+                    <button type="button" class="button bg-dgray" name="btnPinChange" id="btnPinChange">@Btn_Val</button>&nbsp;
+                    <button type="button" class="button bg-dgray" name="btnReset" id="btnReset">Reset</button>&nbsp;
+                    <button type="button" class="button bg-dgray" name="btnCancelEdit" id="btnCancelEdit" data-view="@($"{PageTitle} [ View ]")">Cancel</button>&nbsp;
+            </h5>
+        </div>
+    </div>    
+                
+                
+</div><!--end div id="div-edit"-->	
+}
+
+@if (Pern == "true" && Will_Able_Change_Pin == "Y")
+{
+    <script>
+        var postbacktitle = "@PageTitle [ Update ]";
+        var postforwardurl = '@Url.Action("PinChange", "Account")';
+        document.addEventListener("DOMContentLoaded", function () {const npin = document.getElementById("npin");if (npin) {npin.addEventListener("keyup", function (e) {e.preventDefault();CheckPinStrength(e.target.value);});}});
+    </script>
+    @section Scripts {
+        @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+        <script src=@Url.Content("~/js/Account/pinchange-qxlcwalrj.js") defer></script>
+    } 
+}

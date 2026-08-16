@@ -1,0 +1,69 @@
+﻿@model wwfpp.Models.Settings.CalendarSettingViewModel
+@{
+    string mode = ViewBag.mode;
+}
+<!-- (A) HTML DIALOG BOX -->
+<partial name="_ConstantValues" view-data='new ViewDataDictionary(ViewData) { { "NoteKey", "RequiredField" } }' />
+@Html.HiddenFor(m => m.cal_id) <!-- Needed for Edit -->
+
+<div class="row">
+    <div class="col-lg-3 col-form-label-sm">Year<span class="text-danger">*</span></div>
+    <div class="col-lg-9">@Html.DropDownListFor(m => m.cal_year, (SelectList)ViewBag.CalYears, "-- Select --", new { @class = "form-select" })</div>
+</div>
+<div class="row">
+    <div class="col-lg-3 col-form-label-sm">Month<span class="text-danger">*</span></div>
+    <div class="col-lg-9">@Html.DropDownListFor(m => m.cal_month, (SelectList)ViewBag.CalMonth, "-- Select --", new { @class = "form-select" })</div>
+</div>
+<div class="row">
+    <div class="col-lg-12 col-form-label-sm">Days</div>
+</div>
+<div class="row" id="daysList">
+    @for (int i = 1; i <= 31; i++)
+    {
+        <div class="col-auto">
+            @Html.TextBox("d" + i, null, new
+            {
+                @class = "form-control",
+                maxlength = "2",
+                size = "2",
+                @readonly = "readonly"
+            })
+        </div>
+    }
+</div>
+<div class="row">
+    <div class="col-lg-12 col-form-label-sm sky">W = Weekend    H = National Holiday</div>
+</div>
+
+@if (mode == "add" && ViewBag.apern == "true")
+{
+    <script>renderModalButtons("modal-button-list", "Save");</script>
+}
+else if (mode == "edit" && ViewBag.epern == "true")
+{
+    <script>renderModalButtons("modal-button-list", "Edit");</script>
+}
+else
+{
+    <script>renderModalCloseButton("modal-button-list")</script>
+}
+    <script>
+    // Toggle between Edit and Update
+    $(document).off("click", "#btnSave").on("click", "#btnSave", function () {
+        var btn = $(this);
+        if (btn.text() == "Edit") {$("#ModalID .modal-title").text("Update");btn.text("Update");$("#btnC").text("Cancel");return;}  
+        if (btn.text() === "Update" || btn.text() === "Save") {
+
+            if ( checkInput( 'cmb', 'cal_year', 'Year is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'cmb', 'cal_month', 'Month is required.', 'modal-message') == false ) {return false;}
+            submitSaveUpdate('@Url.Content("~/Settings/CalendarSetting")');
+        }
+    });
+    function loadData() {
+        var cal_year = $("#cal_year").val();
+        var cal_month = $("#cal_month").val();
+        $.get('@Url.Content("~/Settings/CalendarSettingDays")', { cal_year: cal_year, cal_month: cal_month }).done(function (data) {document.getElementById("daysList").innerHTML = DOMPurify.sanitize(data);});
+    }
+    $("#cal_year").off("change").on("change", function () {loadData();});
+    $("#cal_month").off("change").on("change", function () {loadData();});
+    </script>

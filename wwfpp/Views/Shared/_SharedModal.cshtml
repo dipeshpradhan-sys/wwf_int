@@ -1,0 +1,20 @@
+﻿@model wwfpp.Models.ModalViewModel
+<div class="modal fade" id="@Model.ModalId" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog @Model.DialogClass @Model.CustomClass">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">@Model.Title</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="@Model.BodyId">
+                <!-- Content injected dynamically -->
+            </div>
+
+            <div class="modal-footer" id="globalModalFooter">
+                <div id="modal-message" style="display:none;" class="success">&nbsp;</div>
+                <div id="modal-button-list">&nbsp;</div><!-- buttons injected dynamically -->
+            </div>
+
+        </div>
+    </div>
+</div>

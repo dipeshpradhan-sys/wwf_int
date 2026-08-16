@@ -1,0 +1,58 @@
+﻿@using wwfpp.Services
+@inject SettingsServices SettingsServices
+@inject GlobalOptionServices globalOptionServices
+@model List<wwfpp.Models.Employee.EmployeeDependentChildrenDetailsSubViewModel>
+@{
+    string? mode = ViewBag.mode;
+    string? DATE_FORMAT = ViewBag.DATE_FORMAT;
+}
+@Html.Hidden("ilaka", "/Employee/DependentDetailReceipt")
+@if (Model == null)
+{
+    <div id="message_header"><p class="note">No record(s) found.</p></div>
+}
+else
+{
+    <div class="form-group p-2">
+        <table id="tblDataExtra" class="display compact nowrap" style="width:100%">
+            <thead>
+                <tr style="height: 40px; align-items: center;color:gray;" class="bg-palewhite bg-opacity-27">
+                    <th width="100%">Employee <u>@ViewBag.EmployeeName</u>[@ViewBag.emp_status]</th>
+                </tr>
+                <tr style="height: 40px; align-items: center;color:gray;" class="bg-lsky bg-opacity-27">
+                    <th width="100%">Receipt of <u>@ViewBag.DependentName [@ViewBag.DepStatus]</u></th>
+                </tr>
+            </thead>
+        </table>
+
+        <table id="tblData1" class="display compact nowrap" style="width:100%">
+            <thead>
+                <tr style="height: 40px; align-items: center;color:white;" class="bg-secondary bg-opacity-27">
+                    <th width="1%">SN</th>
+                    <th width="5%">Fiscal Year</th>
+                    <th width="5%">Submit Date</th>
+                    <th width="5%">Update Date</th>
+                    <th width="10%">Status</th>
+                    <th width="15%">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                @Html.Raw(ViewBag.EmployeeDependentReceiptHtml)
+            </tbody>
+        </table>
+    </div>      
+
+    @section scripts
+    {
+        <script>
+            var ilaka = document.getElementById('ilaka').value;
+            $(document).ready(function() {
+                $(".view-receipt-file").on("click", function(e) {
+                    e.preventDefault();
+                    var id = $(this).data("id");
+                    console.log("Receipt clicked for ID:", id);
+                });
+            });
+        </script>
+    }
+}

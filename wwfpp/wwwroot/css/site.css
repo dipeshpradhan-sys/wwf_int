@@ -1,0 +1,43 @@
+html {font-size: 14px;}
+@media (min-width: 768px) {html {font-size: 16px;}}
+.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;}
+html {position: relative;min-height: 100%;}
+body {margin-bottom: 60px;}
+
+/*Below added by Suraj update as necessary*/
+main {flex-grow: 1; /* take remaining space */}
+/* Background color for the first div */
+.timesheet-container {background-color: #f0f8ff; /* light blue */}
+/* Different background color for the h5 */
+.timesheet-header { background-color: #ffe4b5; /* light orange */ padding: 8px; /* optional, to make the background visible */  margin: 0; /* remove default margin for tighter look */}
+.spinner {display: inline-block; width: 24px; height: 24px; border: 3px solid #ccc; border-top: 3px solid #333; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 5px;}
+@keyframes spin {100% {transform: rotate(360deg);}}
+.dashboard-employeename-pending {background-color: #f0f8ff; /* light distinct background */font-weight: bold;text-align: left;}
+.custom-modal-width {max-width: 1300px; /* or any value you prefer */}
+.dtrg-start {background-color: #f0f0f0 !important;font-weight: bold;}
+.selected-row {background-color: #ffeeba !important; /* light yellow highlight */}
+table.dataTable tr.light-red {
+    background-color: #f8d7da !important;
+}
+table.dataTable tr.light-green {
+    background-color: #d4edda !important;
+}
+table.dataTable tr.light-yellow {
+    background-color: #fff3cd !important;
+}
+#tblData tbody td {
+    padding: 11px 7px; /* increase vertical padding */
+    line-height: 1.5; /* more vertical spacing */
+}
+
+#tblData tbody tr {
+    height: 40px; /* fixed row height if you want */
+}
+#tblData tbody td {
+    font-size: 11px; /* increase font size */
+}
+
+#tblData thead th {
+    font-size: 11px; /* header font size */
+}
+

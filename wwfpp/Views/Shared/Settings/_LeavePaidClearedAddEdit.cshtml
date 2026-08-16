@@ -1,0 +1,223 @@
+﻿@using wwfpp.Services;
+@inject SettingsServices SettingsServices
+@model wwfpp.Models.Settings.LeavePaidClearedViewModelNew
+@{
+    string mode = ViewBag.mode;
+    string DATE_FORMAT = ViewBag.DATE_FORMAT;
+
+    string date_from = Model.date_from.ToString();
+    string s_date_from = SettingsServices.DateformatToDt(date_from);
+
+    string date_upto = Model.date_upto.ToString();
+    string s_date_upto = SettingsServices.DateformatToDt(date_upto);
+
+    //string textboxsize = "80px";
+    
+}
+<!-- (A) HTML DIALOG BOX -->
+<partial name="_ConstantValues" view-data='new ViewDataDictionary(ViewData) { { "NoteKey", "RequiredField" } }' />
+<input type="hidden" id="calculate" name="calculate" value="" />
+<div class="row">
+    <div class="col-lg-4">&nbsp;@DATE_FORMAT.ToUpperInvariant()</div>
+    <div class="col-lg-8 lblue">&nbsp;</div>
+</div>
+
+@if (mode == "add")
+{
+    string CurrentFiscal = @ViewBag.CurrentFiscal;
+    string s_date_fromT = "";
+    string s_date_uptoT = "";
+
+    <div class="row">
+        <div class="col-lg-3"><label class="col-lg-12 col-form-label-lg">Fiscal Year : &nbsp;</label></div>
+        <div class="col-lg-9">
+            @ViewBag.CurrentFiscal <input type="hidden" name="FiscalFilterM" id="FiscalFilterM" value="@ViewBag.FiscalFilterM" />
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-lg-3"><label class="col-lg-12 col-form-label-lg">Employee: &nbsp;</label></div>
+        <div class="col-lg-9">
+            @Html.DropDownList("EmployeeFilterM", (SelectList)ViewBag.EmployeeFilterM, "-- Select --", new { @class = "form-select", style = "width:300px;" })
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-lg-3"><label class="col-lg-12 col-form-label-lg">Period: &nbsp;</label></div>
+        <div class="col-lg-9">
+            @Html.DropDownList("PeriodFilter", (SelectList)ViewBag.PeriodFilter, "-- Select --", new { @class = "form-select", style = "width:300px;" })
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-lg-3"><label class="col-lg-12 col-form-label-lg">Start Date: &nbsp;</label></div>
+        <div class="col-lg-9">
+            <div class="row col-lg-12">
+                <div class="col-lg-4">@Html.TextBox("date_fromT", s_date_fromT, new { @class = "form-control", maxlength = "10", style = "width:200px;", @Readonly = "readonly" })</div>
+                <div class="col-lg-8 lblue">&nbsp;</div>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-lg-3"><label class="col-lg-12 col-form-label-lg">End Date: &nbsp;</label></div>
+        <div class="col-lg-9">
+            <div class="row col-lg-12">
+                <div class="col-lg-4">@Html.TextBox("date_uptoT", s_date_uptoT, new { @class = "form-control", maxlength = "10", style = "width:200px;" })</div>
+                <div class="col-lg-8"><Button type="Button" name="btndateupto" id="btndateupto" class="button bg-sky">Date...</Button></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-3"><label class="col-lg-12 col-form-label-lg">&nbsp;</label></div>
+        <div class="col-lg-9">
+            <div class="row col-lg-12">
+                <div class="col-lg-4"><button type="button" name="btnCalculate" id="btnCalculate" class="button btn-primary">Calculate</button></div>
+                <div class="col-lg-8">&nbsp;</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="LeavePaidClearedData"></div>
+
+    <script>
+        
+        function LeavePaidClearedList()
+        {
+            var calculate = $('#calculate').val();
+            var FiscalFilterM = $('#CurrentFiscalM').val();
+            var EmployeeFilterM = $('#EmployeeFilterM').val();
+            var PeriodFilter = $('#PeriodFilter').val();
+            var date_fromT = $('#date_fromT').val();
+            var date_uptoT = $('#date_uptoT').val();
+            $('#LeavePaidClearedData').html('<p class="text-center">Loading...</p>');
+            $.ajax({
+                url: ilaka + 'Load',
+                type: 'POST',
+                headers: {RequestVerificationToken: $('input:hidden[name="__RequestVerificationToken"]').val()},
+                dataType: "html",
+                data: {
+                    FilterValue1: EmployeeFilterM,
+                    FilterValue2: PeriodFilter,
+                    FilterValue3: date_fromT,
+                    FilterValue4: date_uptoT,
+                    FilterValue5: calculate 
+                },
+                success: function (data) {$('#LeavePaidClearedData').html(data);},
+                error: function (xhr) {$('#LeavePaidClearedData').html('<p class="note text-danger">Failed to load data.</p>');}
+            });
+        }
+        
+        var isPeriodEligible;
+        async function ShowHideCalcutlate()
+        {
+            var selFiscal = $("#FiscalFilterM").val();
+            var EmployeeFilter = $('#EmployeeFilterM').val();
+            var PeriodFilter = $('#PeriodFilter').val();
+            $('#LeavePaidClearedData').html('');
+            let result = await isPeriodEligibleToCalculate();
+            var isPeriodEligible = result.data;
+            var dateFrom = result.dateFrom;
+            var dateUpto = result.dateUpto;
+            document.getElementById("calculate").value = isPeriodEligible;
+            $("#date_fromT").val(dateFrom);
+            $("#date_uptoT").val(dateUpto);
+            $("#submit_counter").val(PeriodFilter);
+
+            if (isPeriodEligible === "N")
+            {
+                   $("#btnCalculate").hide();
+                   $("#date_fromT").val("");
+                   $("#date_uptoT").val("");
+            } else {
+                   $("#btnCalculate").show();
+            }
+        }
+        async function isPeriodEligibleToCalculate()
+        {
+            return await $.ajax({
+                url: ilaka + 'IsPeriodEligibleToCalculate',
+                type: 'POST',
+                headers: {RequestVerificationToken: $('input:hidden[name="__RequestVerificationToken"]').val()},
+                dataType: "json",
+                data: {
+                    FilterValue1: $("#FiscalFilterM").val(),
+                    FilterValue2:  $('#EmployeeFilterM').val(),
+                    FilterValue3: $('#PeriodFilter').val()
+                }
+            });
+        }
+        $("#EmployeeFilterM").off("change").on("change", function () {$("#PeriodFilter").val("");$("#emp_id").val(this.value);});
+        $("#PeriodFilter").off("change").on("change", function () {ShowHideCalcutlate();});
+        $(document).off('blur', '#date_fromT').on('blur', '#date_fromT', function () {convert_date(date_fromT,'modal-message');});
+        $(document).off('blur', '#date_uptoT').on('blur', '#date_uptoT', function () {convert_date(date_uptoT,'modal-message');});
+        $(document).off('click', '#btndateupto').on('click', '#btndateupto', function () {show_calendar('frm.date_uptoT');});
+
+        $("#btnCalculate").off("click").on("click", function () {
+            if ( checkInput( 'txt', 'FiscalFilterM', 'Fiscal Year is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'cmb', 'EmployeeFilterM', 'Employee is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'cmb', 'PeriodFilter', 'Period is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'txt', 'date_fromT', 'Start Date is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'txt', 'date_uptoT', 'End Date is required.', 'modal-message') == false ) {return false;}
+            LeavePaidClearedList();
+        });
+        
+        renderModalButtons("modal-button-list", "Save");
+
+        $(document).off('keyup', '#annual_leave_caf_paid').on('keyup', '#annual_leave_caf_paid', function () {OnlyNumericCtrl(this,'modal-message');calculateBalanceForNext("annual_leave_caf");});
+        $(document).off('keyup', '#annual_leave_caf_laps').on('keyup', '#annual_leave_caf_laps', function () {OnlyNumericCtrl(this,'modal-message');calculateBalanceForNext("annual_leave_caf");});
+        
+        $(document).off('keyup', '#annual_leave_paid').on('keyup', '#annual_leave_paid', function () {OnlyNumericCtrl(this,'modal-message');calculateBalanceForNext("annual_leave");});
+        $(document).off('keyup', '#annual_leave_laps').on('keyup', '#annual_leave_laps', function () {OnlyNumericCtrl(this,'modal-message');calculateBalanceForNext("annual_leave");});
+        
+        $(document).off('keyup', '#sick_leave_caf_paid').on('keyup', '#sick_leave_caf_paid', function () {OnlyNumericCtrl(this,'modal-message');calculateBalanceForNext("sick_leave_caf");});
+        $(document).off('keyup', '#sick_leave_caf_laps').on('keyup', '#sick_leave_caf_laps', function () {OnlyNumericCtrl(this,'modal-message');calculateBalanceForNext("sick_leave_caf");});
+        
+        $(document).off('keyup', '#sick_leave_paid').on('keyup', '#sick_leave_paid', function () {OnlyNumericCtrl(this,'modal-message');calculateBalanceForNext("sick_leave");});
+        $(document).off('keyup', '#sick_leave_laps').on('keyup', '#sick_leave_laps', function () {OnlyNumericCtrl(this,'modal-message');calculateBalanceForNext("sick_leave");});
+        
+        $(document).off('keyup', '#casual_leave_paid').on('keyup', '#casual_leave_paid', function () {OnlyNumericCtrl(this,'modal-message');calculateBalanceForNext("casual_leave");});
+        $(document).off('keyup', '#casual_leave_laps').on('keyup', '#casual_leave_laps', function () {OnlyNumericCtrl(this,'modal-message');calculateBalanceForNext("casual_leave");});
+        
+        $(document).off('keyup', '#other_leave_paid').on('keyup', '#other_leave_paid', function () {OnlyNumericCtrl(this,'modal-message');calculateBalanceForNext("other_leave");});
+        $(document).off('keyup', '#other_leave_laps').on('keyup', '#other_leave_laps', function () {OnlyNumericCtrl(this,'modal-message');calculateBalanceForNext("other_leave");});
+        
+        $(document).off('keyup', '#maternity_paid').on('keyup', '#maternity_paid', function () {OnlyNumericCtrl(this,'modal-message');calculateBalanceForNext("maternity");});
+        $(document).off('keyup', '#maternity_laps').on('keyup', '#maternity_laps', function () {OnlyNumericCtrl(this,'modal-message');calculateBalanceForNext("maternity");});
+        
+        $(document).off('keyup', '#paternity_paid').on('keyup', '#paternity_paid', function () {OnlyNumericCtrl(this,'modal-message');calculateBalanceForNext("paternity");});
+        $(document).off('keyup', '#paternity_laps').on('keyup', '#paternity_laps', function () {OnlyNumericCtrl(this,'modal-message');calculateBalanceForNext("paternity");});
+        
+        $(document).off('keyup', '#mourning_paid').on('keyup', '#mourning_paid', function () {OnlyNumericCtrl(this,'modal-message');calculateBalanceForNext("mourning");});
+        $(document).off('keyup', '#mourning_laps').on('keyup', '#mourning_laps', function () {OnlyNumericCtrl(this,'modal-message');calculateBalanceForNext("mourning");});
+        
+        $(document).off('keyup', '#unpaid_study_paid').on('keyup', '#unpaid_study_paid', function () {OnlyNumericCtrl(this,'modal-message');calculateBalanceForNext("unpaid_study");});
+        $(document).off('keyup', '#unpaid_study_laps').on('keyup', '#unpaid_study_laps', function () {OnlyNumericCtrl(this,'modal-message');calculateBalanceForNext("unpaid_study");});
+
+        function calculateBalanceForNext(parm)
+        {
+            var bal = $("#"+parm).val() - $("#"+parm+"_t").val() - $("#"+parm+"_paid").val() - $("#"+parm+"_laps").val();
+            $("#"+parm+"_n").val(bal);
+        }
+
+        $(document).off("click", "#btnSave").on("click", "#btnSave", function () {
+            var btn = $(this);
+            if (btn.text() === "Save") {
+            
+                if ( checkInput( 'txt', 'FiscalFilterM', 'Fiscal Year is required.', 'modal-message') == false ) {return false;}
+                if ( checkInput( 'cmb', 'EmployeeFilterM', 'Employee is required.', 'modal-message') == false ) {return false;}
+                if ( checkInput( 'cmb', 'PeriodFilter', 'Period is required.', 'modal-message') == false ) {return false;}
+
+                if ($("#date_from").length) {if ( checkInput( 'txt', 'date_from', 'Start Date is required.', 'modal-message') == false ) {return false;}}
+                if ($("#date_upto").length) {
+                    if ( checkInput( 'txt', 'date_upto', 'End Date is required.', 'modal-message') == false ) {return false;}
+                    submitSaveUpdate('@Url.Content("~/Settings/LeavePaidCleared")');
+                } else {
+                    showError("Seems some data still in loading process.", "modal-message");
+                }
+            }
+        });
+    </script>
+}
+else
+{
+    @await Html.PartialAsync("Settings/_LeavePaidClearedData", Model)
+    <script>renderModalCloseButton("modal-button-list", "Close");</script>
+}

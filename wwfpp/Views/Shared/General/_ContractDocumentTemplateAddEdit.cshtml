@@ -1,0 +1,46 @@
+﻿@model wwfpp.Models.General.ContractDocumentTemplateViewModel
+@{
+    string mode = ViewBag.mode;
+}
+<!-- (A) HTML DIALOG BOX -->
+<partial name="_ConstantValues" view-data='new ViewDataDictionary(ViewData) { { "NoteKey", "RequiredField" } }' />
+@Html.HiddenFor(m => m.contract_document_id) <!-- Needed for Edit -->
+    <div class="form-group row p-1">
+
+        <label class="col-lg-12 col-form-label-lg">Contract Document Subject<span class="text-danger">*</span></label>
+        <div class="col-lg-12">
+            @Html.TextBoxFor(m => m.document_subject, new { @class = "form-control", maxlength = "250" })
+        </div>
+
+        <label class="col-lg-12 col-form-label-lg">Description</label>
+        <div class="col-lg-12">
+            @Html.TextAreaFor(m => m.document_desc, new { @class = "form-control", rows = "9", cols = "50", maxlength = "50" })
+        </div>
+    </div>
+
+@if (mode == "add" && ViewBag.apern == "true")
+{
+    <script>renderModalButtons("modal-button-list", "Save");</script>
+}
+else if (mode == "edit" && ViewBag.epern == "true")
+{
+    <script>renderModalButtons("modal-button-list", "Edit");</script>
+}
+else
+{
+    <script>renderModalCloseButton("modal-button-list")</script>
+}
+    <script>
+    // Toggle between Edit and Update
+    $(document).off("click", "#btnSave").on("click", "#btnSave", function () {
+        var btn = $(this);
+        if (btn.text() == "Edit") {$("#ModalID .modal-title").text("Update");btn.text("Update");$("#btnC").text("Cancel");return;}  
+        if (btn.text() === "Update" || btn.text() === "Save") {
+
+            if ( checkInput( 'txt', 'document_subject', 'Contract Document Subject is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'txt', 'document_desc', 'Description is required.', 'modal-message') == false ) {return false;}
+
+            submitSaveUpdate('@Url.Content("~/General/ContractDocumentTemplate")');
+        }
+    });
+    </script>

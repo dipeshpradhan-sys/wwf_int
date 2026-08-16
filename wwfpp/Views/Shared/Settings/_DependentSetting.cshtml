@@ -1,0 +1,112 @@
+﻿@using wwfpp.Services
+@inject SettingsServices SettingsServices
+@using Microsoft.AspNetCore.Http;
+@inject IHttpContextAccessor HttpContextAccessor;
+@model wwfpp.Models.Settings.SettingDependentChildrenDetailsViewModel
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var PageTitle = "Dependent children allowance reimbursement settings";
+    var Page_Tips = "";  //Tool tip message on right side
+    var msg_please_wait = "";
+    var Page_Mode = PageTitle; 
+    ViewData["Title"] = "| " + PageTitle;
+    var Help_Tips = GblUtilities.HelpTips(Page_Tips);    
+    string ShowMsg = GblUtilities.MsgDisplay(Context.Request.Query["msg"].ToString());/*success|fail|error'*/
+    
+    string DATE_FORMAT = ViewBag.DATE_FORMAT;
+    string age_checking_date = Model.age_checking_date.ToString();
+    string s_age_checking_date = SettingsServices.DateformatToDt(age_checking_date);
+}
+@Html.AntiForgeryToken()
+@Html.Hidden("ilaka", "/Settings/DependentSetting")
+<h2 class="titlebig"><span name="header" id="header">@Page_Mode</span> @Html.Raw(Help_Tips)</h2>
+@Html.Hidden("mode", (string)ViewBag.mode)
+@Html.HiddenFor(m => m.id)
+<partial name="_ConstantValues" view-data='new ViewDataDictionary(ViewData) { { "NoteKey", "RequiredField" } }' />
+
+<div id="message_header"><p id="loading" class="loading displaynone">@msg_please_wait</p></div>
+<div id="message_header">@Html.Raw(ShowMsg)</div>
+
+<div class="form-group row p-1">
+
+    <div class="row">
+        <div class="col-lg-4 col-form-label-sm">Maximum number of dependent children to get allowance reimbursement<span class="text-danger">*</span></div>
+        <div class="col-lg-8">
+            @Html.TextBoxFor(m => m.max_nos_dep_child_eligible_paid, new { @class = "form-control w-25", maxlength = "5" })
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-4 col-form-label-sm">Amount reimbursement if children is in range 0 < age < 18<span class="text-danger">*</span></div>
+        <div class="col-lg-8">
+            @Html.TextBoxFor(m => m.max_amt_first_age_range, new { @class = "form-control w-25", maxlength = "5" })
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-4 col-form-label-sm">Amount reimbursement if children is in range 18 = < age < 25<span class="text-danger">*</span></div>
+        <div class="col-lg-8">
+            @Html.TextBoxFor(m => m.max_amt_second_age_range, new { @class = "form-control w-25", maxlength = "5" })
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-4 col-form-label-sm">The dependent children age as on date &nbsp;(@DATE_FORMAT)<span class="text-danger">*</span></div>
+        <div class="col-lg-2">
+            @Html.TextBox("age_checking_date", s_age_checking_date, new { @class = "form-control", maxlength = "10" })
+        </div>
+        <div class="col-lg-6">
+            <button type="Button" name="btndate" id="btndate" class="button bg-sky">Date...</button>
+        </div>
+
+    </div>
+
+    <div class="row">
+        <div class="col-lg-4 col-form-label-sm">Pro-rata basis if age of dependent is less than<span class="text-danger">*</span></div>
+        <div class="col-lg-8">
+            @Html.TextBoxFor(m => m.child_pro_rata_age, new { @class = "form-control w-25", maxlength = "5" })
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-4 col-form-label-sm">Pro-rata basis if service year is less than<span class="text-danger">*</span></div>
+        <div class="col-lg-8">
+            @Html.TextBoxFor(m => m.emp_pro_rata_age, new { @class = "form-control w-25", maxlength = "5" })
+        </div>
+    </div>
+
+
+</div>
+@if (ViewBag.apern == "true" || ViewBag.epern == "true")
+{
+    <div class="form-group row p-1">
+        <label class="col-sm-4 col-form-label">&nbsp;</label>
+        <div class="col-sm-8">
+            <button type="reset" name="btnReset" id="btnReset" class="button btn-secondary">Reset</button>
+            <button type="button" name="btnSave" id="btnSave" class="button btn-primary">Save</button>
+        </div>
+    </div>
+
+    @section scripts
+    {
+        <script>
+            var ilaka = document.getElementById('ilaka').value;
+            $(document).off("click", "#btnSave").on("click", "#btnSave", function () {
+                if ( checkInput( 'txt', 'max_nos_dep_child_eligible_paid', 'Maximum number of dependent children to get allowance reimbursemen is required.') == false ) {return false;}
+                if ( checkInput( 'txt', 'max_amt_first_age_range', 'Amount reimbursement if children is in range 0 < age < 18. is reqpuired') == false ) {return false;}
+                if ( checkInput( 'txt', 'max_amt_second_age_range', 'Amount reimbursement if children is in range 18 = < age < 25 is required.') == false ) {return false;}
+                if ( checkInput( 'txt', 'child_pro_rata_age', 'The dependent children age as on date is required.') == false ) {return false;}
+                if ( checkInput( 'txt', 'emp_pro_rata_age', 'Pro-rata basis if age of dependent is less than is required.') == false ) {return false;}
+                if ( checkInput( 'txt', 'emp_pro_rata_age', 'Pro-rata basis if service year is less thae of dependent is less than is require.') == false ) {return false;}
+                submitSaveUpdate(ilaka);
+            });
+            $(document).off('keyup', '#max_nos_dep_child_eligible_paid').on('keyup', '#max_nos_dep_child_eligible_paid', function () {OnlyNumeric('max_nos_dep_child_eligible_paid');});
+            $(document).off('keyup', '#max_amt_first_age_range').on('keyup', '#max_amt_first_age_range', function () {OnlyNumeric('max_amt_first_age_range');});
+            $(document).off('keyup', '#max_amt_second_age_range').on('keyup', '#max_amt_second_age_range', function () {OnlyNumeric('max_amt_second_age_range');});
+            $(document).off('blur', '#age_checking_date').on('blur', '#age_checking_date', function () {convert_date(age_checking_date);});
+            $(document).off('keyup', '#child_pro_rata_age').on('keyup', '#child_pro_rata_age', function () {OnlyNumeric('child_pro_rata_age');});
+            $(document).off('keyup', '#emp_pro_rata_age').on('keyup', '#emp_pro_rata_age', function () {OnlyNumeric('emp_pro_rata_age');});
+            $(document).off("click", "#btndate").on("click", "#btndate", function () { show_calendar('frm.age_checking_date'); });
+        </script>
+    }
+}

@@ -1,0 +1,204 @@
+﻿@using wwfpp.Services;
+@inject SettingsServices SettingsServices
+@model wwfpp.Models.Attendance.DailyCheckInOutStaffUpdateViewModel
+@{
+    string mode = ViewBag.mode;
+    string DATE_FORMAT = ViewBag.DATE_FORMAT;
+
+    string InOutDay = Model.in_out_date.ToString();
+    string s_in_out_date = SettingsServices.DateformatToDt(InOutDay);
+    string emp_status_cls = Model.emp_status == "Active" ? "bg-lgreen" : "bg-lred";
+    string att_status_cls = Model.status == "Present" ? "bg-lgreen" :"bg-lred";
+}
+<partial name="_ConstantValues" view-data='new ViewDataDictionary(ViewData) { { "NoteKey", "RequiredField" } }' />
+
+<div class="row">
+    <div class="col-lg-4">&nbsp;@DATE_FORMAT.ToUpperInvariant()</div>
+    <div class="col-lg-8 lblue">&nbsp;</div>
+</div>
+@Html.HiddenFor(m => m.main_id)
+@if (mode == "edit" && ViewBag.epern == "true")
+{
+    <div class="form-group p-2">
+        <table id="tblExtra" class="display compact nowrap" style="width:100%">
+            <thead>
+                <tr style="height: 50px; align-items: center;color:white;" class="bg-secondary bg-opacity-27">
+                    <th width="24%">Employee </th>
+                    <th width="10%">Status</th>
+                    <th width="10%">Employee Type</th>
+                    <th width="15%">Duty Station</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr class="@emp_status_cls">
+                    <th width="24%">@Model.employee @Html.HiddenFor(m => m.emp_id) @Html.HiddenFor(m => m.employee) @Html.HiddenFor(m => m.status)</th>
+                    <th width="10%">@Model.emp_status @Html.HiddenFor(m => m.emp_status)</th>
+                    <th width="10%">@Model.employee_type @Html.HiddenFor(m => m.employee_type)</th>
+                    <th width="15%">@ViewBag.DutyStation @Html.HiddenFor(m => m.duty_station_id)</th>
+                </tr>
+                <tr>
+                    <th width="24%"></th>
+                    <th width="10%" class="@att_status_cls">@Model.status</th>
+                    <th width="10%"></th>
+                    <th width="15%"></th>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    
+    <div class="row">
+        <div class="col-lg-3"><label class="col-lg-12 col-form-label-sm">Attendance Date: &nbsp;<span class="text-danger">*</span></label></div>
+        <div class="col-lg-9">
+            <div class="row col-lg-12">
+                <div class="col-lg-4">@Html.TextBox("in_out_date", s_in_out_date, new { @class = "form-control", maxlength = "10", style = "width:200px;", @Readonly = "readonly" })</div>
+                <div class="col-lg-8 lblue"></div>
+            </div>
+        </div>
+    </div>
+    <br>
+    <div class="row">
+        <div class="col-lg-3"><label class="col-lg-12 col-form-label-sm">First Check In : &nbsp;</label></div>
+        <div class="col-lg-9">
+            @Html.TextBoxFor(m => m.check_in, new { @class = "form-control", maxlength = "8", style = "width:200px;"  })
+        </div>
+    </div>
+    <br>
+    <div class="row">
+        <div class="col-lg-3"><label class="col-lg-12 col-form-label-sm">Last Check Out : &nbsp;</label></div>
+        <div class="col-lg-9">
+            @Html.TextBoxFor(m => m.check_out, new { @class = "form-control", maxlength = "8", style = "width:200px;" })
+        </div>
+    </div>
+    <br>
+    <div class="row">
+        <div class="col-lg-3"><label class="col-lg-12 col-form-label-sm">Remarks: &nbsp;</label></div>
+        <div class="col-lg-9">
+            @Html.DropDownListFor(m => m.remarks, (SelectList)ViewBag.RemarksList, "-- Select --", new { @class = "form-select", style = "width:300px;" })
+        </div>
+    </div>
+    <br>
+    <div class="row">
+        <div class="col-lg-3"><label class="col-lg-12 col-form-label-sm">Narration: &nbsp;</label></div>
+        <div class="col-lg-9">
+            @Html.DropDownList("cmbNarration", (SelectList)ViewBag.NarrationList, "-- Select --", new { @class = "form-select", style = "width:300px;" })
+            @Html.TextBoxFor(m => m.narration, new { @class = "form-control", maxlength = "50" })
+        </div>
+    </div>
+    <br>
+    <div class="row">
+        <div class="col-lg-3"><label class="col-lg-12 col-form-label-sm">Reason(s) of change: &nbsp;<span class="text-danger">*</span></label></div>
+        <div class="col-lg-9">
+            @Html.TextAreaFor(m => m.reason, new { @class = "form-control", rows = "2", cols = "50", maxlength = "50" })
+        </div>
+    </div>
+    <br>
+    <div class="row">
+        <div class="col-lg-3"><label class="col-lg-12 col-form-label-sm">&nbsp;</label></div>
+        <div class="col-lg-9">
+            <button type="button" name="btnSave" id="btnSave" class="button btn-primary">Save</button>
+       </div>
+    </div>
+    <br>
+
+    <hr>
+
+    <div id="AttendanceUpdateSub">
+        @Html.Raw(ViewBag.AttendanceUpdateSub)
+    </div>
+
+    <hr>
+    <div id="AttendanceUpdateChangeLog">
+        @Html.Raw(ViewBag.AttendanceUpdateChangeLog)
+    </div>
+
+    <script>
+        renderModalCloseButton("modal-button-list", "Close");
+        $(document).off('change', '#cmbNarration').on('change', '#cmbNarration', function() { $("#narration").val(this.value); });
+        $(document).off("click", "#btnSave").on("click", "#btnSave", function() {
+            var btn = $(this);
+            if (btn.text() == "Edit") { $("#ModalID .modal-title").text("Update"); btn.text("Update"); $("#btnC").text("Cancel"); return; }
+            if (btn.text() === "Update" || btn.text() === "Save") {
+                if (checkInput('txt', 'in_out_date', 'Date is required.', 'modal-message') == false) { return false; }
+                if (checkInput('txt', 'reason', 'Reason is required.', 'modal-message') == false) { return false; }
+
+                //we need to add the validation on check in and check out to accept
+                //1 both blank || in not blank but out n => do post
+                //2. in blank and out not blank //do error
+                //3. in is greater than out // do error
+                //4. not format NN:NN:NN or n or empty // do error
+
+
+                submitSaveUpdate('@Url.Content("/Attendance/AttendanceUpdate")');
+            }
+        }); 
+        $(document).off("click", "[id^=btnUpdateSub]").on("click", "[id^=btnUpdateSub]", function () {
+            var btn = $(this);
+            var rowIndex = btn.data("id");      // the {cnt} value
+            
+            if (checkInput('txt', 'check_in'+rowIndex, 'Check in is required.', 'modal-message') == false) { return false; }
+            if (checkInput('txt', 'check_out'+rowIndex, 'Check in is required.', 'modal-message') == false) { return false; }
+            if (checkInput('txt', 'reason'+rowIndex, 'Reason is required.', 'modal-message') == false) { return false; }
+                //we need to add the validation on check in and check out to accept
+                //1 both blank || in not blank but out n => do post
+                //2. in blank and out not blank //do error
+                //3. in is greater than out // do error
+                //4. not format NN:NN:NN or n or empty // do error
+
+            var payload = {
+                id: btn.data("subid"),
+                mode: "edit",
+                emp_id : $("#emp_id").val(),
+                employee_type : $("#employee_type").val(),
+                duty_station_id : $("#duty_station_id").val(),
+                in_out_date : $("#in_out_date").val(),
+                check_in: $("#check_in"+rowIndex).val(),
+                check_out: $("#check_out"+rowIndex).val(),
+                reason: $("#reason"+rowIndex).val()
+            };
+            saveAttendanceSub('@Url.Content("/Attendance/AttendanceUpdateSubSave")', payload);
+        });
+
+        $(document).off("click", "#btnSaveSub").on("click", "#btnSaveSub", function() {
+            var btn = $(this);
+            if (checkInput('txt', 'check_inS', 'Check in is required.', 'modal-message') == false) { return false; }
+            if (checkInput('txt', 'check_outS', 'Check in is required.', 'modal-message') == false) { return false; }
+            if (checkInput('txt', 'reasonR', 'Reason is required.', 'modal-message') == false) { return false; }
+            var payload = {
+                id: "0",
+                mode: "add",
+                emp_id : $("#emp_id").val(),
+                employee_type : $("#employee_type").val(),
+                duty_station_id : $("#duty_station_id").val(),
+                in_out_date : $("#in_out_date").val(),
+                check_in: $("#check_inS").val(),
+                check_out: $("#check_outS").val(),
+                reason: $("#reasonR").val()
+            };
+            saveAttendanceSub('@Url.Content("/Attendance/AttendanceUpdateSubSave")', payload);
+        }); 
+        
+        function saveAttendanceSub(ilaka, payload) {
+	        if (confirm(msg_are_you_sure_to_perform_this_action) == false) { return false; }
+            $.ajax({
+			    type: "POST",
+			    url: ilaka,
+			    data: JSON.stringify(payload),
+			    contentType: "application/json; charset=utf-8",
+			    dataType: "json",   
+			    headers: { "RequestVerificationToken": $('input[name="__RequestVerificationToken"]').val() },
+			    success: function (data) 
+                {
+				    if (data.status && data.status === "success") {   
+                      showSuccess(data.message, "modal-message"); 
+				    } else {
+					    showError("Error: " + data.message, "modal-message");
+				    }
+			    },
+			    error: function (xhr, status, error) {
+				    showError("Request failed: " + error, "modal-message");
+			    }
+		    });
+
+        }
+    </script>
+}

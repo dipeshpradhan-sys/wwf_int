@@ -1,0 +1,102 @@
+﻿@using wwfpp.Services
+@inject SettingsServices SettingsServices
+@inject GlobalOptionServices globalOptionServices
+@model wwfpp.Models.Employee.EmployeeInsuranceViewModel
+@{
+    string? mode = ViewBag.mode;
+    string? DATE_FORMAT = ViewBag.DATE_FORMAT;
+    string? insurance_valid_date = Model.ins_valid_date.ToString();
+    string? s_insurance_valid_date = SettingsServices.DateformatToDt(insurance_valid_date ?? string.Empty);
+}
+<partial name="_ConstantValues" view-data='new ViewDataDictionary(ViewData) { { "NoteKey", "RequiredField" } }' />
+@Html.HiddenFor(m => m.emp_ins_id)
+
+<div class="form-group row p-1">
+    @if (mode == "add")
+    {
+        <label class="col-lg-12 col-form-label-lg">Employee<span class="text-danger">*</span></label>
+        <div class="col-lg-12">
+            @Html.DropDownListFor(m => m.emp_id, (SelectList)ViewBag.EmployeeList, "-- Select --", new { @class = "form-select" })
+        </div>
+    }
+    else
+    {
+        string empStatus = Model.emp_status == "A" ? "Active" : "Inactive";
+        <label class="col-lg-12 col-form-label-lg">Employee:<span class="text-danger">*</span> @ViewBag.Employee [@empStatus] @Html.HiddenFor(m => m.emp_id)</label>
+        <div class="col-lg-12">
+            &nbsp;
+        </div>
+    }
+
+    <label class="col-lg-12 col-form-label-lg">Insurance Company<span class="text-danger">*</span></label>
+    <div class="col-lg-12">
+        @Html.TextBoxFor(m => m.ins_company, new { @class = "form-control", maxlength = "100" })
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Insurance Type<span class="text-danger">*</span></label>
+    <div class="col-lg-12">
+        @Html.DropDownListFor(m => m.ins_type, (SelectList)ViewBag.InsuranceType, new { @class = "form-select" })
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Insurance Valid Date<span class="text-danger">*</span>&nbsp;(@DATE_FORMAT)</label>
+    <div class="col-lg-4">
+        @Html.TextBox("ins_valid_date", s_insurance_valid_date, new { @class = "form-control", maxlength = "10" })
+        <div class="col-lg-8"><button type="button" name="btndate" id="btndate" class="button bg-sky">Date...</button></div>
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Policy Number<span class="text-danger">*</span></label>
+    <div class="col-lg-12">
+        @Html.TextBoxFor(m => m.policy_no, new { @class = "form-control", maxlength = "20" })
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Insurance Amount &nbsp;(@globalOptionServices.OptionServices["op_currency_symbol"])<span class="text-danger">*</span></label>
+    <div class="col-lg-12">
+        @Html.TextBoxFor(m => m.ins_amount, new { @class = "form-control", maxlength = "10" })
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Premium Amount &nbsp;(@globalOptionServices.OptionServices["op_currency_symbol"])<span class="text-danger">*</span></label>
+    <div class="col-lg-12">
+        @Html.TextBoxFor(m => m.premium_amount, new { @class = "form-control", maxlength = "10" })
+    </div>
+
+    <label class="col-lg-12 col-form-label-lg">Remarks</label>
+    <div class="col-lg-12">
+        @Html.TextAreaFor(m => m.remarks, new { @class = "form-control", rows = "4", cols = "50", maxlength = "500" })
+    </div>
+
+</div>
+@if (mode == "add" && ViewBag.apern == "true")
+{
+    <script>renderModalButtons("modal-button-list", "Save");</script>
+}
+else if (mode == "edit" && ViewBag.epern == "true" && Model.emp_status == "A")
+{
+    <script>renderModalButtons("modal-button-list", "Edit");</script>
+}
+else
+{
+    <script>renderModalCloseButton("modal-button-list")</script>
+}
+<script>
+    $(document).off("click", "#btnSave").on("click", "#btnSave", function () {
+        var btn = $(this);
+        if (btn.text() == "Edit") {$("#ModalID .modal-title").text("Update");btn.text("Update");$("#btnC").text("Cancel");return;}
+        if (btn.text() === "Update" || btn.text() === "Save") 
+        {
+            if ($("#mode").val() === "add") {
+                if (checkInput(' cmb', 'emp_id', 'Employee is required.', 'modal-message') == false) { return false; }
+            }
+            if ( checkInput( 'txt', 'ins_company', 'Insurance Company is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'cmb', 'ins_type', 'Insurance Type is required.', 'modal-message') == false ) {return false;}
+            if (checkInput('txt', 'ins_valid_date', 'Valid Date of Insurance is required.', 'modal-message') == false) { return false; }
+            if ( checkInput( 'txt', 'policy_no', 'Policy Number is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'txt', 'ins_amount', 'Insurance Amount is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'txt', 'premium_amount', 'Premium Amount is required.', 'modal-message') == false ) {return false;}
+            submitSaveUpdate("/Employee/Insurance");
+        }
+    });
+    $(function() {$("#ins_amount").on("blur", function() {OnlyNumeric('ins_amount', 'modal-message');});});
+    $(function() {$("#premium_amount").on("blur", function() {OnlyNumeric('premium_amount', 'modal-message');});});
+    $(document).off('blur', '#ins_valid_date').on('blur', '#ins_valid_date', function () { convert_date(ins_valid_date, 'modal-message'); });
+    $(document).off('click', '#btndate').on('click', '#btndate', function () { show_calendar('frm.ins_valid_date'); });
+</script>

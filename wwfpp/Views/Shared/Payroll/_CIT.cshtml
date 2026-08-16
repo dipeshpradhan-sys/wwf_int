@@ -1,0 +1,104 @@
+﻿@using Microsoft.AspNetCore.Http;
+@inject IHttpContextAccessor HttpContextAccessor;
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var PageTitle = "Employee CIT";
+    var Page_Tips = "";  //Tool tip message on right side
+    var msg_please_wait = "";
+    var Page_Mode = PageTitle;
+    ViewData["Title"] = "| " + PageTitle;
+    var Help_Tips = GblUtilities.HelpTips(Page_Tips);
+    /*success|fail|error'*/
+    string ShowMsg = GblUtilities.MsgDisplay(Context.Request.Query["msg"].ToString());
+}
+
+@Html.AntiForgeryToken()
+<h2 class="titlebig"><span name="header" id="header">@Page_Mode</span> @Html.Raw(Help_Tips)</h2>
+@Html.Hidden("mode", "")
+
+<div id="message_header"><p id="loading" class="loading displaynone">@msg_please_wait</p></div>
+
+<div class="row">
+    <div class="col-lg-2"><label class="col-lg-12 col-form-label-lg">Employee Status : &nbsp;</label></div>
+    <div class="col-lg-10">
+        @Html.DropDownList("EmployeeStatusFilter", (SelectList)ViewBag.EmployeeStatusFilter, new { @class = "form-select", style = "width:300px;" })
+    </div>
+</div>
+
+<div class="form-group p-2">
+    <table id="tblData" class="display compact nowrap" style="width:100%">
+        <thead>
+            <tr style="background-color:silver; height:40px;">
+                <th style="width:1%;"><input type="checkbox" id="selectAll"></th>
+                <th style="width:14%;">Employee Name</th>
+                <th style="width:10%;">Gender</th>
+                <th style="width:10%;">Join Date</th>
+                <th style="width:10%;">End Date</th>
+                <th style="width:14%;">CIT Number</th>
+                <th style="width:14%;">Type</th>
+                <th style="width:14%;">% or Amount</th>
+                <th style="width:14%;">Remarks</th>
+            </tr>
+        </thead>
+    </table>
+</div>
+<div id="message_header">@Html.Raw(ShowMsg)</div>
+@if (ViewBag.epern == "true")
+{
+    <div class="form-group row p-1">
+        <label class="col-sm-4 col-form-label">&nbsp;</label>
+        <div class="col-sm-8">
+            <button type="reset" name="btnReset" id="btnReset" class="button btn-secondary">Reset</button>
+            <button type="button" name="btnSave" id="btnSave" class="button btn-primary">Save</button>
+        </div>
+    </div>
+}
+<div id="citTypeTemplate" style="display:none;">@Html.DropDownList("cit_type", (SelectList)ViewBag.CitTypeList, "--Select--", new { @class = "form-control", style = "width:150px;" })</div>
+
+@section scripts
+{
+    <script>
+        var ilaka = "/Payroll/CIT";
+        var selectedIds = new Set();
+        var hideviewaction = "yes";
+        var table;
+        $(document).ready(function () {
+            GetAllData(ilaka, "emp_id", [
+                { data: "employee", name: "employee", autoWidth: false, render: function (data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "gender", name: "gender", autoWidth: false, render: function (data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "join_date", name: "join_date", autoWidth: false, render: function (data, type, row) { if (type === 'display' || type === 'filter') { return moment(data).format(my_format); } return data; } },
+                { data: "end_date", name: "end_date", autoWidth: false, render: function (data, type, row) { if (type === 'display' || type === 'filter') { return moment(data).format(my_format); } return data; } },
+                { data: "cit_no", name: "cit_no", autoWidth: false, render: function (data, type, row, meta) { return '<input type="text" name="cit_no' + meta.row + '" id="cit_no' + meta.row + '" value="' + data + '" class="form-control cit-no-input" style = "width:120px;", maxlength = "30"><input type="hidden" name="h_cit_no' + meta.row + '" id="h_cit_no' + meta.row + '" value="' + data + '">'; } },
+                { data: "cit_type", name: "cit_type", autoWidth: false, render: function (data, type, row, meta) { var ctrlName = "cit_type" + meta.row; var $select = $("#citTypeTemplate select").clone(); $select.attr("id", ctrlName).attr("name", ctrlName); var val = data != null ? data.toString().trim() : ""; $select.find("option:selected").prop("selected", false); $select.find("option").each(function () { if ($(this).val() === val) { $(this).attr("selected", "selected"); } }); return $select.prop("outerHTML"); } },
+                { data: "percent_amount", name: "percent_amount", autoWidth: false, render: function (data, type, row, meta) { return '<input type="text" name="percent_amount' + meta.row + '" id="percent_amount' + meta.row + '" value="' + data + '" class="form-control percent-amount-input" style = "width:100px;", maxlength = "10">'; } },
+                { data: "remarks", name: "remarks", autoWidth: false, render: function (data, type, row, meta) { return '<input type="text" name="remarks' + meta.row + '" id="remarks' + meta.row + '" value="' + data + '" class="form-control remarks-input" style = "width:190px;", maxlength = "10">'; } }
+            ],
+                {
+                    FilterValue: "EmployeeStatusFilter"
+                });
+            $(document).one('init.dt', '#tblData', function () { table.page.len(-1).draw(); })
+            $('#tblData_filter').hide();
+            $('#tblData_length').hide();
+        });
+
+        function collectExtraFields() {
+            var extraSettings = [];
+            $("#tblData tbody tr").each(function () {
+                var row = $(this);
+                var id = row.find("input.row-checkbox:checked").val();
+                if (selectedIds.has(id)) {
+                    extraSettings.push({
+                        emp_id: parseInt(id, 10),
+                        cit_type: row.find("select[name^='cit_type']").val(),
+                        percent_amount: parseFloat(row.find("input[name^='percent_amount']").val()),
+                        remarks: row.find("input[name^='remarks']").val()
+                    });
+                }
+            });
+            return extraSettings;
+        }
+        $(document).on('blur', '.percent-amount-input', function () { OnlyNumericCtrl(this); });
+        $(document).off("click", "#btnSave").on("click", "#btnSave", function () { $("#mode").val("update"); updateDataJSON(ilaka + "Save"); });
+        $("#EmployeeStatusFilter").off("change").on("change", function () { const statusV = $(this).val(); if (!statusV) { return; } const $myButton = $("#btnSave"); if ($myButton.length) { if (statusV === "A") { $myButton.show(); $('#tblData_length').hide(); table.page.len(-1).draw(); } else { $myButton.hide(); $('#tblData_length').show(); table.page.len(10).draw(); } } table.draw(); });
+    </script>
+}

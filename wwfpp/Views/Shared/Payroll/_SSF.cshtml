@@ -1,0 +1,147 @@
+﻿@using Microsoft.AspNetCore.Http;
+@inject IHttpContextAccessor HttpContextAccessor;
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var PageTitle = "Employee SSF";
+    var Page_Tips = "";  //Tool tip message on right side
+    var msg_please_wait = "";
+    var Page_Mode = PageTitle;
+    ViewData["Title"] = "| " + PageTitle;
+    var Help_Tips = GblUtilities.HelpTips(Page_Tips);
+    /*success|fail|error'*/
+    string ShowMsg = GblUtilities.MsgDisplay(Context.Request.Query["msg"].ToString());
+}
+@Html.AntiForgeryToken()
+<h2 class="titlebig"><span name="header" id="header">@Page_Mode</span> @Html.Raw(Help_Tips)</h2>
+@Html.Hidden("mode", "")
+@Html.Hidden("Id", "")
+
+<div id="message_header"><p id="loading" class="loading displaynone">@msg_please_wait</p></div>
+
+<div class="row">
+    <div class="col-lg-2"><label class="col-lg-12 col-form-label-lg">Employee Status : &nbsp;</label></div>
+    <div class="col-lg-10">
+        @Html.DropDownList("EmployeeStatusFilter", (SelectList)ViewBag.EmployeeStatusFilter, new { @class = "form-select", style = "width:300px;" })
+    </div>
+</div>
+
+<div class="form-group p-2">
+    <table id="tblData" class="display compact nowrap" style="width:100%">
+        <thead>
+            <tr style="background-color:silver; height:40px;">
+                <th colspan="5" class="text-center"></th>
+                <th colspan="2" class="text-center">Addition</th>
+                <th colspan="2" class="text-center">Deduction</th>
+            </tr>
+            <tr style="background-color:silver; height:40px;">
+                <th style="width:1%;"><input type="checkbox" id="selectAll"></th>
+                <th width="4%">S.N.</th>
+                <th width="20%">Employee</th>
+                <th width="10%">Salary</th>
+                <th width="15%">SSF Number</th>
+                <th width="10%">% in basic salary</th>
+                <th width="15%">Amount</th>
+                <th width="10%">% in basic salary</th>
+                <th width="15%">Amount</th>
+            </tr>
+        </thead>
+        <tbody>
+
+        </tbody>
+    </table>
+</div>
+<div id="message_header">@Html.Raw(ShowMsg)</div>
+@if (ViewBag.epern == "true")
+{
+    <div class="form-group row p-1">
+        <label class="col-sm-4 col-form-label">&nbsp;</label>
+        <div class="col-sm-8">
+            <button type="reset" name="btnReset" id="btnReset" class="button btn-secondary">Reset</button>
+            <button type="button" name="btnCalculate" id="btnCalculate" class="button bg-blue">Calculate All</button>
+            <button type="button" name="btnSave" id="btnSave" class="button btn-primary">Save</button>
+        </div>
+    </div>
+}
+@section scripts
+{
+    <script>
+        var ilaka = "/Payroll/SSF";
+        var selectedIds = new Set();
+        var hideviewaction = "yes";
+        var table;
+        $(document).ready(function () {
+            GetAllData(ilaka, "emp_id", [
+                {
+                    data: null,
+                    name: "serial",
+                    autoWidth: false,
+                    render: function (data, type, row, meta) {
+                        return meta.row + 1; // serial number starting from 1
+                    }
+                },
+                { data: "employee", name: "employee", autoWidth: false, render: function (data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "salary", name: "salary", autoWidth: false, render: function (data, type, row, meta) { if (data !== null) { return '<span style="white-space:normal;">' + data + '</span>'; } else { return '<span style="white-space:normal;">0</span>'; } } },
+                { data: "ssf_number", name: "ssf_number", autoWidth: false, render: function (data, type, row, meta) { return '<input type="text" name="ssf_number' + meta.row + '" id="ssf_number' + meta.row + '" value="' + data + '" class="form-control ssf_number-input" style = "width:160px;", maxlength = "10">'; } },
+                { data: "add_percent", name: "add_percent", autoWidth: false, render: function (data, type, row, meta) { return '<input type="number" name="add_percent' + meta.row + '" id="add_percent' + meta.row + '" value="' + data + '" class="form-control add_percent-input" style = "width:80px;", maxlength = "10">'; } },
+                { data: "add_percent_amount", name: "add_percent_amount", autoWidth: false, render: function (data, type, row, meta) { return '<input type="number" name="add_percent_amount' + meta.row + '" id="add_percent_amount' + meta.row + '" value="' + data + '" class="form-control add_amount-input" style = "width:140px;", maxlength = "10", readonly>'; } },
+                { data: "ded_percent", name: "ded_percent", autoWidth: false, render: function (data, type, row, meta) { return '<input type="number" name="ded_percent' + meta.row + '" id="ded_percent' + meta.row + '" value="' + data + '" class="form-control ded_percent-input" style = "width:80px;", maxlength = "10">'; } },
+                { data: "ded_percent_amount", name: "ded_percent_amount", autoWidth: false, render: function (data, type, row, meta) { return '<input type="number" name="ded_percent_amount' + meta.row + '" id="ded_percent_amount' + meta.row + '" value="' + data + '" class="form-control ded_amount-input" style = "width:140;", maxlength = "10", readonly>'; } },
+            ],
+                {
+                    FilterValue: "EmployeeStatusFilter"
+                });
+            $(document).one('init.dt', '#tblData', function () { table.page.len(-1).draw(); })/** Wait for first draw to complete before changing page length*/
+            $('#tblData_filter').hide();
+            $('#tblData_length').hide();
+        });
+
+        function collectExtraFields() {
+            var extraSettings = [];
+            $("#tblData tbody tr").each(function () {
+                var row = $(this);
+                var id = row.find("input.row-checkbox:checked").val();
+                if (selectedIds.has(id)) {
+                    extraSettings.push({
+                        id: 0,
+                        emp_id: parseInt(id, 10),
+                        ssf_number: row.find("input[name^='ssf_number']").val() || "",
+                        add_percent: parseFloat(row.find("input[name^='add_percent']").val()) || 0,
+                        add_percent_amount: parseFloat(row.find("input[name^='add_percent_amount']").val()) || 0,
+                        ded_percent: parseFloat(row.find("input[name^='ded_percent']").val()) || 0,
+                        ded_percent_amount: parseFloat(row.find("input[name^='ded_percent_amount']").val()) || 0
+                    });
+                }
+            });
+            return extraSettings;
+        }
+        $(document).on('blur', '.add_percent-input', function () { var serial = $('.add_percent-input').index(this); change_ssf_info_add_ded_amount("add_percent", serial); });
+        $(document).on('blur', '.ded_percent-input', function () { var serial = $('.ded_percent-input').index(this); change_ssf_info_add_ded_amount("ded_percent", serial); });
+        $(document).off("click", "#btnSave").on("click", "#btnSave", function () { $("#mode").val("update"); updateDataJSON(ilaka + "Save"); });
+        $(document).off("click", "#btnCalculate").on("click", "#btnCalculate", function () { calculateAllSSF(); });
+        $("#EmployeeStatusFilter").off("change").on("change", function () { const statusV = $(this).val(); if (!statusV) { return; } const $myButton = $("#btnSave"); if ($myButton.length) { if (statusV === "A") { $myButton.show(); $('#tblData_length').hide(); table.page.len(-1).draw(); } else { $myButton.hide(); $('#tblData_length').show(); table.page.len(10).draw(); } } table.draw(); });
+
+        function calculateAllSSF() {
+            $("#tblData tbody tr").each(function (index) {
+                var $row = $(this);
+                var rowData = table.row($row).data();
+                if (!rowData) return;
+
+                var empId = rowData.emp_id;
+                var serial = index;                                // read salary from rowData (already in JSON payload)
+                var salary = parseFloat(rowData.salary) || 0;
+
+                // run both add and ded calculations
+                change_ssf_info_add_ded_amount("add_percent", serial, salary, $row);
+                change_ssf_info_add_ded_amount("ded_percent", serial, salary, $row);
+            });
+        }
+        function change_ssf_info_add_ded_amount(parm_type_percent, serial) {
+            var $row = $("input[name='" + parm_type_percent + serial + "']").closest("tr");
+            var percent = parseFloat($row.find("input[name='" + parm_type_percent + serial + "']").val()) || 0;
+            var salary = parseFloat(table.row($row).data().salary) || 0;
+            var amount = (salary * percent) / 100;
+            $row.find("input[name='" + parm_type_percent + "_amount" + serial + "']").val(amount.toFixed(2));
+        }   
+    </script>
+}
+

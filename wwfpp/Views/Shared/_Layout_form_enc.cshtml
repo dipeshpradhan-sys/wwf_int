@@ -1,0 +1,146 @@
+﻿@using wwfpp.Services;
+@inject GlobalOptionServices GlobalOptionServices;
+@inject AccountServices AccountServices;
+@{
+    var OrgOpName = GlobalOptionServices.OptionServices["op_org_name"];
+    var OP_SESSION_TIME_OUT = GlobalOptionServices.OptionServices["op_session_time_out"];
+    var Display_timesheet_type = "";
+
+    var username = Context.Session.GetString("username"); 
+    var user_level = Context.Session.GetString("user_level");
+    var login_emp_name = Context.Session.GetString("login_emp_name");
+    var sign_in_type_id = Context.Session.GetString("sign_in_type_id");
+    var Session_fiscal_year = Context.Session.GetString("fiscal_year");
+    var Timesheet_type = Context.Session.GetString("timesheet_type");
+    var login_user_photo_info = Context.Session.GetString("login_user_photo_info");
+    //var str_check_in_out_time = ViewData["str_check_in_out_time"];
+    string tp_name;
+    if (login_emp_name == ""){tp_name = username;}else{tp_name = login_emp_name;}
+    if (Timesheet_type == "biweekly") { Display_timesheet_type = "Bi-Weekly"; }else if (Timesheet_type == "weekly"){ Display_timesheet_type = "Weekly";} else {Display_timesheet_type = "Monthly";}
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@AppSettings.Value.SITE_TITLE @ViewData["Title"]</title>
+    <link rel="stylesheet" href=@Url.Content("~/lib/bootstrap/dist/css/bootstrap.min.css") />
+    <link rel="stylesheet" href=@Url.Content("~/css/site.css") asp-append-version="true" />
+    <link rel="stylesheet" href=@Url.Content("~/css/Style.css") asp-append-version="true" />
+    <link rel="stylesheet" href=@Url.Content("~/css/modal.css") />
+
+    <link rel="stylesheet" href=@Url.Content("~/css/DatatableCss/dataTables.bootstrap.min.css") asp-append-version="true" />
+    <link rel="stylesheet" href=@Url.Content("~/css/DatatableCss/jquery.dataTables.css") asp-append-version="true" />
+    <link rel="stylesheet" href=@Url.Content("~/css/DatatableCss/jquery.dataTables.min.css") asp-append-version="true" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.10.0/css/bootstrap-datepicker.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/rowgroup/1.3.1/css/rowGroup.dataTables.min.css" />
+    <link rel="stylesheet" href="https://cdn.datatables.net/fixedheader/3.4.0/css/fixedHeader.dataTables.min.css">
+
+    <script type="text/javascript" src=@Url.Content("~/js/mmddyyyy.js")></script>
+    <script type="text/javascript" src=@Url.Content("~/js/Date-Picker.js")></script>
+
+</head>
+<body>
+
+<script>
+    var MyImgSrc1 = new Image();
+    var MyImgSrc2 = new Image();
+    MyImgSrc1.src = "/images/closedfolder.gif";
+    MyImgSrc2.src = "/images/openfolder.gif";
+    // Call the countdown manager function on page load
+    window.addEventListener('load', function() {
+        startSessionCountdown( "@OP_SESSION_TIME_OUT", "/" );
+    });
+</script>
+    <header >
+        <div id="top">
+            <div id="curve-left"><script>var timesheet_type = "@Timesheet_type";</script></div>
+            <div id="logo-01">
+                <div class="center-box">
+                    <span id="sCountDown"></span>
+                </div>
+                <div id="top-nav">
+                    <ul>
+                        [
+                        <li>Fiscal Year &nbsp;:&nbsp;<font color="red">@Session_fiscal_year</font>&nbsp;&nbsp;</li>|
+                        <li>Pay Period &nbsp;:&nbsp;<font color="red">@Display_timesheet_type</font>&nbsp;&nbsp;</li>                  
+                        ]&nbsp;&nbsp;[
+                        <li>Username &nbsp;:&nbsp;<font color="red">@username</font>&nbsp;&nbsp;</li>|
+                        <li>Level &nbsp;:&nbsp;<font color="red">@user_level</font>&nbsp;</li>
+                        ]&nbsp;&nbsp;[
+                        <li><a href="/home/index">Dashboard</a></li>|
+                        <li><a href="/account/passwordchange">Change Password</a></li>|
+                        @if (sign_in_type_id == "1")
+                        {
+                            <li><a href="/account/pinchange">Change Pin</a></li>
+                            <span>|</span>
+                        }
+                        <li><a href="/account/loginstepset">Set Login Step</a></li>|
+                        <li><a href="/account/logout">Logout</a></li>|
+                        <li><a href="/help/index" target="_blank">Help</a></li>
+                        ]
+                     </ul>
+                   
+                </div>
+            </div>
+            
+            <div id="curve-right">
+                <div id="header-txt">
+                    <h5><img src="@login_user_photo_info" title="@tp_name" width="40" height="40" style="border:0px solid #cfcfcf;border-radius:50%;vertical-align:middle;"> &nbsp;&nbsp;<img src=@Url.Content("~/images/flag.png") height="26" width="40" title="@OrgOpName" /></h5>
+                    <h6 class="date">Version : @AppSettings.Value.Version </h6>
+                    <h4 class="date">@DateTime.Now.ToString("MMMM dd, yyyy")</h4>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <form name = "frm" id = "frm" onsubmit = "return false" >
+        <div id="wrapper">
+            <!-- Module Menu Start Here -->
+            <div id="left-bar">
+                <div id="left-box">
+                    @if(int.TryParse(Context.Session.GetString("user_id"), out int new_user_id)){/*success*/}else{new_user_id = -1;}
+                    @await Component.InvokeAsync("LeftMenu", new { UserId = new_user_id })
+                </div><!-- left-box -->
+            </div><!-- left-bar -->
+            <!-- Module Menu End  Here -->
+
+            <div id="main-bar">
+                <!-- Middle Part Start Here -->
+                <div class="container">
+                    <main role="main" class="pb-3">
+                        @RenderBody()
+                    </main>
+                </div>
+                <!-- Middle Part End Here -->
+
+            </div><!-- main-bar -->
+        </div><!-- wraper -->
+
+    </form>
+    <input type="hidden" name="showjserr" id="showjserr" value="@AppSettings.Value.ShowJsErr" />
+    <!-- Footer -->
+    <div id="footer">
+        <p class="footer">
+            &copy;@OrgOpName 2005 - @DateTime.Now.Year. Designed and Developed by  <a href="https://www.efourcore.com.np" target="_blank">eFour Core Pvt. Ltd.</a>
+        </p>
+    </div>
+
+    
+    <script src=@Url.Content("~/lib/jquery/dist/jquery.min.js")></script>
+    <script src=@Url.Content("~/lib/bootstrap/dist/js/bootstrap.bundle.min.js")></script>
+    <script src=@Url.Content("~/js/lang.js") asp-append-version="true"></script>
+    <script src=@Url.Content("~/js/site.js") asp-append-version="true"></script>
+
+    <!-- DataTables + plugins -->
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.2/moment.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.10.0/js/bootstrap-datepicker.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-ajax-unobtrusive/3.2.6/jquery.unobtrusive-ajax.min.js"></script>
+    <script src="https://cdn.datatables.net/rowgroup/1.3.1/js/dataTables.rowGroup.min.js"></script>
+    <script src="https://cdn.datatables.net/fixedheader/3.4.0/js/dataTables.fixedHeader.min.js"></script>
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

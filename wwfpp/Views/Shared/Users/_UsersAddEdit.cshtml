@@ -1,0 +1,108 @@
+﻿@model wwfpp.Models.Users.UsersViewModel
+@{
+    string mode = ViewBag.mode;
+    string EmployeeName = ViewBag.EmployeeName;
+    string showRightDiv = "none";
+    @if (mode == "edit" && Model.level_id != "") { showRightDiv = "block"; }
+}
+<partial name="_ConstantValues" view-data='new ViewDataDictionary(ViewData) { { "NoteKey", "RequiredField" } }' />
+    @Html.HiddenFor(m => m.user_id)
+    <div class="form-group row p-1">
+        @if (mode == "add")
+        {
+            <label class="col-lg-12 col-form-label-lg">Employee<span class="text-danger">*</span></label>
+            <div class="col-lg-12">
+            @Html.DropDownListFor(m => m.emp_id, (SelectList)ViewBag.EmployeeList, "-- Select --", new { @class = "form-select" })
+            </div>
+            <label class="col-lg-12 col-form-label-lg">Username<span class="text-danger">*</span></label>
+            <div class="col-lg-12">
+            @Html.TextBoxFor(m => m.username, new { @class = "form-control", maxlength = "50" })
+            </div>
+        } 
+        else
+        {
+            <label class="col-lg-12 col-form-label-lg">Employee</label>
+            <div class="col-lg-12">@EmployeeName</div>
+            <label class="col-lg-12 col-form-label-lg">Username</label>
+            <div class="col-lg-12">@Html.DisplayFor(m => m.username)</div>        
+        }
+        <label class="col-lg-12 col-form-label-lg">Active Status</label>
+        <div class="col-lg-12">
+        @Html.DropDownListFor(m => m.is_active, (SelectList)ViewBag.Status, "-- Select --", new { @class = "form-select" })
+        </div>
+        <label class="col-lg-12 col-form-label-lg">User Level<span class="text-danger">*</span></label>
+        <div class="col-lg-12">
+        @Html.DropDownListFor(m => m.level_id, (SelectList)ViewBag.UserLevel, "-- Select --", new { @class = "form-select" })
+        </div>
+        <div class="f-left w-100" >
+            <div class="divTable" style="width: 100%;">
+                <div class="divTableBody">
+                    <div class="divTableRow bg-head">
+                        <div class="divTableCell title left  w-60">&nbsp;Module/Menu</div>
+                        <div class="divTableCell title left">&nbsp;Rights</div>
+                    </div>
+                </div>
+            </div>
+            <div class="divTable" style="width: 100%;">
+                <div class="divTableRow bg-head">
+                    <div class="divTableCell title left w-5">&nbsp;</div>
+                    <div class="divTableCell title left w-55">&nbsp;Name</div>
+                    <div class="divTableCell title left bg-green w-10">&nbsp;<div style="color:#400040">View</div></div>
+                    <div class="divTableCell title left bg-yellow w-10">&nbsp;<div style="color:#400040">Add</div></div>
+                    <div class="divTableCell title left bg-orange w-10">&nbsp;<div style="color:#400040">Edit</div></div>
+                    <div class="divTableCell title left bg-red w-10">&nbsp;<div style="color:#400040">Delete</div></div>
+                </div>
+            </div>
+             <div id = "MMRights" style="display:@showRightDiv">
+                 @Html.Raw(ViewBag.UserRightsHtml)
+             </div>
+        </div>
+    </div>
+@if (mode == "add" && ViewBag.apern == "true")
+{
+    <script>renderModalButtons("modal-button-list", "Save");</script>
+}
+else if (mode == "edit" && ViewBag.epern == "true")
+{
+    <script>renderModalButtons("modal-button-list", "Edit");</script>
+}
+else
+{
+    <script>renderModalCloseButton("modal-button-list")</script>
+}
+    <script>
+    document.getElementById("MMRights").addEventListener("click", function (e) {
+        var t = e.target;
+        if (t.tagName !== "INPUT" || t.type !== "checkbox") return;
+
+        switch (t.dataset.action) {
+            case "showHide":
+                showHide_ulr(t.dataset.chk, t.dataset.target);
+                break;
+            case "checkAll":
+                CheckAll_ulr(t.dataset.hidden, t.dataset.prefix, t.dataset.allid);
+                break;
+            case "checkOne":
+                CheckOne_ulr(t.dataset.hidden, t.dataset.prefix, t.dataset.allid);
+                break;
+        }
+    });
+    $(document).off("click", "#btnSave").on("click", "#btnSave", function () {
+        var btn = $(this);
+        if (btn.text() == "Edit") {$("#ModalID .modal-title").text("Update");btn.text("Update");$("#btnC").text("Cancel");return;}  
+        if (btn.text() === "Update" || btn.text() === "Save") {
+            if (document.getElementById("mode").value == "add" )
+            {
+                if ( checkInput( 'cmb', 'emp_id', 'Employee is required.', 'modal-message') == false ) {return false;}
+                if ( checkInput( 'txt', 'username', 'User name is required.', 'modal-message') == false ) {return false;}
+                var faultyUser = validateUsername(document.getElementById("username").value);
+                if ( faultyUser != "" ) { showError(faultyUser, "modal-message");return false; };
+            }
+            if ( checkInput( 'cmb', 'is_active', 'Status is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'cmb', 'level_id', 'User Level is required.', 'modal-message') == false ) {return false;}
+            submitSaveUpdate('@Url.Content("~/Users/Users")');
+        }
+    });
+    function loadRightsData(levelId) {$.get('@Url.Content("~/Users/UsersRights")', { level_id: levelId }).done(function (data) {document.getElementById("MMRights").style.display = "block";document.getElementById("MMRights").innerHTML = DOMPurify.sanitize(data);});}
+    $("#level_id").off("change").on("change", function () {const levelId = $(this).val();if (!levelId) return;loadRightsData( levelId );});
+    </script>

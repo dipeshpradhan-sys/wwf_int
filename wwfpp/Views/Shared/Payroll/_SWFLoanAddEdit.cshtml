@@ -1,0 +1,240 @@
+﻿@using wwfpp.Services
+@inject SettingsServices SettingsServices
+@model wwfpp.Models.Payroll.SwfLoanViewModel
+@{
+    string? mode = ViewBag.mode;
+    string? DATE_FORMAT = ViewBag.DATE_FORMAT;
+    string? date = Model.s_date.ToString();
+    string? s_date = SettingsServices.DateformatToDt(date ?? string.Empty);
+
+}
+
+<partial name="_ConstantValues" view-data='new ViewDataDictionary(ViewData) { { "NoteKey", "RequiredField" } }' />
+@Html.HiddenFor(m => m.id) 
+@Html.HiddenFor(m => m.emp_id)
+
+<div class="form-group row p-1">
+
+    @if (mode == "add")
+    {
+        <label class="col-lg-12 col-form-label-lg">Employee<span class="text-danger">*</span></label>
+        <div class="col-lg-12">
+            @Html.DropDownListFor(m => m.emp_id, (SelectList)ViewBag.EmployeeList, "-- Select --", new { @class = "form-select" })
+        </div>
+        <label class="col-lg-12 col-form-label-sm"><span class="blue fst-italic">Note: List contains only those employees who are active and do not have any previous active SWF loan.</span></label>
+    }
+    else
+    {
+        string empStatus = Model.emp_status == "A" ? "Active" : "Inactive";
+        <label class="col-lg-12 col-form-label-lg">Employee:<span class="text-danger">*</span> @Model.employee [@empStatus] @Html.HiddenFor(m => m.emp_id)</label>
+        <div class="col-lg-12">&nbsp;</div>
+
+        <label class="col-lg-12 col-form-label-lg">Amount Paid Till Date : <span class="green">@ViewBag.TotalPaid</span></label>
+        <label class="col-lg-12 col-form-label-lg">Due Amount : <span class="text-danger">@ViewBag.TotalDue</span></label>
+    }
+    <label class="col-lg-12 col-form-label-lg">Year<span class="text-danger">*</span></label>
+    <div class="col-lg-12">
+        @Html.DropDownListFor(m => m.start_year, (SelectList)ViewBag.YearDropDown, new { @class = "form-select" })
+    </div>
+    <label class="col-lg-12 col-form-label-lg">Month<span class="text-danger">*</span></label>
+    <div class="col-lg-12">
+        @Html.DropDownListFor(m => m.start_month, (SelectList)ViewBag.MonthDropDown, new { @class = "form-select"})
+    </div>
+    <label class="col-lg-12 col-form-label-lg">Loan Amount<span class="text-danger">*</span></label>
+    <div class="col-lg-12">
+        @Html.TextBoxFor(m => m.amount, new { @class = "form-control", maxlength = "10" })
+    </div>
+    <label class="col-lg-12 col-form-label-lg">Interest<span class="text-danger">*</span></label>
+    <div class="col-lg-12">
+        @Html.TextBoxFor(m => m.int_amount, new { @class = "form-control", maxlength = "10" })
+    </div>
+    <label class="col-lg-12 col-form-label-lg">Number of installment<span class="text-danger">*</span></label>
+    <div class="col-lg-12">
+        @Html.TextBoxFor(m => m.no_of_installment, new { @class = "form-control", maxlength = "2" })
+    </div>
+    <label class="col-lg-12 col-form-label-lg">Status<span class="text-danger">*</span></label>
+    <div class="col-lg-12">
+        @Html.DropDownListFor(m => m.status, (SelectList)ViewBag.Status, new { @class = "form-select" })
+    </div>
+    <label class="col-lg-12 col-form-label-lg">Total Loan</label>
+    <div class="col-lg-12">
+        @Html.TextBoxFor(m => m.total_loan, new { @class = "form-control", maxlength = "0", @readonly = "readonly" })
+    </div>
+    <label class="col-lg-12 col-form-label-lg">Monthly Installment<span class="text-danger">*</span></label>
+    <div class="col-lg-12">
+        @Html.TextBoxFor(m => m.month_installment, new { @class = "form-control", maxlength = "0", @readonly = "readonly" })
+    </div>
+    <label class="col-lg-12 col-form-label-lg">Remarks</label>
+    <div class="col-lg-12">
+        @Html.TextAreaFor(m => m.remarks, new { @class = "form-control", rows = "4", cols = "50", maxlength = "200" })
+    </div>
+</div>
+@if (mode != "add")
+{
+    <div class="row mb-2">
+        <table id="tblLeaveToMe" class="display compact nowrap" style="width:100%; border-collapse:collapse; border:1px solid black;border-spacing:8px;">
+            <thead>
+                <tr><td colspan="4" style="background-color:#6C757D;height:40px;color:#fff;font-weight:bold;">Settle all remaining Due</td></tr>
+                <tr style="background-color:#ddd;height:40px;">
+                    <th style="border:1px solid black;width:250px;">Date</th>
+                    <th style="border:1px solid black;width:150px;">Description</th>
+                    <th style="border:1px solid black;width:50px;">Amount</th>
+                    <th style="border:1px solid black;width:150px;">Action</th>
+                </tr>
+                <tr style="height:40px;">
+                    <th style="border:1px solid black;">
+                        <div style="display:flex; align-items:center; gap:5px;">
+                            @Html.TextBox(
+                                "s_date",
+                                s_date,
+                                new
+                                {
+                                    @class = "form-control",
+                                    style = "width:175px;",
+                                    maxlength = "10"
+                                }
+                            )
+                            <input type="button" name="btndate" value="Date..." class="button bg-sky" />
+                        </div>
+                    </th>
+                    <th style="border:1px solid black;">@Html.TextBoxFor(m => m.s_remarks, new { @class = "form-control", maxlength = "100", style = "width:150px;" })</th>
+                    <th style="border:1px solid black;">@Html.TextBoxFor(m => m.paid_amount, new { @class = "form-control", maxlength = "100", style = "width:150px;", type = "number", step = "0.01", min = "0" })</th>
+                    <th style="border:1px solid black;">
+                        
+                        @if (mode == "edit" && ViewBag.epern == "true" && Model.status == "A")
+                        {
+                            <button type="button" name="btnUpdate" id="btnUpdate" class="button btn-primary" >Update</button>
+                        }
+                        @if (mode == "edit" && ViewBag.dpern == "true" && Model.status == "A")
+                        {
+                            <button type="button" name="btnDelete" id="btnDelete" class="button bg-red" >Delete</button>
+                        }
+                    </th>
+                </tr>
+            </thead>
+        </table>
+    </div>
+}
+@if (mode == "add" && ViewBag.apern == "true")
+{
+    <script>renderModalButtons("modal-button-list", "Save");</script>
+}
+else if (mode == "edit" && ViewBag.epern == "true")
+{
+    <script>renderModalButtons("modal-button-list", "Edit");</script>
+}
+else
+{
+    <script>renderModalCloseButton("modal-button-list")</script>
+}
+
+
+    <script>
+        $(document).off("click", "#btnSave").on("click", "#btnSave", function() 
+        {
+            var btn = $(this);
+            if (btn.text() == "Edit") { $("#ModalID .modal-title").text("Update"); btn.text("Update"); $("#btnC").text("Cancel"); return; }
+            if (btn.text() === "Update" || btn.text() === "Save") 
+            {
+                if (mode === "add"){
+                    if (checkInput('cmb', 'emp_id', 'Employee is required.', 'modal-message') == false) { return false; }
+                }
+                if (checkInput('cmb', 'start_year', 'Year is required.', 'modal-message') == false) { return false; }
+                if (checkInput('cmb', 'start_month', 'Month is required.', 'modal-message') == false) { return false; }
+                if (checkInput('txt', 'amount', 'Loan Amount is required.', 'modal-message') == false) { return false; }
+                if (checkInput('txt', 'int_amount', 'Interest Amount is required.', 'modal-message') == false) { return false; }
+                if (checkInput('txt', 'no_of_installment', 'Number of Installment is required.', 'modal-message') == false) { return false; }
+
+                if ($('#amount').val() < 1) { showError('Loan Amount should be greater than 0 (zero).', 'modal-message'); return false;}
+                if ($('#int_amount').val() < 1) { showError('Interest Amount should be greater than 0 (zero).', 'modal-message'); return false; }
+                if ($('#amount').val() < 1 || $('#amount').val() > 12) { showError('Number of installment(s) should be within 1 to 12.', 'modal-message'); return false; }
+
+                submitSaveUpdate("/Payroll/SWFLoan");
+            }
+        });
+
+        $(document).off("blur", "#amount").on("blur", "#amount", function() { OnlyNumeric('amount', 'modal-message');});
+        $(document).off("blur", "#int_amount").on("blur", "#int_amount", function() { OnlyNumeric('int_amount', 'modal-message'); });
+        $(document).off("blur", "#no_of_installment").on("blur", "#no_of_installment", function() { OnlyNumeric('no_of_installment', 'modal-message'); });
+
+        $(document).off("input", "#amount").on("input", "#amount", function() {calculateSWFLoan();});
+        $(document).off("input", "#int_amount").on("input", "#int_amount", function() {calculateSWFLoan();});
+        $(document).off("input", "#no_of_installment").on("input", "#no_of_installment", function() {calculateSWFLoan();});
+        
+        $(document).off("click", "#btnUpdate").on("click", "#btnUpdate", function() { show_calendar('frm.s_date'); });
+        $(document).off("click", "#btnUpdate").on("click", "#btnUpdate", function() { SWFLoanSettlement(); });
+        $(document).off("click", "#btnDelete").on("click", "#btnDelete", function() { SWFLoanSettlementDelete(); });
+    
+
+        function calculateSWFLoan() 
+        {
+            var loan_amt = parseFloat($('#amount').val()) || 0;
+            var int_amount = parseFloat($('#int_amount').val()) || 0;
+            var no_of_installment = parseFloat($('#no_of_installment').val()) || 0;
+
+            var sum_total_amt = loan_amt + int_amount;
+            var sum_month_installment = 0;
+
+            if (no_of_installment > 0) {sum_month_installment = sum_total_amt / no_of_installment;}
+        
+            $('#month_installment').val(sum_month_installment.toFixed(2));
+            $('#total_loan').val(sum_total_amt.toFixed(2));
+        }
+
+        function SWFLoanSettlement() 
+        {
+            var id = $('#id').val() || 0;
+            var s_date = $('#s_date').val();
+            var s_amount = $('#paid_amount').val();
+            var s_remarks = $('#s_remarks').val();
+            var empId = $('#EmployeeFilter').val() || 0;
+
+            if (!s_date || s_date.trim() === "") {
+                $('#modal-message')
+                    .removeClass()
+                    .addClass('error')
+                    .html(msg_date_required)
+                    .show();
+                return;
+            }
+            $.ajax({
+                url: "/Payroll/SWFLoanSettlementSave",
+                type: "POST",
+                data: { id: id, s_date: s_date, s_amount: s_amount, s_remarks: s_remarks },
+                success: function(data) {
+                    if (data) {
+                        $('#modal-message')
+                            .removeClass()
+                            .addClass('success')
+                            .html(data.message)
+                            .show();
+                        loadWithSpinner("#swfLoanTotal", "/Payroll/SwfLoanTotal/?employeeID=" + empId);
+                    }
+                }
+            });
+        }
+        function SWFLoanSettlementDelete() {
+            var empId = $('#EmployeeFilter').val() || 0;
+            if (confirm(msg_are_you_sure_to_perform_this_action)) {
+                var id = $('#id').val() || 0;
+                $.ajax({
+                    url: "/Payroll/SWFLoanSettlementDelete",
+                    type: "POST",
+                    data: { id: id },
+                    success: function(data) {
+                        if (data) {
+                            $('#modal-message')
+                                .removeClass()
+                                .addClass('error')
+                                .html(data.message)
+                                .show();
+                            $('#s_date').val("");
+                            $('#paid_amount').val(0);
+                            $('#s_remarks').val("");
+                            loadWithSpinner("#swfLoanTotal", "/Payroll/SwfLoanTotal/?employeeID=" + empId);
+                        }
+                    }
+                });
+            }
+        }
+    </script>

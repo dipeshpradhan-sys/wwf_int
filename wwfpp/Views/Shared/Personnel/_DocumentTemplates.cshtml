@@ -1,0 +1,59 @@
+﻿@using Microsoft.AspNetCore.Http;
+@inject IHttpContextAccessor HttpContextAccessor;
+@model List<wwfpp.Models.General.DocumentTemplatesViewModel>
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var PageTitle = "Document Templates";
+    var Page_Tips = "";  //Tool tip message on right side
+    var msg_please_wait = "";
+    var Page_Mode = PageTitle; 
+    ViewData["Title"] = "| " + PageTitle;
+    var Help_Tips = GblUtilities.HelpTips(Page_Tips);    
+    string ShowMsg = GblUtilities.MsgDisplay(Context.Request.Query["msg"].ToString());/*success|fail|error'*/
+}
+@Html.AntiForgeryToken()
+@Html.Hidden("ilaka", "/Personnel/DocumentTemplates")
+<h2 class="titlebig"><span name="header" id="header">@Page_Mode</span> @Html.Raw(Help_Tips)</h2>
+@Html.Hidden("mode", "")
+@Html.Hidden("Id", "")
+@Html.Hidden("hStatus", "")
+<div id="message_header"><p id="loading" class="loading displaynone">@msg_please_wait</p></div>
+<div id="message_header">@Html.Raw(ShowMsg)</div>
+@if (Model == null)
+{
+    <div id="message_header"><p class="note">No record(s) found.</p></div>
+}
+else
+{
+    <div class="form-group p-2">
+        <table id="tblData" class="display compact nowrap" style="width:100%">
+            <thead>
+                <tr style="height: 40px; align-items: center;color:white;" class="bg-secondary bg-opacity-27">
+                    <th width="1%"><input type="checkbox" id="selectAll"></th>
+                    <th width="49%">Document Title</th>
+                    <th width="20%">Document Version</th>
+                    <th width="20%">Upload Date</th>
+                    <th width="10%"><img src="/images/download.png" title= "Click below icon to Download Document Template"></th>
+                </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
+    </div>
+    @section scripts 
+    {
+        <script>
+            var ilaka = document.getElementById('ilaka').value;
+            var selectedIds = new Set();
+            var hideviewaction = "Yes";
+            var table;
+            $(document).ready(function () {GetAllData(ilaka, "id", [
+                    { data: "document_title", name: "document_title", autoWidth: false },
+                    { data: "document_version", name: "document_version", autoWidth: false },
+                    { data: "upload_date", name: "upload_date", autoWidth: false,render: function (data, type, row) {if (type === 'display' || type === 'filter') {return moment(data).format(my_format);}return data;}},
+                    { data: "upload_file", name: "upload_file", autoWidth: false,render: function (data, type, row, meta) { return getFileType(data, 'DocumentTemplatesDownload', row.id)}},
+                ]
+            );});
+        </script>
+    }
+}

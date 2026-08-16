@@ -1,0 +1,150 @@
+﻿@using wwfpp.Services
+@inject SettingsServices SettingsServices
+@model wwfpp.Models.Payroll.SalaryPreviousViewModel
+@{
+    string mode = ViewBag.mode;
+}
+
+<partial name="_ConstantValues" view-data='new ViewDataDictionary(ViewData) { { "NoteKey", "RequiredField" } }' />
+@Html.HiddenFor(m => m.id) <!-- Needed for Edit -->
+@if (mode == "add")
+{
+    <div class="mb-3 row">
+        <label class="col-lg-3 col-form-label-lg">Employee<span class="text-danger">*</span></label>
+        <div class="col-lg-9">
+                @Html.DropDownListFor(m => m.empid, (SelectList)ViewBag.EmployeeList, "-- Select --", new { @class = "form-select" })
+        </div>
+    </div>
+}
+else
+{
+    string empStatus = Model.emp_status == "A" ? "Active" : "Inactive";
+    <label class="col-lg-12 col-form-label-lg">Employee:<span class="text-danger">*</span> @ViewBag.Employee [@empStatus] @Html.HiddenFor(m => m.empid)</label>
+}
+<!-- Year / Month -->
+<div class="mb-3 row">
+    <label class="col-lg-3 col-form-label-lg">Year:<span class="text-danger">*</span></label>
+    <div class="col-lg-3">
+        @Html.DropDownListFor(m => m.salyear, (SelectList)ViewBag.YearDropDown, new { @class = "form-select", style="width:150px;" })
+    </div>
+    <label class="col-lg-2 col-form-label-lg">Month <span class="text-danger">*</span></label>
+    <div class="col-sm-4">
+        @Html.DropDownListFor(m => m.salmonth, (SelectList)ViewBag.MonthDropDown, new { @class = "form-select", style="width:150px;" })
+    </div>
+</div>
+
+<!-- Totals header -->
+<div class="mb-3 row">
+    <div class="col-sm-12">
+        <h5 class="text-primary"></h5>
+    </div>
+</div>
+
+<!-- Salary / Betalabi -->
+<div class="mb-3 row">
+    <label class="col-sm-3 col-form-label text-end">Basic Salary:</label>
+    <div class="col-sm-3">
+        @Html.TextBoxFor(m => m.basicsalary, new { @class = "form-control", type = "number" })
+    </div>
+
+    <label class="col-sm-3 col-form-label text-end">Betalabi Deduction:</label>
+    <div class="col-sm-3">
+        @Html.TextBoxFor(m => m.betalabideduction, new { @class = "form-control", type = "number" })
+    </div>
+</div>
+
+<!-- PF Add / PF Deduct -->
+<div class="mb-3 row">
+    <label class="col-sm-3 col-form-label text-end">PF Addition:</label>
+    <div class="col-sm-3">
+        @Html.TextBoxFor(m => m.pfaddition, new { @class = "form-control", type = "number" })
+    </div>
+
+    <label class="col-sm-3 col-form-label text-end">PF Deduction:</label>
+    <div class="col-sm-3">
+        @Html.TextBoxFor(m => m.pfdeduction, new { @class = "form-control", type = "number" })
+    </div>
+</div>
+
+<!-- Allowance / CIT -->
+<div class="mb-3 row">
+    <label class="col-sm-3 col-form-label text-end">Allowance:</label>
+    <div class="col-sm-3">
+        @Html.TextBoxFor(m => m.allowance, new { @class = "form-control", type = "number" })
+    </div>
+
+    <label class="col-sm-3 col-form-label text-end">CIT Deduction:</label>
+    <div class="col-sm-3">
+        @Html.TextBoxFor(m => m.citdeduction, new { @class = "form-control", type = "number" })
+    </div>
+</div>
+
+<!-- Remote Area / LIP -->
+<div class="mb-3 row">
+    <label class="col-sm-3 col-form-label text-end">Remote Area Allowance:</label>
+    <div class="col-sm-3">
+        @Html.TextBoxFor(m => m.remoteareaallowance, new { @class = "form-control", type = "number" })
+    </div>
+
+    <label class="col-sm-3 col-form-label text-end">LIP Reimbursement:</label>
+    <div class="col-sm-3">
+        @Html.TextBoxFor(m => m.lipreimbursement, new { @class = "form-control", type = "number" })
+    </div>
+</div>
+
+<!-- Prev Tax / Dashain -->
+<div class="mb-3 row">
+    <label class="col-sm-3 col-form-label text-end">Prev. Year Excess/(Less) Tax:</label>
+    <div class="col-sm-3">
+        @Html.TextBoxFor(m => m.prevyearexcesslesstax, new { @class = "form-control", type = "number" })
+    </div>
+
+    <label class="col-sm-3 col-form-label text-end">Dashain Bonus:</label>
+    <div class="col-sm-3">
+        @Html.TextBoxFor(m => m.dashainbonus, new { @class = "form-control", type = "number" })
+    </div>
+</div>
+
+<!-- Tax / Remarks -->
+<div class="mb-3 row">
+    <label class="col-sm-3 col-form-label text-end">Tax Deduction:</label>
+    <div class="col-sm-3">
+        @Html.TextBoxFor(m => m.taxdeduction, new { @class = "form-control", type = "number" })
+    </div>
+    <label class="col-sm-3 col-form-label text-end"></label>
+    <div class="col-sm-3"></div>
+</div>
+
+<div class="mb-3 row">
+    <label class="col-sm-3 col-form-label text-end">Remarks:</label>
+    <div class="col-sm-9">
+        @Html.TextBoxFor(m => m.remarks, new { @class = "form-control", maxlength = "100" })
+    </div>
+</div>
+
+@if (mode == "add" && ViewBag.apern == "true")
+{
+    <script>renderModalButtons("modal-button-list", "Save");</script>
+}
+else if (mode == "edit" && ViewBag.epern == "true" && Model.emp_status == "A")
+{
+    <script>renderModalButtons("modal-button-list", "Edit");</script>
+}
+else
+{
+    <script>renderModalCloseButton("modal-button-list")</script>
+}
+<script>    
+$(document).off("click", "#btnSave").on("click", "#btnSave", function () {
+    var btn = $(this);
+    if (btn.text() == "Edit") {$("#ModalID .modal-title").text("Update");btn.text("Update");$("#btnC").text("Cancel");return;}  
+    if (btn.text() === "Update" || btn.text() === "Save") {
+        if ($("#mode").val() == "add"){
+            if ( checkInput( 'cmb', 'empid', 'Employee is required.', 'modal-message') == false ) {return false;}
+        }
+        if ( checkInput( 'cmb', 'salyear', 'Year is required.', 'modal-message') == false ) {return false;}
+        if ( checkInput( 'cmb', 'salmonth', 'Month is required.', 'modal-message') == false ) {return false;}
+        submitSaveUpdate("/Payroll/SalaryPrevious");
+    }
+});
+</script>

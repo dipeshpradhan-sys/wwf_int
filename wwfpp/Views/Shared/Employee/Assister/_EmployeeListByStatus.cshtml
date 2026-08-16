@@ -1,0 +1,9 @@
+﻿@{
+    string selectNote = "-- Select --";
+    string status = @ViewBag.EmpStatus;
+    if (status != "A")
+    {
+        selectNote = "-- Select [INACTIVE] Employee(S) --";
+    }    
+    @Html.DropDownList("EmployeeFilter", (SelectList)ViewBag.EmployeeList, @selectNote, new { @class = "form-select", id = "EmployeeFilter", style = "width:450px;" })
+}

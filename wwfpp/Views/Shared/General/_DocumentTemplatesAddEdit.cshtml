@@ -1,0 +1,90 @@
+﻿@using wwfpp.Services
+@inject SettingsServices SettingsServices
+@model wwfpp.Models.General.DocumentTemplatesViewModel
+@{
+    string mode = ViewBag.mode;
+    string DATE_FORMAT = ViewBag.DATE_FORMAT;
+    string upload_date = Model.upload_date.ToString();
+    string s_upload_date = SettingsServices.DateformatToDt(upload_date);
+}
+<!-- (A) HTML DIALOG BOX -->
+<partial name="_ConstantValues" view-data='new ViewDataDictionary(ViewData) { { "NoteKey", "RequiredField" } }' />
+
+@Html.HiddenFor(m => m.id)
+    <div class="form-group row p-1">
+
+        <label class="col-lg-12 col-form-label-lg">Document<span class="text-danger">*</span>&nbsp;</label>
+        <label class="col-lg-12 col-form-label-sm">Note : The file should be in DOC, DOCX, XLS, XLSX, PPT, PPTX or PDF format.</label>
+        <div class="col-lg-12">
+        @Html.TextBox("file","", new { type = "file" })
+        </div>
+        
+    @if (mode == "edit")
+    {
+    <div class="row">
+        <div class="col-lg-12 col-form-label-sm ">
+            <span class="form-check form-check-inline">
+                <label class="form-check-label" for="chk">Change uploaded document template file also.</label>
+                <input class="form-check-input" type="checkbox" name="chk" id="chk" value="1" onclick="chk_load_document_templates()" />
+            </span>
+            @Html.Hidden("hid_doc_also", "")
+            <input type="hidden" name="h_file_name" id="h_file_name" value="@Model.upload_file">
+        </div>
+    </div>
+    }
+
+    @if (mode == "edit" && Model.upload_file != "")
+    {
+        <label class="col-lg-12 col-form-label-sm">@Html.Raw(ViewBag.download) | @ViewBag.fileSize | Upload Date: @s_upload_date | </label>
+    }
+        <label class="col-lg-12 col-form-label-lg">Document Title<span class="text-danger">*</span>&nbsp;</label>
+        <div class="col-lg-12">
+        @Html.TextBoxFor(m => m.document_title, new { @class = "form-control", maxlength = "250" })
+        </div>
+
+        <label class="col-lg-12 col-form-label-lg">Document version</label>
+        <div class="col-lg-12">
+        @Html.TextBoxFor(m => m.document_version, new { @class = "form-control", maxlength = "250" })
+        </div>
+
+        <label class="col-lg-12 col-form-label-lg">Description</label>
+        <div class="col-lg-12">
+        @Html.TextAreaFor(m => m.document_desc, new { @class = "form-control", rows = "3", cols = "50" })
+        </div>
+
+        <label class="col-lg-12 col-form-label-lg">Status</label>
+        <div class="col-lg-12">
+        @Html.DropDownListFor(m => m.status, (SelectList)ViewBag.Status, new { @class = "form-select" })
+        </div>
+
+</div>
+
+@if (mode == "add" && ViewBag.apern == "true")
+{
+    <script>renderModalButtons("modal-button-list", "Save");</script>
+}
+else if (mode == "edit" && ViewBag.epern == "true")
+{
+    <script>renderModalButtons("modal-button-list", "Edit");</script>
+}
+else
+{
+    <script>renderModalCloseButton("modal-button-list")</script>
+}
+    <script>
+    $(document).off("click", "#btnSave").on("click", "#btnSave", function () {
+        var btn = $(this);
+        if (btn.text().trim() === "Edit") {$("#ModalID .modal-title").text("Update");btn.text("Update");$("#btnC").text("Cancel");return;}  
+        if (btn.text().trim() === "Update" || btn.text().trim() === "Save") {
+            var chkEl = document.getElementById("chk");
+            var isFileRequired = btn.text().trim() === "Save" || 
+                             (btn.text().trim() === "Update" && chkEl && chkEl.checked);
+            if (isFileRequired && $("#file").val() === ""){
+                showError('Document file is required.', 'modal-message');return false;
+            }
+            if ( checkInput( 'txt', 'document_title', 'Document title is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'cmb', 'status', 'Status is required.', 'modal-message') == false ) {return false;}
+            submitSaveUpdateUpload('@Url.Content("~/General/DocumentTemplates")');
+        }
+    });
+    </script>

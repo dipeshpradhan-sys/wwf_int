@@ -1,0 +1,155 @@
+﻿@using Microsoft.AspNetCore.Http;
+@inject IHttpContextAccessor HttpContextAccessor;
+@model List<wwfpp.Models.Settings.SalarySettingsExtraViewModel>
+@{
+    string DATE_FORMAT = ViewBag.DATE_FORMAT;
+
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var PageTitle = "Employee salary extra settings";
+    var Page_Tips = "";  //Tool tip message on right side
+    var msg_please_wait = "";
+    var Page_Mode = PageTitle;
+    ViewData["Title"] = "| " + PageTitle;
+    var Help_Tips = GblUtilities.HelpTips(Page_Tips);    
+    string ShowMsg = GblUtilities.MsgDisplay(Context.Request.Query["msg"].ToString());/*success|fail|error'*/
+}
+@Html.AntiForgeryToken()
+@Html.Hidden("ilaka", "/Settings/SalarySettingsExtra")
+<h2 class="titlebig"><span name="header" id="header">@Page_Mode</span> @Html.Raw(Help_Tips)</h2>
+@Html.Hidden("mode", "")
+@Html.Hidden("Id", "")
+
+<div id="message_header"><p id="loading" class="loading displaynone">@msg_please_wait</p></div>
+
+<div class="row">
+    <div class="col-lg-2"><label class="col-lg-12 col-form-label-lg">Employee Status : &nbsp;</label></div>
+    <div class="col-lg-10">
+        @Html.DropDownList("StatusFilter", (SelectList)ViewBag.StatusFilter, new { @class = "form-select", style = "width:300px;" })
+    </div>
+</div>
+
+<!-- DataTable -->
+@if (Model == null)
+{
+    <div id="message_header"><p class="note">No record(s) found.</p></div>
+}
+else
+{
+    <div class="form-group p-2">
+        <table id="tblData" class="display compact nowrap" style="width:100%">
+            <thead>
+                <tr style="height: 50px; align-items: center;color:white;" class="bg-secondary bg-opacity-27">
+                    <th colspan="2">Employee information</th>
+                    <th colspan="6">Settings</th>
+                    <th colspan="3">Accrual settings</th>
+                </tr>
+                <tr style="height: 50px; align-items: center;color:white;" class="bg-secondary bg-opacity-27">
+                    <th width="2%"><input type="checkbox" id="selectAll" ></th>
+                    <th width="38%">Employee</th>
+                    <th width="12%">Duty<br />Station</th>
+                    <th width="12%">Staff<br />Type</th>
+                    <th width="4%">Field<br />staff?</th>
+                    <th width="5%">Is salary<br/>from field?</th>
+                    <th width="4%">Get<br/>dashain?</th>
+                    <th width="5%">Welfare<br /> %</th>
+                    <th width="5%">Leave</th>
+                    <th width="5%">Gratuity</th>
+                    <th width="8%">Gratuity<br />Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- contents -->
+            </tbody>
+        </table>
+    </div>
+    <div id="message_header">@Html.Raw(ShowMsg)</div>
+    @if (ViewBag.epern == "true")
+    {
+        <div class="form-group row p-1">
+            <label class="col-sm-4 col-form-label">&nbsp;</label>
+            <div class="col-sm-8">
+                <button type="reset" name="btnReset" id="btnReset" class="button btn-secondary">Reset</button>
+                <button type="button" name="btnSave" id="btnSave" class="button btn-primary">Save</button>
+            </div>
+        </div>
+    }
+    <div id="dSiTemplate" style="display:none;">@Html.DropDownList("duty_station_idT", (SelectList)ViewBag.DutyStationList, "--Select--", new { @class = "form-select", style = "width:130px;" })</div>
+    <div id="sTaTemplate" style="display:none;">@Html.DropDownList("staff_type", (SelectList)ViewBag.StaffTypeList, "--Select--", new { @class = "form-control", style = "width:130px;" })</div>
+    @section scripts
+    {
+        <script>
+            var ilaka = document.getElementById('ilaka').value;
+            var selectedIds = new Set();
+            var hideviewaction = "yes";
+            var table;
+            $(document).ready(function ()
+            {   
+                GetAllData(ilaka, "emp_id", [
+                    { data: "employee", name: "employee", autoWidth: false,render: function (data, type, row) {return '<span style="white-space:normal;">' + data + '</span>';}},
+                    { data: "duty_station_id", name: "duty_station_id", autoWidth: false,render: function (data, type, row, meta){var ctrlName = "duty_station_id" + meta.row;var $select = $("#dSiTemplate select").clone();$select.attr("id", ctrlName).attr("name", ctrlName);var val = data != null ? data.toString().trim() : "";$select.find("option:selected").prop("selected", false);$select.find("option").each(function () {if ($(this).val() === val) {$(this).attr("selected", "selected");}});return $select.prop("outerHTML");}},
+                    { data: "staff_type", name: "staff_type", autoWidth: false, render: function (data, type, row, meta){var ctrlName = "staff_type" + meta.row;var $select = $("#sTaTemplate select").clone();$select.attr("id", ctrlName).attr("name", ctrlName);var val = data != null ? data.toString().trim() : "";$select.find("option:selected").prop("selected", false);$select.find("option").each(function () {if ($(this).val() === val) {$(this).attr("selected", "selected");}});return $select.prop("outerHTML");}},
+                    { data: "is_field_staff", name: "is_field_staff", autoWidth: false,render: function(data, type, row, meta) {if (data === "Y") {var Ddata = "checked";} else {var Ddata = "";}return '<input type="checkbox" name="is_field_staff"' + meta.row +'" id="is_field_staff"' + meta.row +'" value ="Y" '+ Ddata +' >';}},
+                    { data: "is_field_salary", name: "is_field_salary", autoWidth: false,render: function(data, type, row, meta) {if (data === "Y") {var Ddata = "checked";} else {var Ddata = "";}return '<input type="checkbox" name="is_field_salary"' + meta.row +'" id="is_field_salary"' + meta.row +'" value ="Y" '+ Ddata +' >';}},
+                    { data: "is_get_dashain", name: "is_get_dashain", autoWidth: false,render: function(data, type, row, meta) {if (data === "Y") {var Ddata = "checked";} else {var Ddata = "";}return '<input type="checkbox" name="is_get_dashain"' + meta.row +'" id="is_get_dashain"' + meta.row +'" value ="Y" '+ Ddata +' >';}},
+                    { data: "welfare_con_percent", name: "welfare_con_percent", autoWidth: false,render: function(data, type, row, meta) {return '<input type="text" name="welfare_con_percent"' + meta.row +'" id="welfare_con_percent"' + meta.row +'" value="' + data + '" class="form-control welfare-input" style = "width:60px;", maxlength = "5">';}},
+                    { data: "get_leave_accrual", name: "get_leave_accrual", autoWidth: false,render: function(data, type, row, meta) {if (data === "Y") {var Ddata = "checked";} else {var Ddata = "";}return '<input type="checkbox" name="get_leave_accrual"' + meta.row +'" id="get_leave_accrual"' + meta.row +'" value ="Y" '+ Ddata +' >';}},
+                    { data: "get_gratuity_accrual", name: "get_gratuity_accrual", autoWidth: false,render: function(data, type, row, meta) {if (data === "Y") {var Ddata = "checked";} else {var Ddata = "";}return '<input type="checkbox" name="get_gratuity_accrual"' + meta.row +'" id="get_gratuity_accrual"' + meta.row +'" value ="Y" '+ Ddata +' >';}},
+                    { data: "gratuity_date", name: "gratuity_date", autoWidth: false,render: function(data, type, row, meta) {if (data == null || data == '') {var Ddata = "";} else {var Ddata = moment(data).format(my_format);}return '<input type="text" name="gratuity_date"' + meta.row +'" id="gratuity_date"' + meta.row +'" value="' + Ddata + '" class="form-control gratuity-date-input" style = "width:130px;", maxlength = "10">';}}
+                ],
+                {
+                    FilterValue: "StatusFilter"
+                });
+                // Wait for first draw to complete before changing page length                
+                $(document).one('init.dt', '#tblData', function () {table.page.len(-1).draw();})
+                $('#tblData_filter').hide();
+                $('#tblData_length').hide();
+
+            });
+            function collectExtraFields() {
+                var extraSettings = [];
+                $("#tblData tbody tr").each(function () {
+                    var row = $(this);
+                    var id = row.find("input.row-checkbox:checked").val();
+                    if (selectedIds.has(id)) {
+                        extraSettings.push({
+                            emp_id: parseInt(id, 10),employee: "",emp_status :"",
+                            duty_station_id: row.find("select[name^='duty_station_id']").val(),
+                            staff_type: row.find("select[name^='staff_type']").val(),
+                            is_field_staff: row.find("input[name^='is_field_staff']").is(":checked") ? "Y" : "N",
+                            is_field_salary: row.find("input[name^='is_field_salary']").is(":checked") ? "Y" : "N",
+                            is_get_dashain: row.find("input[name^='is_get_dashain']").is(":checked") ? "Y" : "N",
+                            welfare_con_percent: parseFloat(row.find("input[name^='welfare_con_percent']").val()),
+                            get_leave_accrual: row.find("input[name^='get_leave_accrual']").is(":checked") ? "Y" : "N",
+                            get_gratuity_accrual: row.find("input[name^='get_gratuity_accrual']").is(":checked") ? "Y" : "N",
+                            gratuity_date: formatDateToISO(row.find("input[name^='gratuity_date']").val())
+                        });
+                    }
+                });
+                return extraSettings;
+            }
+            $(document).on('blur', '.welfare-input', function () { OnlyNumericCtrl(this); });
+            $(document).on('blur', '.gratuity-date-input', function () { convert_date(this); });
+            $(document).off("click", "#btnSave").on("click", "#btnSave", function () {$("#mode").val("update");updateDataJSON(ilaka+"Save");});
+            
+            $("#StatusFilter").off("change").on("change", function () {
+                const statusV = $(this).val();
+                if (!statusV) {return;}
+                const $myButton =  $("#btnSave");
+                if ($myButton.length) 
+                { 
+                    if (statusV === "A" )
+                    { 
+                        $myButton.show();
+                        $('#tblData_length').hide();
+                        table.page.len(-1).draw();
+                    } else {
+                        $myButton.hide();
+                        $('#tblData_length').show();
+                        table.page.len(10).draw();
+                    }
+                }
+                table.draw();
+            });
+        </script>
+    }
+}

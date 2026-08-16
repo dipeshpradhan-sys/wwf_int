@@ -1,0 +1,74 @@
+﻿@using Microsoft.AspNetCore.Http;
+@inject IHttpContextAccessor HttpContextAccessor;
+@model wwfpp.Models.Settings.SettingDependentVerificationViewModel
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var PageTitle = "Dependent children allowance eligibility verification";
+    var Page_Tips = "";  //Tool tip message on right side
+    var msg_please_wait = "Need to remove inline javascript function calls";
+    var Page_Mode = PageTitle; 
+    ViewData["Title"] = "| " + PageTitle;
+    var Help_Tips = GblUtilities.HelpTips(Page_Tips);    
+    string ShowMsg = GblUtilities.MsgDisplay(Context.Request.Query["msg"].ToString());/*success|fail|error'*/
+}
+@Html.AntiForgeryToken()
+@Html.Hidden("ilaka", "/Settings/DependentVerification")
+<h2 class="titlebig"><span name="header" id="header">@Page_Mode</span> @Html.Raw(Help_Tips)</h2>
+@Html.Hidden("mode", "")
+@Html.Hidden("Id", "")
+@Html.Hidden("Ids", "")
+
+<div id="message_header"><p id="loading" class="loading displaynone">@msg_please_wait</p></div>
+<div id="message_header">@Html.Raw(ShowMsg)</div>
+
+<!-- DataTable -->
+@if (Model == null)
+{
+    <div id="message_header"><p class="note">No record(s) found.</p></div>
+}
+else
+{
+    <div class="form-group p-2">
+        <table id="tblDataNew" class="display compact nowrap" style="width:100%">
+            <thead>
+                <tr style="height: 40px; align-items: center;color:white;" class="bg-secondary bg-opacity-27">
+                    <th width="1%">SN</th>
+                    <th width="29%">Dependent Name</th>
+                    <th width="10%">Gender</th>
+                    <th width="10%">Date of Birth</th>
+                    <th width="10%">Eligibility</th>
+                    <th width="10%">Age(Year)</th>
+                    <th width="10%">Certificate</th>
+                    <th width="10%">Receipt</th>
+                    <th width="10%">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+            @Html.Raw(@ViewBag.Contents)
+            </tbody>
+        </table>
+    </div>
+
+    @section scripts 
+    {
+        <script>
+            var ilaka = document.getElementById('ilaka').value;
+            function postDependentVerification(vat, dal, tar){
+                $("#mode").val(vat);
+                $("#Id").val(dal);
+                $("#Ids").val(tar);
+                submitSaveUpdate(ilaka);
+                window.location.href = ilaka+"?msg=updatesuccess";
+            }
+            document.addEventListener('DOMContentLoaded', function () {
+                var link = document.getElementById('.rupload-link');
+                if (link) {
+                    link.addEventListener('click', function (e) {
+                        e.preventDefault();
+                        PopUpW(this.href);
+                    });
+                }
+            });
+        </script>
+    }
+}

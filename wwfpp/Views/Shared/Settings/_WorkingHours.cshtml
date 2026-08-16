@@ -1,0 +1,107 @@
+﻿@using Microsoft.AspNetCore.Http;
+@inject IHttpContextAccessor HttpContextAccessor;
+@model wwfpp.Models.Settings.SettingLimitHrsViewModel
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var PageTitle = "Working hours";
+    var Page_Tips = "";  //Tool tip message on right side
+    var msg_please_wait = "";
+    var Page_Mode = PageTitle; 
+    ViewData["Title"] = "| " + PageTitle;
+    var Help_Tips = GblUtilities.HelpTips(Page_Tips);    
+    string ShowMsg = GblUtilities.MsgDisplay(Context.Request.Query["msg"].ToString());/*success|fail|error'*/
+}
+@Html.AntiForgeryToken()
+@Html.Hidden("ilaka", "/Settings/WorkingHours")
+<h2 class="titlebig"><span name="header" id="header">@Page_Mode</span> @Html.Raw(Help_Tips)</h2>
+@Html.Hidden("mode", (string)ViewBag.mode)
+@Html.Hidden("Id", "")
+<partial name="_ConstantValues" view-data='new ViewDataDictionary(ViewData) { { "NoteKey", "RequiredField" } }' />
+
+<div id="message_header"><p id="loading" class="loading displaynone">@msg_please_wait</p></div>
+<div id="message_header">@Html.Raw(ShowMsg)</div>
+
+<div class="form-group row p-1">
+    @Html.HiddenFor(m => m.hrs_id) <!-- Needed for Edit -->
+
+    <div class="row">
+        <div class="col-lg-4 col-form-label-sm">Maximum Working Hours<span class="text-danger">*</span></div>
+        <div class="col-lg-8"> 
+            @Html.TextBoxFor(m => m.normal_working_hrs, new { @class = "form-control w-25",  maxlength = "5"})
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-4 col-form-label-sm">Maximum Overtime Hours (Working Day)<span class="text-danger">*</span></div>
+        <div class="col-lg-8">
+            @Html.TextBoxFor(m => m.overtime_normal_working_hrs, new { @class = "form-control w-25", maxlength = "5" })
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-4 col-form-label-sm">Maximum Overtime Hours (Weekend or Holiday)<span class="text-danger">*</span></div>
+        <div class="col-lg-8">
+            @Html.TextBoxFor(m => m.overtime_hol_wek_working_hrs, new { @class = "form-control w-25", maxlength = "5" })
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-4 col-form-label-sm">Working hours per pay period<span class="text-danger">*</span></div>
+        <div class="col-lg-8">
+            @Html.TextBoxFor(m => m.working_hours_per_pay_period, new { @class = "form-control w-25", maxlength = "5" })
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-4 col-form-label-sm">Able to enter hours in timesheet on holiday<span class="text-danger">*</span></div>
+        <div class="col-lg-8">
+        @Html.DropDownList("populate_hrs_in_timesheet_for_holiday", (SelectList)ViewBag.Status, new
+        {
+            @class = "form-select w-25"
+        })
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-4 col-form-label-sm">Able to enter hours in timesheet on weekend<span class="text-danger">*</span></div>
+        <div class="col-lg-8">
+        @Html.DropDownList("populate_hrs_in_timesheet_for_weekend", (SelectList)ViewBag.Status, new
+        {
+            @class = "form-select w-25"
+        })
+        </div>
+    </div>
+</div>
+@if (ViewBag.apern == "true" || ViewBag.epern == "true")
+{
+    <div class="form-group row p-1">
+        <label class="col-sm-4 col-form-label">&nbsp;</label>
+        <div class="col-sm-8">
+            <button type="reset" name="btnReset" id="btnReset" class="button btn-secondary">Reset</button>
+            <button type="button" name="btnSave" id="btnSave" class="button btn-primary">Save</button>
+        </div>
+    </div>
+
+    @section scripts
+    {
+        <script>
+            var perma = '@ViewBag.apern';
+            var perme = '@ViewBag.epern';
+            var ilaka = document.getElementById('ilaka').value;
+            $(document).off("click", "#btnSave").on("click", "#btnSave", function () {
+                if ( checkInput( 'txt', 'normal_working_hrs', 'Working hours is required.') == false ) {return false;}
+                if ( document.getElementById('normal_working_hrs').value <= 0) {showError('Working hours should be greater than 0 hours.','message');return false;}
+                if ( checkInput( 'txt', 'overtime_normal_working_hrs', 'Maximum overtime hours[Working Day] is required.') == false ) {return false;}
+                if ( checkInput( 'txt', 'overtime_hol_wek_working_hrs', 'Maximum overtime hours[Weekend or Holiday] is required.') == false ) {return false;}
+                if ( checkInput( 'txt', 'working_hours_per_pay_period', 'Working days per pay period is required.') == false ) {return false;}
+                if ( checkInput( 'cmb', 'populate_hrs_in_timesheet_for_holiday', 'Select Able to enter hours in timesheet on holiday.') == false ) {return false;}
+                if ( checkInput( 'cmb', 'populate_hrs_in_timesheet_for_weekend', 'Select Able to enter hours in timesheet on weekend.') == false ) {return false;}
+                submitSaveUpdate(ilaka);
+            });
+            $(document).off('blur', '#normal_working_hrs').on('blur', '#normal_working_hrs', function () {OnlyNumeric('normal_working_hrs');});
+            $(document).off('blur', '#overtime_normal_working_hrs').on('blur', '#overtime_normal_working_hrs', function () {OnlyNumeric('overtime_normal_working_hrs');});
+            $(document).off('blur', '#overtime_hol_wek_working_hrs').on('blur', '#overtime_hol_wek_working_hrs', function () {OnlyNumeric('overtime_hol_wek_working_hrs');});
+            $(document).off('blur', '#working_hours_per_pay_period').on('blur', '#working_hours_per_pay_period', function () {OnlyNumeric('working_hours_per_pay_period');});
+        </script>
+    }
+}
