@@ -39,6 +39,7 @@ namespace wwfpp.Controllers
         private readonly PayrollServices _payrollServices;
         private readonly PaySlipManager _paySlipManager;
         private readonly IWebHostEnvironment _webHostEnvironment;
+        private readonly LeaveAccrualServices _leaveAccrualServices;
         public PayrollController(
             AppDbContext context,
             IOptions<AppSettings> appSettings,
@@ -50,7 +51,8 @@ namespace wwfpp.Controllers
             AccountServices accountServices,
             PayrollServices payrollServices,
             PaySlipManager paySlipManager,
-            IWebHostEnvironment webHostEnvironment
+            IWebHostEnvironment webHostEnvironment,
+            LeaveAccrualServices leaveAccrualServices
         )
         {
             _context = context;
@@ -64,6 +66,7 @@ namespace wwfpp.Controllers
             _payrollServices = payrollServices;
             _paySlipManager = paySlipManager;
             _webHostEnvironment = webHostEnvironment;
+            _leaveAccrualServices = leaveAccrualServices;
         }
 
         /********************************************************************************************************************/
@@ -852,7 +855,7 @@ namespace wwfpp.Controllers
                 canSaveButton = exists ? "Y" : "N"
             };
         }
-        private void SetInsertAccrualFundSource(string parmId, int parmEmpId, string parmFiscalYear, DateTime parmStartFiscalDate, DateTime parmEndFiscalDate, string parmInsertTable, short? parmPeriod)
+        private void SetInsertAccrualFundSource(string parm_check_table, string parmId, int parmEmpId, string parmFiscalYear, DateTime parmStartFiscalDate, DateTime parmEndFiscalDate, string parmInsertTable, short? parmPeriod)
         {
             var exists = _context.tbl_employee_dashain_allowance_emp_wise.Any(x => x.id == parmId && x.counter == parmPeriod);
 
@@ -1078,7 +1081,7 @@ namespace wwfpp.Controllers
                 _context.tbl_employee_dashain_allowance_emp_wise.Add(newRowEmpWise);
                 _context.SaveChanges();
 
-                SetInsertAccrualFundSource(nextId, update.emp_id, update.fiscal_year, Convert.ToDateTime(start_fiscal_date), Convert.ToDateTime(end_fiscal_date), "tbl_employee_dashain_allowance_fund_wise", 1);
+                SetInsertAccrualFundSource("tbl_employee_dashain_allowance", nextId, update.emp_id, update.fiscal_year, Convert.ToDateTime(start_fiscal_date), Convert.ToDateTime(end_fiscal_date), "tbl_employee_dashain_allowance_fund_wise", 1);
             }
             return Json(new { status = "success", message = Lang.msg_update_success });
         }
@@ -4126,7 +4129,548 @@ namespace wwfpp.Controllers
         }
         #endregion
         /********************************************************************************************************************/
+        #region 10912 LEAVE ACCRUAL
+        [HttpGet]
+        public IActionResult LeaveAccrual(string fiscalYearFilter, string? periodInput)
+        {
+            string PageId = "10912";
+            #region FOR PERMISSION
+            var perm = _accountServices.GetMenuPermission(PageId);
+            if (perm.vpern == "false") { return RedirectToAction("PermissionDenied", "Home"); }
+            ViewBag.apern = perm.apern;
+            ViewBag.epern = perm.epern;
+            ViewBag.dpern = perm.dpern;
+            #endregion FOR END PERMISSION
+            string? FiscalYearActive = HttpContext.Session.GetString("FiscalYear");
+            ViewBag.FiscalYearActive = FiscalYearActive;
+            ViewBag.FiscalYearList = _settingsServices.GetFiscalYears(HttpContext.Session.GetString("fiscal_year"));
 
+            return PartialView("Payroll/_LeaveAccrual", "");
+        }
+        public async Task<IActionResult> LeaveAccrualList([FromForm] DataFilterRequest request)
+        {
+            var (pageSize, skip, draw, sortColumn, sortColumnDir, searchValue) = DataTableHelper.GetParameters(Request);
+
+            string fiscal_year = request.FiscalYearFilter ?? "";
+            int? period = 4;
+
+            string[] fiscal_year_break = fiscal_year.Split('/');
+
+            bool hasAccrual = _context.tbl_employee_leave_accrual_new
+                .Any(a => a.fiscal_year == fiscal_year && a.counter == period);
+
+            List<dynamic> rawData;
+            bool? blnShow = null;
+
+            double? total_annual_leave = _leaveAccrualServices.getYearlyHrsLeave("an");
+            decimal? an_hrs_can_carry_forward = Math.Round(_leaveAccrualServices.getYearlyHrsCF(), 2);
+
+            double? total_sick_leave = _leaveAccrualServices.getYearlyHrsLeave("si");
+            decimal? si_hrs_can_carry_forward = Math.Round(_leaveAccrualServices.getYearlySickHrsCF(), 2);
+
+            decimal max_cur_an_leave_cf = 144;
+            decimal max_cur_si_leave_cf = 96;
+            var limits = _context.tbl_setting_limit_hrs.FirstOrDefault();
+
+            int working_hrs_day = limits?.normal_working_hrs ?? 7;
+            int working_hrs_pay_period = limits?.working_hours_per_pay_period ?? 5;
+
+            if (!hasAccrual)
+            {
+                var employees = await (
+                    from e in _context.tbl_employee
+                    where e.emp_status == "A"
+                          && _context.tbl_employee_salary_extra_settings
+                               .Any(s => s.emp_id == e.emp_id && s.get_leave_accrual == "Y")
+                    select e
+                ).ToListAsync();
+
+                string pre_fiscal_year = (int.Parse(fiscal_year_break[0]) - 1) + "/" + (int.Parse(fiscal_year_break[1]) - 1);
+
+                DateTime start_fiscal_date = _context.tbl_fiscal_year
+                    .Where(f => f.fiscal_year == fiscal_year)
+                    .Select(f => f.date_from)
+                    .FirstOrDefault() ?? DateTime.Now;
+
+                DateTime end_fiscal_date = _context.tbl_fiscal_year
+                    .Where(f => f.fiscal_year == fiscal_year)
+                    .Select(f => f.date_to)
+                    .FirstOrDefault() ?? DateTime.Now;
+
+                rawData = employees.Select(e =>
+                {
+                    int emp_id = e.emp_id;
+                    string emp_code = e.emp_code;
+                    string full_name = $"{e.firstname} {e.middlename} {e.lastname}";
+                    decimal? basic_salary = e.salary;
+                    string emp_status = e.emp_status;
+                    DateTime? join_date = e.join_date;
+                    DateTime? end_date = e.end_date;
+
+                    decimal pre_leave_payable = _leaveAccrualServices.getProvisionedLeaveAmount(emp_id, pre_fiscal_year, period ?? 1);
+
+                    DateTime new_start_fiscal_date = _leaveAccrualServices.getFirstLeavePaidEndDate(emp_id, fiscal_year, start_fiscal_date, 1);
+
+                    // Annual leave
+                    decimal a_c = _leaveAccrualServices.getMaxLeaveHrs(1, emp_id, fiscal_year);
+                    decimal a_p = _leaveAccrualServices.getMaxLeaveHrs(16, emp_id, fiscal_year);
+                    decimal a_t = _leaveAccrualServices.getLeaveTaken(1, emp_id, new_start_fiscal_date, end_fiscal_date);
+
+                    decimal cur_an_leave_laps = (a_t >= a_c) ? 0 :
+                        ((a_c - a_t >= max_cur_an_leave_cf) ? (a_c - a_t - max_cur_an_leave_cf) : 0);
+
+                    decimal an_bal = a_p + a_c - a_t - cur_an_leave_laps;
+                    decimal? an_eli = (an_bal > an_hrs_can_carry_forward) ? an_hrs_can_carry_forward : an_bal;
+                    an_bal = Math.Round(an_bal, 2) / working_hrs_day;
+                    an_eli = Math.Round((Decimal)an_eli, 2) / working_hrs_day;
+
+                    // Sick leave
+                    decimal s_c = _leaveAccrualServices.getMaxLeaveHrs(5, emp_id, fiscal_year);
+                    decimal s_p = _leaveAccrualServices.getMaxLeaveHrs(17, emp_id, fiscal_year);
+                    decimal s_t = _leaveAccrualServices.getLeaveTaken(5, emp_id, new_start_fiscal_date, end_fiscal_date);
+
+                    decimal cur_si_leave_laps = (s_t >= s_c) ? 0 :
+                        ((s_c - s_t >= max_cur_si_leave_cf) ? (s_c - s_t - max_cur_si_leave_cf) : 0);
+
+                    decimal si_bal = s_p + s_c - s_t - cur_si_leave_laps;
+                    decimal? si_eli = (si_bal > si_hrs_can_carry_forward) ? si_hrs_can_carry_forward : si_bal;
+                    si_bal = Math.Round(si_bal, 2) / working_hrs_day;
+                    si_eli = Math.Round((Decimal)si_eli, 2) / working_hrs_day;
+
+                    // Totals
+                    decimal? to_eli = Math.Round((Decimal)an_eli, 2) + Math.Round((Decimal)si_bal, 2);
+                    decimal divisor = (decimal)working_hrs_pay_period / (decimal)working_hrs_day;
+                    decimal? to_pay = divisor == 0
+                        ? 0
+                        : Math.Round(((basic_salary ?? 0) * (to_eli ?? 0)) / divisor, 2);
+                    decimal? cu_pro = to_pay - pre_leave_payable;
+
+                    return new
+                    {
+                        emp_id,
+                        emp_code,
+                        full_name,
+                        gender = e.gender,
+                        join_date,
+                        end_date,
+                        basic_salary,
+                        emp_status,
+                        an_bal,
+                        an_eli,
+                        si_bal,
+                        si_eli,
+                        to_eli,
+                        to_pay,
+                        cu_pro,
+                        pre_fiscal_year,
+                        pre_leave_payable,
+                        total_annual_leave,
+                        an_hrs_can_carry_forward,
+                        total_sick_leave,
+                        si_hrs_can_carry_forward,
+                        remarks = "",
+                        period = period
+                    };
+                }).Cast<dynamic>().ToList();
+
+                blnShow = true;
+            }
+            else
+            {
+                var accruals = await (
+                    from a in _context.tbl_employee_leave_accrual_new
+                    join e in _context.tbl_employee on a.emp_id equals e.emp_id
+                    where a.fiscal_year == fiscal_year && a.counter == period
+                    select new
+                    {
+                        a.emp_id,
+                        e.emp_code,
+                        full_name = e.firstname + " " + e.middlename + " " + e.lastname,
+                        e.gender,
+                        e.join_date,
+                        e.end_date,
+                        basic_salary = (decimal?)(a.basic_salary ?? 0),
+                        e.emp_status,
+                        an_bal = (decimal?)(a.an_leave_balance ?? 0),
+                        an_eli = (decimal?)(a.an_leave_accrual ?? 0),
+                        si_bal = (decimal?)(a.si_leave_balance ?? 0),
+                        si_eli = (decimal?)(a.si_leave_accrual ?? 0),
+
+                        // total eligible leave
+                        to_eli = (decimal)(a.leave_accrual_days ?? 0),
+
+                        // computed pay (same logic as Add Mode)
+                        to_pay = (decimal)(a.leave_payable ?? 0),
+
+                        // current provision = to_pay - pre_leave_payable
+                        cu_pro = (decimal)(a.net_provision ?? 0),
+
+                        pre_fiscal_year = a.fiscal_year,
+                        pre_leave_payable = (decimal)(a.pre_provisioned ?? 0),
+                        total_annual_leave,
+                        an_hrs_can_carry_forward,
+                        total_sick_leave,
+                        si_hrs_can_carry_forward,
+                        remarks = a.remarks,
+                        period = a.counter
+                    }).ToListAsync();
+
+
+                rawData = accruals.Cast<dynamic>().ToList();
+                blnShow = false;
+            }
+
+            // Search filter
+            if (!string.IsNullOrEmpty(searchValue))
+            {
+                rawData = rawData
+                    .Where(e => e.full_name.Contains(searchValue) || e.gender.Contains(searchValue))
+                    .ToList();
+            }
+
+            // Sorting
+            if (!string.IsNullOrEmpty(sortColumn) && !string.IsNullOrEmpty(sortColumnDir))
+            {
+                rawData = rawData.AsQueryable().OrderBy($"{sortColumn} {sortColumnDir}").ToList();
+            }
+
+            int recordsTotal = rawData.Count;
+            if (pageSize == -1) pageSize = recordsTotal;
+            var cData = rawData.Skip(skip).Take(pageSize).ToList();
+
+            var jsonData = new
+            {
+                draw = draw,
+                recordsFiltered = recordsTotal,
+                recordsTotal = recordsTotal,
+                totalRecordSub = !string.IsNullOrEmpty(fiscal_year) && period.HasValue
+                    ? _context.tbl_employee_leave_accrual_new.Count(h => h.fiscal_year == fiscal_year && h.counter == period)
+                    : 0,
+                blnShow = blnShow,
+                data = cData.Select(x => new
+                {
+                    x.emp_id,
+                    x.full_name,
+                    x.emp_code,
+                    gender = x.gender == "M" ? "Male" : "Female",
+                    join_date = x.join_date?.ToString("dd-MMM-yyyy"),
+                    end_date = x.end_date?.ToString("dd-MMM-yyyy"),
+                    basic_salary = Math.Round(x.basic_salary ?? 0, 2),
+                    emp_status = x.emp_status,
+                    an_bal = Math.Round(x.an_bal ?? 0, 2),
+                    an_eli = Math.Round(x.an_eli ?? 0, 2),
+                    si_bal = Math.Round(x.si_bal ?? 0, 2),
+                    si_eli = Math.Round(x.si_eli ?? 0, 2),
+                    to_eli = Math.Round(x.to_eli ?? 0, 2),
+                    to_pay = Math.Round(x.to_pay ?? 0, 2),
+                    cu_pro = Math.Round(x.cu_pro ?? 0, 2),
+                    pre_fiscal_year = x.pre_fiscal_year,
+                    pre_leave_payable = Math.Round(x.pre_leave_payable ?? 0, 2),
+                    total_annual_leave = Math.Round(x.total_annual_leave ?? 0, 2),
+                    an_hrs_can_carry_forward = Math.Round(x.an_hrs_can_carry_forward ?? 0, 2),
+                    total_sick_leave = Math.Round(x.total_sick_leave ?? 0, 2),
+                    si_hrs_can_carry_forward = Math.Round(x.si_hrs_can_carry_forward ?? 0, 2),
+                    remarks = x.remarks,
+                    period = x.period
+
+                })
+            };
+
+            return new JsonResult(jsonData);
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<JsonResult> LeaveAccrualSave([FromBody] EmployeeLeaveAccrualListViewModel model)
+        {
+            string PageId = "10912";
+            #region FOR PERMISSION
+            var perm = _accountServices.GetMenuPermission(PageId);
+            ViewBag.apern = perm.apern;
+            ViewBag.epern = perm.epern;
+            #endregion FOR END PERMISSION
+
+            if (perm.apern != "true" && perm.epern != "true") { return Json(new { status = "invalid", message = "Not Authorized User" }); }
+            if (!ModelState.IsValid) { return Json(new { status = "error", message = Lang.msg_error_invalid }); }
+            if (model?.Fields == null || !model.Fields.Any()) { return Json(new { status = "error", message = "No employees received." }); }
+
+            foreach (var update in model.Fields)
+            {
+                var StartEndDates = _settingsServices.GetFiscalStartEndDate(update.pre_fiscal_year!);
+                DateTime start_fiscal_date = StartEndDates.StartDate;
+                DateTime end_fiscal_date = StartEndDates.EndDate;
+
+                if (update.emp_id > 0)
+                {
+                    var nextId = Guid.NewGuid().ToString();
+
+                    var total_hours = await (
+                        from f in _context.tbl_employee_fund_source
+                        where f.emp_id == update.emp_id
+                              && f.start_date >= start_fiscal_date
+                              && f.start_date <= end_fiscal_date
+                              && (from fs in _context.tbl_fund_source
+                                  where fs.fund_status == "A"
+                                        && fs.expiry_date > DateTime.Now
+                                  select fs.fund_id).Contains(f.fund_id)
+                        select f.annual_hrs
+                    ).SumAsync() ?? 0;
+
+                    var newRow = new tbl_employee_leave_accrual_new
+                    {
+                        id = nextId,
+                        emp_id = update.emp_id,
+                        fiscal_year = update.pre_fiscal_year,
+                        basic_salary = update.basic_salary,
+                        an_leave_balance = update.an_leave_balance,
+                        an_leave_accrual = update.an_leave_accrual,
+                        si_leave_balance = update.si_leave_balance,
+                        si_leave_accrual = update.si_leave_accrual,
+                        leave_accrual_days = update.leave_accrual_days,
+                        leave_payable = update.leave_payable,
+                        pre_provisioned = update.pre_provisioned,
+                        net_provision = update.net_provision,
+                        total_hours = total_hours,
+                        submit_date = System.DateTime.Now,
+                        remarks = update.remarks,
+                        counter = update.counter
+                    };
+                    _context.tbl_employee_leave_accrual_new.Add(newRow); // 👈 inside the if
+                    await _context.SaveChangesAsync();
+
+                    SetInsertAccrualFundSource("tbl_employee_leave_accrual_new", nextId, update.emp_id, update.pre_fiscal_year, Convert.ToDateTime(start_fiscal_date), Convert.ToDateTime(end_fiscal_date), "tbl_employee_leave_accrual_new_fund_wise", 4);
+                }
+            }
+
+            return Json(new { status = "success", message = Lang.msg_update_success });
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<JsonResult> LeaveAccrualClear(string? fiscalYear, int? period)
+        {
+            await _context.Database.ExecuteSqlRawAsync("DELETE FROM tbl_employee_leave_accrual_new WHERE fiscal_year = {0} AND counter = {1}", fiscalYear, period);
+            await _context.Database.ExecuteSqlRawAsync("DELETE FROM tbl_employee_leave_accrual_new_fund_wise WHERE fiscal_year = {0} AND counter = {1}", fiscalYear, period);
+
+            return Json(new
+            {
+                status = "success",
+                message = "clearsuccess",
+                fiscal_year = fiscalYear,
+                period = period
+            });
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult ExportLeaveAccrual(string fiscalYear, int period)
+        {
+            // Decide which table to use based on fiscal year
+            string mainTable = fiscalYear.StartsWith("2018") ? "tbl_employee_leave_accrual_new" : "tbl_employee_leave_accrual";
+
+            // Get organization name
+            var orgName = _context.tbl_pp_options
+                .FirstOrDefault(x => x.option_name == "op_org_name")?.option_value ?? "";
+
+            // Query employee leave accrual records
+            var records = (from e in _context.tbl_employee
+                           join l in _context.tbl_employee_leave_accrual_new
+                               on e.emp_id equals l.emp_id
+                           where l.fiscal_year == fiscalYear && l.counter == period
+                           orderby e.firstname, e.middlename, e.lastname
+                           select new
+                           {
+                               e.emp_code,
+                               FullName = e.firstname + " " + e.middlename + " " + e.lastname,
+                               e.salary,
+                               l.an_leave_balance,
+                               l.an_leave_accrual,
+                               l.si_leave_balance,
+                               l.si_leave_accrual,
+                               l.leave_accrual_days,
+                               l.leave_payable,
+                               l.pre_provisioned,
+                               l.net_provision,
+                               l.remarks
+                           }).ToList();
+
+            using (var workbook = new XLWorkbook())
+            {
+                var ws = workbook.Worksheets.Add("LeaveAccrual");
+
+                int row = 1;
+                ws.Cell(row++, 1).Value = "Organization: " + orgName;
+                ws.Cell(row++, 1).Value = "Fiscal Year: " + fiscalYear;
+                ws.Cell(row++, 1).Value = "Period: " + period;
+                ws.Cell(row++, 1).Value = "Staff Statement of Annual Leave";
+
+                row++;
+                // Header row
+                ws.Cell(row, 1).Value = "Serial Number";
+                ws.Cell(row, 2).Value = "Employee Name";
+                ws.Cell(row, 3).Value = "Employee Code";
+                ws.Cell(row, 4).Value = "Base Salary";
+                ws.Cell(row, 5).Value = "Annual Leave Balance";
+                ws.Cell(row, 6).Value = "Annual Leave Accrual";
+                ws.Cell(row, 7).Value = "Sick Leave Balance";
+                ws.Cell(row, 8).Value = "Sick Leave Accrual";
+                ws.Cell(row, 9).Value = "Leave Accrual Days";
+                ws.Cell(row, 10).Value = "Leave Payable";
+                ws.Cell(row, 11).Value = "Pre-Provisioned";
+                ws.Cell(row, 12).Value = "Net Provision";
+                ws.Cell(row, 13).Value = "Remarks";
+                ws.Row(row).Style.Font.Bold = true;
+                row++;
+
+                int serial = 1;
+                decimal totalSalary = 0, totalPayable = 0, totalPreProvisioned = 0, totalNetProvision = 0;
+
+                foreach (var r in records)
+                {
+                    ws.Cell(row, 1).Value = serial++;
+                    ws.Cell(row, 2).Value = r.FullName;
+                    ws.Cell(row, 3).Value = r.emp_code;
+                    ws.Cell(row, 4).Value = r.salary;
+                    ws.Cell(row, 5).Value = r.an_leave_balance;
+                    ws.Cell(row, 6).Value = r.an_leave_accrual;
+                    ws.Cell(row, 7).Value = r.si_leave_balance;
+                    ws.Cell(row, 8).Value = r.si_leave_accrual;
+                    ws.Cell(row, 9).Value = r.leave_accrual_days;
+                    ws.Cell(row, 10).Value = r.leave_payable;
+                    ws.Cell(row, 11).Value = r.pre_provisioned;
+                    ws.Cell(row, 12).Value = r.net_provision;
+                    ws.Cell(row, 13).Value = r.remarks;
+
+                    totalSalary += r.salary ?? 0;
+                    totalPayable += r.leave_payable ?? 0;
+                    totalPreProvisioned += r.pre_provisioned ?? 0;
+                    totalNetProvision += r.net_provision ?? 0;
+
+                    row++;
+                }
+
+                // Totals row
+                ws.Cell(row, 1).Value = "Total";
+                ws.Range(row, 1, row, 3).Merge();
+                ws.Cell(row, 4).Value = totalSalary;
+                ws.Cell(row, 10).Value = totalPayable;
+                ws.Cell(row, 11).Value = totalPreProvisioned;
+                ws.Cell(row, 12).Value = totalNetProvision;
+
+                ws.Columns().AdjustToContents();
+
+                using (var stream = new System.IO.MemoryStream())
+                {
+                    workbook.SaveAs(stream);
+                    var content = Convert.ToBase64String(stream.ToArray());
+
+                    return Json(new
+                    {
+                        status = "success",
+                        fileName = $"employee_leave_accrual_export_{fiscalYear.Split('/')[1]}_{period}.xlsx",
+                        fileContent = content
+                    });
+                }
+            }
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult ExportLeaveAccrualCCD(string fiscalYear, int period)
+        {
+            // Get Organization name
+            var orgName = _context.tbl_pp_options
+                .FirstOrDefault(x => x.option_name == "op_org_name")?.option_value ?? "";
+
+            // Query employee leave accrual records
+            var records = (from e in _context.tbl_employee
+                           join l in _context.tbl_employee_leave_accrual_new
+                               on e.emp_id equals l.emp_id
+                           where l.fiscal_year == fiscalYear && l.counter == period
+                           orderby e.firstname, e.middlename, e.lastname
+                           select new
+                           {
+                               e.emp_id,
+                               e.emp_code,
+                               FullName = e.firstname + " " + e.middlename + " " + e.lastname,
+                               total_hours = l.total_hours,
+                               net_provision = l.net_provision
+                           }).ToList();
+
+            using (var workbook = new XLWorkbook())
+            {
+                var ws = workbook.Worksheets.Add("LeaveAccrualCCD");
+
+                int row = 1;
+                ws.Cell(row++, 1).Value = "Organization: " + orgName;
+                ws.Cell(row++, 1).Value = "Fiscal Year: " + fiscalYear;
+                ws.Cell(row++, 1).Value = "Period: " + period;
+                ws.Cell(row++, 1).Value = "Staff Statement of Annual Leave with Fund Source";
+
+                row++;
+                // Header
+                ws.Cell(row, 1).Value = "Serial Number";
+                ws.Cell(row, 2).Value = "Employee Name";
+                ws.Cell(row, 3).Value = "Employee ID";
+                ws.Cell(row, 4).Value = "Fund Source";
+                ws.Cell(row, 5).Value = "Hours";
+                ws.Cell(row, 6).Value = "Amount";
+                ws.Row(row).Style.Font.Bold = true;
+                row++;
+
+                int serial = 1;
+                foreach (var r in records)
+                {
+                    // Main employee row
+                    ws.Cell(row, 1).Value = serial++;
+                    ws.Cell(row, 2).Value = r.FullName;
+                    ws.Cell(row, 3).Value = r.emp_code;
+                    ws.Cell(row, 4).Value = "";
+                    ws.Cell(row, 5).Value = r.total_hours;
+                    ws.Cell(row, 6).Value = r.net_provision;
+                    row++;
+
+                    // Fund-wise allocations
+                    var fundWise = _context.tbl_employee_leave_accrual_new_fund_wise
+                        .Where(f => f.emp_id == r.emp_id && f.fiscal_year == fiscalYear && f.counter == period)
+                        .ToList();
+
+                    foreach (var f in fundWise)
+                    {
+                        if (f.hours == 0) continue;
+
+                        string fundSource = _context.tbl_fund_source
+                            .Where(fs => fs.fund_id == f.fund_id)
+                            .Select(fs => fs.fund_source)
+                            .FirstOrDefault();
+
+                        // Build GL code (simplified)
+                        string glFundSourceCode = $"{fundSource}-{r.emp_code}";
+
+                        decimal amount = r.total_hours != 0
+                            ? Math.Round(((r.net_provision ?? 0m) * (decimal)(f.hours ?? 0d)) / (decimal)r.total_hours, 2)
+                            : 0m;
+
+                        ws.Cell(row, 4).Value = glFundSourceCode;
+                        ws.Cell(row, 5).Value = f.hours;
+                        ws.Cell(row, 6).Value = amount;
+                        row++;
+                    }
+                }
+
+                ws.Columns().AdjustToContents();
+
+                using (var stream = new System.IO.MemoryStream())
+                {
+                    workbook.SaveAs(stream);
+                    var content = Convert.ToBase64String(stream.ToArray());
+                    return Json(new
+                    {
+                        status = "success",
+                        fileName = $"employee_leave_accrual_ccd_{fiscalYear.Split('/')[1]}_{period}.xlsx",
+                        fileContent = content
+                    });
+                }
+            }
+        }
+
+        #endregion
         public IActionResult Index()
         {
             return View();

@@ -1,0 +1,286 @@
+﻿@using Microsoft.AspNetCore.Http;
+@inject IHttpContextAccessor HttpContextAccessor;
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var PageTitle = "Leave Accrual";
+    var Page_Tips = "";  //Tool tip message on right side
+    var msg_please_wait = "";
+    var Page_Mode = PageTitle; 
+    var Pern = ViewBag.vpern;
+    ViewData["Title"] = "| " + PageTitle;
+    var Help_Tips = GblUtilities.HelpTips(Page_Tips);
+    /*success|fail|error'*/
+    string ShowMsg = GblUtilities.MsgDisplay(Context.Request.Query["msg"].ToString());
+
+}
+@Html.AntiForgeryToken()
+<h2 class="titlebig"><span name="header" id="header">@Page_Mode</span> @Html.Raw(Help_Tips)</h2>
+@Html.Hidden("mode", "")
+@Html.Hidden("blnShow", "")
+<div id="message_header"><p id="loading" class="loading displaynone">@msg_please_wait</p></div>
+<div id="message_header">@Html.Raw(ShowMsg)</div>
+<div class="d-flex align-items-center justify-content-between">
+    <div class="d-flex align-items-center">
+        <label class="me-2">Fiscal Year:</label>
+        @Html.DropDownList("FiscalYearFilter", (SelectList)ViewBag.FiscalYearList,
+            new { @class = "form-select me-4", style = "width:150px;" })
+    </div>
+
+    <!-- New div aligned to the right -->
+    <div id="msg-processed"></div>
+</div>
+
+<!-- Controls row under the header -->
+@if (ViewBag.apern == "true" || ViewBag.dpern == "true")
+{
+    <div id="saveSection" class="p-0 bg-white rounded mb-3" style="display:none;">
+        <div class="row align-items-center">
+            <!-- Right side: Buttons -->
+            <div class="col-auto ms-auto">
+                <button type="button" name="btnSave" id="btnSave" class="button btn-primary">Save</button>
+            </div>
+        </div>
+    </div>
+    <div id="deleteSection" class="p-0 bg-white rounded mb-3" style="display:none;">
+        <div class="row align-items-center">
+            <!-- Right side: Buttons -->
+            <div class="col-auto ms-auto">
+                <button type="button" name="btnExport" id="btnExport" class="button btn-primary">Export</button>
+                <button type="button" name="btnCCD" id="btnCCD" class="button btn-primary">Cost Center Distribution</button>
+                <button type="button" name="btnClear" id="btnClear" class="button btn-primary">Clear</button>
+            </div>
+        </div>
+    </div>
+}
+<!-- DataTable -->
+@if (Model == null)
+{
+    <div id="message_header"><p class="note">No record(s) found.</p></div>
+}
+else
+{
+    <div id="message_header"><p id="process-message" class="note"></p></div>
+    <div class="form-group p-2">
+        <table id="tblData" class="display compact nowrap" style="width:100%">
+            <thead>
+                <tr style="height: 40px; align-items: center;color:white;" class="bg-secondary bg-opacity-27">
+                    <th colspan="4">&nbsp;</th>
+                    <th colspan="2">Annual Leave</th>
+                    <th colspan="2">Sick Leave</th>
+                    <th colspan="2">Total</th>
+                    <th>Previous</th>
+                    <th>Current</th>
+                    <th>&nbsp;</th>
+                </tr>
+                <tr style="height: 40px; align-items: center;color:white;" class="bg-secondary bg-opacity-27">
+                    <th>SN</th>
+                    <th>Employee Name</th>
+                    <th>Code</th>
+                    <th>Base Salary</th>
+                    <th>Balance</th>
+                    <th>Eligible</th>
+                    <th>Balance</th>
+                    <th>Eligible</th>
+                    <th>Eligible</th>
+                    <th>Payable</th>
+                    <th>Provisioned</th>
+                    <th>Provision</th>
+                    <th>Remarks</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Data dynamically injected here -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Modal for Add/Edit -->
+    @await Html.PartialAsync("_SharedModal", new wwfpp.Models.ModalViewModel { ModalId = "ModalID", DialogClass = "modal-lg", BodyId = "ModalBody", })
+
+    @section scripts 
+    {
+        <script>
+            var ilaka = "/Payroll/LeaveAccrual";
+            var selectedIds = new Set();
+            var hideviewaction = "yes";
+            var table;
+            $(document).ready(function () 
+            {
+                GetAllDataSN(ilaka, "emp_id", [
+                    { data: "full_name", name: "full_name", autoWidth: false },
+                    { data: "emp_code", name: "emp_code", autoWidth: false },
+                    { data: "basic_salary", name: "basic_salary", autoWidth: false, render: function(data, type, row, meta) { return '<input type="text" name="basic_salary_' + row.emp_id + '" id="basic_salary_' + row.emp_id + '" value="' + data + '" class="form-control rate-input" style="width:90px;" readonly>'; } },
+                    { data: "an_bal", name: "an_bal", autoWidth: false, render: function(data, type, row, meta) { return '<input type="text" name="an_bal_' + row.emp_id + '" id="an_bal_' + row.emp_id + '" value="' + data + '" class="form-control rate-input" style="width:90px;" readonly>'; } },
+                    { data: "an_eli", name: "an_eli", autoWidth: false, render: function(data, type, row, meta) { return '<input type="text" name="an_eli_' + row.emp_id + '" id="an_eli_' + row.emp_id + '" value="' + data + '" class="form-control rate-input" style="width:90px;" readonly>'; } },
+                    { data: "si_bal", name: "si_bal", autoWidth: false, render: function(data, type, row, meta) { return '<input type="text" name="si_bal_' + row.emp_id + '" id="si_bal_' + row.emp_id + '" value="' + data + '" class="form-control rate-input" style="width:90px;" readonly>'; } },
+                    { data: "si_eli", name: "si_eli", autoWidth: false, render: function(data, type, row, meta) { return '<input type="text" name="si_eli_' + row.emp_id + '" id="si_eli_' + row.emp_id + '" value="' + data + '" class="form-control rate-input" style="width:90px;" readonly>'; } },
+                    { data: "to_eli", name: "to_eli", autoWidth: false, render: function(data, type, row, meta) { return '<input type="text" name="to_eli_' + row.emp_id + '" id="to_eli_' + row.emp_id + '" value="' + data + '" class="form-control rate-input" style="width:90px;" readonly>'; } },
+                    { data: "to_pay", name: "to_pay", autoWidth: false, render: function(data, type, row, meta) { return '<input type="text" name="to_pay_' + row.emp_id + '" id="to_pay_' + row.emp_id + '" value="' + data + '" class="form-control rate-input" style="width:115px;" readonly>'; } },
+                    {
+                        data: "pre_leave_payable",
+                        render: function(data, type, row) {
+                            return '<input type="number" name="pr_pro_' + row.emp_id + '" id="pr_pro_' + row.emp_id + '" value="' + data + '" ' +
+                                'onkeyup="calculate_net_leave_encashment_new(' + row.emp_id + ')" ' +
+                                'onblur="calculate_net_leave_encashment_new(' + row.emp_id + ')" ' +
+                                'class="form-control rate-input" style="width:90px;">';
+                        }
+                    },
+                    { data: "cu_pro", name: "cu_pro", autoWidth: false, render: function(data, type, row, meta) { return '<input type="text" name="cu_pro_' + row.emp_id + '" id="cu_pro_' + row.emp_id + '" value="' + data + '" class="form-control rate-input" style="width:125px;" readonly>'; } },
+                    { data: "remarks", name: "remarks", autoWidth: false, render: function(data, type, row, meta) { return '<input type="text" name="remarks_' + row.emp_id + '" id="remarks_' + row.emp_id + '" value="' + data + '" class="form-control rate-input" style="width:90px;"><input type="hidden" name="counter_' + meta.row + '" id="counter_' + meta.row + '" value="' + row.period + '"><input type="hidden" name="emp_id_' + meta.row + '" id="emp_id_' + meta.row + '" value="' + row.emp_id + '">'; } },
+                ],
+                    {
+                        fiscalYearFilter: "FiscalYearFilter",
+                    });
+
+
+                table = $('#tblData').DataTable();
+
+                // Set page length to "All" after initialization
+                $(document).one('init.dt', '#tblData', function() {
+                    table.page.len(-1).draw();
+                });
+
+                table.on('draw.dt', function() {
+                    var blnShowSave = table.ajax.json().blnShow; // get from last JSON
+                    if (blnShowSave === true) {
+                        $("input[name^='pr_pro_']").prop("readonly", false);
+                        $("input[name^='remarks_']").prop("readonly", false);
+                        $('#saveSection').show();
+                        $('#deleteSection').hide();
+                    } else {
+                        $("#tblData input[type='text'], #tblData input[type='number']").prop("readonly", true);
+                        $('#saveSection').hide();
+                        $('#deleteSection').show();
+                    }
+                    $("#blnShow").val(blnShowSave);
+                    if (blnShowSave == false) {
+                        showSuccess("Leave Accrual for the fiscal year has already been processed", "process-message");
+                    } else {
+                        showError("Leave Accrual for the fiscal year has not processed yet", "process-message");
+                    }
+                });
+
+                //loadLeaveAccrualMessageAndReload();
+            });
+            function collectExtraFields() {
+                var extraSettings = [];
+                $("#tblData tbody tr").each(function() {
+                    var row = $(this);
+                    extraSettings.push({
+                        emp_id: row.find("input[name^='emp_id']").val(),
+                        pre_fiscal_year: $("#FiscalYearFilter").val(),
+                        basic_salary: row.find("input[name^='basic_salary_']").val(),
+                        an_leave_balance: row.find("input[name^='an_bal_']").val(),
+                        an_leave_accrual: row.find("input[name^='an_eli_']").val(),
+                        si_leave_balance: row.find("input[name^='si_bal_']").val(),
+                        si_leave_accrual: row.find("input[name^='si_eli_']").val(),
+                        leave_accrual_days: row.find("input[name^='to_eli_']").val(),
+                        leave_payable: row.find("input[name^='to_pay_']").val(),
+                        pre_provisioned: row.find("input[name^='pr_pro_']").val(),
+                        net_provision: row.find("input[name^='cu_pro_']").val(),
+                        remarks: row.find("input[name^='remarks_']").val(),
+                        counter: row.find("input[name^='counter_']").val()
+                    });
+                    //}
+                });
+                return extraSettings;
+            }
+
+            $(document).off("click", "#btnSave").on("click", "#btnSave", function () { $("#mode").val("update"); updateDataNoChk(ilaka + "Save"); });
+
+            function calculate_net_leave_encashment_new(empId) {
+                var tot_leave_encash = document.getElementById("to_pay_" + empId).value || 0;
+                var pre_leave_encash = document.getElementById("pr_pro_" + empId).value || 0;
+
+                var net_leave_encash = parseFloat(tot_leave_encash) - parseFloat(pre_leave_encash);
+                document.getElementById("cu_pro_" + empId).value = net_leave_encash.toFixed(2);
+            }
+
+            $(document).off("click", "#btnClear").on("click", "#btnClear", function () {
+                if (!confirm(msg_are_you_sure_to_clear)) {
+                    return;
+                }
+
+                $.ajax({
+                    url: '/Payroll/LeaveAccrualClear',
+                    type: 'POST',
+                    data: {
+                        fiscalYear: $("#FiscalYearFilter").val(),
+                        period: 4,
+                        __RequestVerificationToken: $('input[name="__RequestVerificationToken"]').val()
+                    },
+                    success: function (res) {
+                        if (res.status === "success") {
+                            $('#modal-message').removeClass().addClass('success').html(msg_leave_accrual_cleared_scuccessfully).show();
+                        } else {
+                            $('#modal-message').removeClass().addClass('error').html(err_in_process + res.message).show();
+                        }
+                        $("#tblData").DataTable().ajax.reload();
+                    },
+                    error: function (xhr, status, error) {
+                        $('#modal-message').removeClass().addClass('error').html(err_in_process + error).show();
+                    }
+                });
+            });
+
+            $(document).off("click", "#btnExport").on("click", "#btnExport", function () {
+                $.ajax({
+                    url: '/Payroll/ExportLeaveAccrual',
+                    type: 'POST',
+                    data: {
+                        fiscalYear: $("#FiscalYearFilter").val(),
+                        period: 4,
+                        __RequestVerificationToken: $('input[name="__RequestVerificationToken"]').val()
+                    },
+                    success: function (res) {
+                        if (res.status === "success") {
+                            // Create download link dynamically
+                            var link = document.createElement('a');
+                            link.href = 'data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,' + res.fileContent;
+                            link.download = res.fileName;
+                            link.click();
+                            $('#modal-message').removeClass().addClass('success').html(msg_data_exported_success).show();
+                            $("#tblData").DataTable().ajax.reload();
+                        } else {
+                            $('#modal-message').removeClass().addClass('error').html(err_in_process + res.error).show();
+                        }
+                    },
+                    error: function (xhr, status, error) {
+                        $('#modal-message').removeClass().addClass('error').html(err_in_process + error).show();
+                    }
+                });
+            });
+
+            // Attach click handler directly to CCD button
+            $(document).off("click", "#btnCCD").on("click", "#btnCCD", function () {
+                $.ajax({
+                    url: '/Payroll/ExportLeaveAccrualCCD',
+                    type: 'POST',
+                    data: {
+                        fiscalYear: $("#FiscalYearFilter").val(),
+                        period: 4,
+                        __RequestVerificationToken: $('input[name="__RequestVerificationToken"]').val()
+                    },
+                    success: function (res) {
+                        if (res.status === "success") {
+                            // Create download link dynamically
+                            var link = document.createElement('a');
+                            link.href = 'data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,' + res.fileContent;
+                            link.download = res.fileName;
+                            link.click();
+                            $('#modal-message').removeClass().addClass('success').html(msg_data_exported_success).show();
+                            $("#tblData").DataTable().ajax.reload();
+                        } else {
+                            $('#modal-message').removeClass().addClass('error').html(err_in_process + res.error).show();
+                        }
+                    },
+                    error: function (xhr, status, error) {
+                        $('#modal-message').removeClass().addClass('error').html(err_in_process + error).show();
+                    }
+                });
+            });
+
+
+        </script>
+    }
+}

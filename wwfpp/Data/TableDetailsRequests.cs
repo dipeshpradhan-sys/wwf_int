@@ -222,7 +222,7 @@ namespace wwfpp.Data
             public double? total_hours { get; set; }  //[float] NULL,
             public DateTime? submit_date { get; set; }  //[datetime] NULL,
             public string? remarks { get; set; }  //[nvarchar](250) NULL,
-            public short? counter { get; set; }  //[int] NULL,
+            public int? counter { get; set; }  //[int] NULL,
         }
         //public DbSet<tbl_employee_leave_accrual_new_fund_wise> tbl_employee_leave_accrual_new_fund_wise { get; set; }
         public class tbl_employee_leave_accrual_new_fund_wise

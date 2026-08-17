@@ -152,5 +152,11 @@ var err_inv_user_change_pin = "Invalid Email or Password or Old PIN Code.";
 var msg_data_exported_success = "Data exported Successfully.";
 var msg_cant_edit_overtime_salary_processed = "Salary has already been processed for the selected period. You can't edit the overtime for this period.";
 
+/*--------------------------------------------------------------------------------'
+'* Payroll Administration > LEAVE ACCRUAL'
+'*--------------------------------------------------------------------------------*/
+var msg_leave_accrual_cleared_scuccessfully = "Leave accrual cleared successfully";
+
+
 
 

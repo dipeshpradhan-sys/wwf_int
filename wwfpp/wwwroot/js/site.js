@@ -402,11 +402,19 @@ function updateStatus(parm, status) {
 /*----------------------------------------------------------------------------------------*/
 function updateDataNoChk(parm) {
 	if (confirm(msg_are_you_sure_to_perform_this_action)) {
+		var payload = {
+			mode: "updateDataNoChk"
+		};
+		if (typeof collectExtraFields === "function") {
+			var extraFields = collectExtraFields();
+			if (extraFields && extraFields.length > 0) {
+				payload.Fields = extraFields;
+			}
+		}
 		$.ajax({
 			type: "POST",
 			url: parm,
-			data: JSON.stringify({ "mode": "updateDataNoChk" },
-			),
+			data: JSON.stringify(payload),
 			contentType: "application/json; charset=utf-8", // ? tell server it's JSON
 			dataType: "json",                     // expect JSON back
 			headers: { "RequestVerificationToken": $('input[name="__RequestVerificationToken"]').val() },

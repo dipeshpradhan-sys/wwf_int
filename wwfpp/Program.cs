@@ -133,6 +133,7 @@ builder.Services.AddScoped<UserRightsServices>();
 builder.Services.AddScoped<PayrollServices>();
 builder.Services.AddScoped<PaySlipManager>();
 builder.Services.AddScoped<OvertimeServices>();
+builder.Services.AddScoped<LeaveAccrualServices>();
 
 #endregion
 
