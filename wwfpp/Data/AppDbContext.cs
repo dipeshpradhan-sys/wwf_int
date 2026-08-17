@@ -259,7 +259,7 @@ namespace wwfpp.Data
         // public DbSet<que_employee_welfare_interest> que_employee_welfare_interest	 { get; set; }
         // public DbSet<que_employee_welfare_paidout> que_employee_welfare_paidout	 { get; set; }
         // public DbSet<que_salary> que_salary	 { get; set; }
-         public DbSet<que_swf_payback> que_swf_payback { get; set; }
+         public DbSet<vw_swf_payback> vw_swf_payback { get; set; }
         // public DbSet<que_year_salary> que_year_salary	 { get; set; }
         // public DbSet<que_year_salary_a_field> que_year_salary_a_field	 { get; set; }
         // public DbSet<que_year_salary_custom> que_year_salary_custom	 { get; set; }
@@ -373,7 +373,8 @@ namespace wwfpp.Data
                 .ToView("que_employee_salary_previous")   // tells EF Core it's a view, not a table
                 .HasKey(e => e.sal_id);                   // use sal_id as the primary key  
 
-            _ = modelBuilder.Entity<que_swf_payback>().ToView("que_swf_payback").HasNoKey();
+            _ = modelBuilder.Entity<vw_swf_payback>()
+                            .HasKey(t => new { t.emp_id, t.sal_month, t.sal_year });
 
             _ = modelBuilder.Entity<que_timesheet_sub>(entity =>
             {

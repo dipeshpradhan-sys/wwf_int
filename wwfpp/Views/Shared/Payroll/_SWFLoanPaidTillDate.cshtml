@@ -1,0 +1,39 @@
+﻿@using System.Globalization
+@model wwfpp.Models.Payroll.SwfLoanViewModel
+
+<table class="table table-bordered table-sm w-100">
+    <thead>
+        <tr><td colspan="4" style="background-color:#6C757D;height:40px;color:#fff;font-weight:bold;">Paid Till Date</td></tr>
+        <tr style ="background-color:#ddd;height:40px;">
+            <th style="border:1px solid black;width:10;">SN</th>
+            <th style="border:1px solid black;width:250px;">Year</th>
+            <th style="border:1px solid black;width:250px;">Month</th>
+            <th style="border:1px solid black;width:250px;">Amount</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var s in Model.Settlements)
+        {
+            <tr>
+                <td style="border:1px solid black;width:250px;text-align:right;" colspan="3"><b>Settlement on</b> @s.s_date?.ToString("MM/dd/yyyy") [@s.remarks]</td>
+                <td style="border:1px solid black;width:250px;" class="text-end"><b>@s.amount?.ToString("N2")</b></td>
+            </tr>
+        }
+
+        @for (int i = 0; i < Model.History.Count; i++)
+        {
+            var h = Model.History[i];
+            <tr>
+                <td style="border:1px solid black;width:10px;">@(i + 1)</td>
+                <td style="border:1px solid black;width:250px;">@h.sal_year</td>
+                <td style="border:1px solid black;width:250px;">@CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(h?.sal_month ?? 0)</td>
+                <td style="border:1px solid black;width:250px;" class="text-end">@h.loan?.ToString("N2")</td>
+            </tr>
+        }
+
+        <tr>
+            <td style="border:1px solid black;width:250px;text-align:right;" colspan="3"><b>Due:</b></td>
+            <td style="border:1px solid black;width:250px;text-align:right;" class="text-end"><b>@Model.Totals.TotalPaidLoan.ToString("N2")</b></td>
+        </tr>
+    </tbody>
+</table>

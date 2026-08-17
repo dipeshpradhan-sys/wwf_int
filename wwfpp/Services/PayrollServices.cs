@@ -65,10 +65,10 @@ namespace wwfpp.Services
                 fn_s_date = new DateTime(settleDates.Value.Year, settleDates.Value.Month, 1).AddDays(-1);
             }
 
-            IQueryable<que_swf_payback> paybackQuery;
+            IQueryable<vw_swf_payback> paybackQuery;
             if (fn_s_date.HasValue)
             {
-                paybackQuery = _context.que_swf_payback
+                paybackQuery = _context.vw_swf_payback
                     .Where(q => q.loan != 0
                                 && q.emp_id == empId
                                 && q.fiscal >= fiscalStart
@@ -77,7 +77,7 @@ namespace wwfpp.Services
             }
             else
             {
-                paybackQuery = _context.que_swf_payback
+                paybackQuery = _context.vw_swf_payback
                     .Where(q => q.loan != 0
                                 && q.emp_id == empId
                                 && q.fiscal >= fiscalStart)

@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Options;
 using System.Globalization;
 using System.Linq.Dynamic.Core;
@@ -496,6 +497,38 @@ namespace wwfpp.Controllers
             return Json(new { status = "success", message = Lang.msg_delete_success.Replace("[<DELETED-ROWS>]", deletedCount.ToString()) });
         }
 
+        [HttpPost]
+        [HttpPost]
+        public IActionResult GetPaidTillDate(int empId, string fiscal, decimal amount, decimal intAmount, string loanId)
+        {
+            var model = new SwfLoanViewModel
+            {
+                Settlements = _context.tbl_employee_swf_loan_direct_settle
+                    .Where(s => s.swf_loan_id == loanId)
+                    .Select(s => new SettlementRow { s_date = s.s_date, remarks = s.remarks, amount = s.amount })
+                    .ToList(),
+
+                History = _context.vw_swf_payback
+                    .Where(q => q.emp_id == empId && q.loan != 0 && q.fiscal >= Convert.ToDateTime(fiscal))
+                    .OrderBy(q => q.fiscal)
+                    .Select(q => new wwfpp.Models.Payroll.HistoryRow
+                    {
+                        sal_year = (int)(q.sal_year ?? 0),
+                        sal_month = (int)(q.sal_month ?? 0),
+                        loan = q.loan
+                    })
+                    .ToList(),
+
+                Totals = new TotalsRow
+                {
+                    TotalPaidLoan = (amount + intAmount) -
+                        (_context.tbl_employee_swf_loan_direct_settle.Where(s => s.swf_loan_id == loanId).Sum(s => s.amount ?? 0) +
+                         _context.vw_swf_payback.Where(q => q.emp_id == empId && q.loan != 0 && q.fiscal >= Convert.ToDateTime(fiscal)).Sum(q => q.loan ?? 0))
+                }
+            };
+
+            return PartialView("Payroll/_SWFLoanPaidTillDate", model);
+        }
 
         #endregion
         /********************************************************************************************************************/

@@ -25,7 +25,28 @@
         public string? lastname { get; set; }
         public string? employee {  get; set; }
         public string? emp_status { get; set; }
+        public List<SettlementRow> Settlements { get; set; } = new List<SettlementRow>();
+        public List<HistoryRow> History { get; set; } = new List<HistoryRow>();
+        public TotalsRow Totals { get; set; } = new TotalsRow();
 
+    }
+    public class SettlementRow
+    {
+        public DateTime? s_date { get; set; }
+        public string remarks { get; set; }
+        public decimal? amount { get; set; }
+    }
+
+    public class HistoryRow
+    {
+        public int sal_year { get; set; }
+        public int sal_month { get; set; }
+        public decimal? loan { get; set; }
+    }
+
+    public class TotalsRow
+    {
+        public decimal TotalPaidLoan { get; set; }
     }
     public class SwfLoanTotalViewModel
     {

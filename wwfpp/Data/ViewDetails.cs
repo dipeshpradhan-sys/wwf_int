@@ -100,7 +100,7 @@ namespace wwfpp.Data
         public DateTime? fiscal { get; set; }
         public string? month_fiscal { get; set; }
     }
-    public class que_swf_payback
+    public class vw_swf_payback
     {
         public int? emp_id { get; set; }
         public short? sal_year { get; set; }
