@@ -1,0 +1,298 @@
+﻿@using Microsoft.AspNetCore.Http;
+@inject IHttpContextAccessor HttpContextAccessor;
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var PageTitle = "Gratuity Accrual";
+    var Page_Tips = "";  //Tool tip message on right side
+    var msg_please_wait = "";
+    var Page_Mode = PageTitle; 
+    var Pern = ViewBag.vpern;
+    ViewData["Title"] = "| " + PageTitle;
+    var Help_Tips = GblUtilities.HelpTips(Page_Tips);
+    /*success|fail|error'*/
+    string ShowMsg = GblUtilities.MsgDisplay(Context.Request.Query["msg"].ToString());
+
+}
+@Html.AntiForgeryToken()
+<h2 class="titlebig"><span name="header" id="header">@Page_Mode</span> @Html.Raw(Help_Tips)</h2>
+@Html.Hidden("mode", "")
+@Html.Hidden("blnShow", "")
+<div id="message_header"><p id="loading" class="loading displaynone">@msg_please_wait</p></div>
+<div id="message_header">@Html.Raw(ShowMsg)</div>
+<div class="d-flex align-items-center justify-content-between">
+    <div class="d-flex align-items-center">
+        <label class="me-2">Fiscal Year:</label>
+        @Html.DropDownList("FiscalYearFilter", (SelectList)ViewBag.FiscalYearList,
+            new { @class = "form-select me-4", style = "width:150px;" })
+    </div>
+    <div class="d-flex align-items-center">
+        <label class="me-2">Period:</label>
+        @Html.DropDownList("PeriodFilter", (SelectList)ViewBag.PeriodList,
+            new { @class = "form-select me-4", style = "width:150px;" })
+    </div>
+
+    <!-- New div aligned to the right -->
+    <div id="msg-processed"></div>
+</div>
+
+<!-- Controls row under the header -->
+@if (ViewBag.apern == "true" || ViewBag.dpern == "true")
+{
+    <div id="saveSection" class="p-0 bg-white rounded mb-3" style="display:none;">
+        <div class="row align-items-center">
+            <!-- Right side: Buttons -->
+            <div class="col-auto ms-auto">
+                <button type="button" name="btnSave" id="btnSave" class="button btn-primary">Save</button>
+            </div>
+        </div>
+    </div>
+    <div id="deleteSection" class="p-0 bg-white rounded mb-3" style="display:none;">
+        <div class="row align-items-center">
+            <!-- Right side: Buttons -->
+            <div class="col-auto ms-auto">
+                <button type="button" name="btnExport" id="btnExport" class="button btn-primary">Export</button>
+                <button type="button" name="btnCCD" id="btnCCD" class="button btn-primary">Cost Center Distribution</button>
+                <button type="button" name="btnClear" id="btnClear" class="button btn-primary">Clear</button>
+            </div>
+        </div>
+    </div>
+}
+<!-- DataTable -->
+@if (Model == null)
+{
+    <div id="message_header"><p class="note">No record(s) found.</p></div>
+}
+else
+{
+    <div id="message_header"><p id="process-message" class="note"></p></div>
+    <div class="form-group p-2">
+        <table id="tblData" class="display compact nowrap" style="width:100%">
+            <thead>
+                <tr class="bg-secondary bg-opacity-27" style="color:darkblue;">
+                    Note :<br> 
+                    A = Date of Employment<br>
+                    B = Date effective for gratuity<br>
+                    C = Date to<br>
+                    D = Number of service year(s)<br>
+                    E = Base Salary<br>
+                    F = Total gratuity entitled for encashment<br>
+                    G = Gratuity provisioned till FY 2027 [ Period : 2 ]<br>
+                    H = Net gratuity to be provisioned in FY 2027 [ Period : 3 ]
+                    <br>
+                    <br>
+                </tr>
+                <tr style="height: 40px; align-items: center;color:white;" class="bg-secondary bg-opacity-27">
+                    <th>SN</th>
+                    <th>Employee Name</th>
+                    <th>Employee ID</th>
+                    <th>A</th>
+                    <th>B</th>
+                    <th>C</th>
+                    <th>D</th>
+                    <th>E</th>
+                    <th>F</th>
+                    <th>G</th>
+                    <th>H</th>
+                    <th>Remarks</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Data dynamically injected here -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Modal for Add/Edit -->
+    @await Html.PartialAsync("_SharedModal", new wwfpp.Models.ModalViewModel { ModalId = "ModalID", DialogClass = "modal-lg", BodyId = "ModalBody", })
+
+    @section scripts 
+    {
+        <script>
+            var ilaka = "/Payroll/GratuityAccrual";
+            var selectedIds = new Set();
+            var hideviewaction = "yes";
+            var table;
+            $(document).ready(function () 
+            {
+                GetAllDataSN(ilaka, "emp_id", [
+                    { data: "full_name", name: "full_name", autoWidth: false },
+                    { data: "emp_code", name: "emp_code", autoWidth: false },
+                    { data: "join_date", name: "join_date", autoWidth: false, render: function(data, type, row, meta) { return '<input type="text" name="join_date_' + row.emp_id + '" id="join_date_' + row.emp_id + '" value="' + data + '" class="form-control rate-input" style="width:90px;" readonly>'; } },
+                    { data: "gratuity_date", name: "gratuity_date", autoWidth: false, render: function(data, type, row, meta) { return '<input type="text" name="gratuity_date_' + row.emp_id + '" id="gratuity_date_' + row.emp_id + '" value="' + data + '" class="form-control rate-input" style="width:90px;" readonly>'; } },
+                    { data: "fy_end_fiscal_date", name: "fy_end_fiscal_date", autoWidth: false, render: function(data, type, row, meta) { return '<input type="text" name="fy_end_fiscal_date_' + row.emp_id + '" id="fy_end_fiscal_date_' + row.emp_id + '" value="' + data + '" class="form-control rate-input" style="width:90px;" readonly>'; } },
+                    { data: "service_year", name: "service_year", autoWidth: false, render: function(data, type, row, meta) { return '<input type="text" name="service_year_' + row.emp_id + '" id="service_year_' + row.emp_id + '" value="' + data + '" class="form-control rate-input" style="width:90px;" readonly>'; } },
+                    { data: "base_salary", name: "base_salary", autoWidth: false, render: function(data, type, row, meta) { return '<input type="text" name="base_salary_' + row.emp_id + '" id="base_salary_' + row.emp_id + '" value="' + data + '" class="form-control rate-input" style="width:90px;" readonly>'; } },
+                    { data: "gratuity_encash", name: "gratuity_encash", autoWidth: false, render: function(data, type, row, meta) { return '<input type="text" name="gratuity_encash_' + row.emp_id + '" id="gratuity_encash_' + row.emp_id + '" value="' + data + '" class="form-control rate-input" style="width:90px;" readonly>'; } },
+                    { 
+                        data: "pre_gratuity_encash",
+                        name: "pre_gratuity_encash",
+                        autoWidth: false,
+                        render: function(data, type, row, meta) {
+                            return '<input type="text" name="pre_gratuity_encash_' + row.emp_id + '" id="pre_gratuity_encash_' + row.emp_id + '" ' +
+                                'value="' + data + '" class="form-control rate-input" style="width:115px;" ' +
+                                'onkeyup="calculate_net_gratuity_encashment(' + row.emp_id + ')">'
+                        }
+                    },
+                    { data: "net_gratuity_encash", name: "net_gratuity_encash", autoWidth: false, render: function(data, type, row, meta) { return '<input type="text" name="net_gratuity_encash_' + row.emp_id + '" id="net_gratuity_encash_' + row.emp_id + '" value="' + data + '" class="form-control rate-input" style="width:115px;" readonly>'; } },
+                    { data: "remarks", name: "remarks", autoWidth: false, render: function(data, type, row, meta) { return '<input type="text" name="remarks_' + row.emp_id + '" id="remarks_' + row.emp_id + '" value="' + data + '" class="form-control rate-input" style="width:90px;"><input type="hidden" name="counter_' + meta.row + '" id="counter_' + meta.row + '" value="' + row.period + '"><input type="hidden" name="emp_id_' + meta.row + '" id="emp_id_' + meta.row + '" value="' + row.emp_id + '">'; } },
+                ],
+                    {
+                        fiscalYearFilter: "FiscalYearFilter",
+                    });
+
+
+                table = $('#tblData').DataTable();
+
+                // Set page length to "All" after initialization
+                $(document).one('init.dt', '#tblData', function() {
+                    table.page.len(-1).draw();
+                });
+
+                table.on('draw.dt', function() {
+                    var blnShowSave = table.ajax.json().blnShow; // get from last JSON
+                    if (blnShowSave === true) {
+                        $("input[name^='pr_pro_']").prop("readonly", false);
+                        $("input[name^='remarks_']").prop("readonly", false);
+                        $('#saveSection').show();
+                        $('#deleteSection').hide();
+                    } else {
+                        $("#tblData input[type='text'], #tblData input[type='number']").prop("readonly", true);
+                        $('#saveSection').hide();
+                        $('#deleteSection').show();
+                    }
+                    $("#blnShow").val(blnShowSave);
+                    if (blnShowSave == false) {
+                        showSuccess("Gratuity Accrual for the fiscal year has already been processed", "process-message");
+                    } else {
+                        showError("Gratuity Accrual for the fiscal year has not processed yet", "process-message");
+                    }
+                });
+
+            });
+            function collectExtraFields() {
+                var extraSettings = [];
+                $("#tblData tbody tr").each(function() {
+                    var row = $(this);
+                    extraSettings.push({
+                        emp_id: row.find("input[name^='emp_id']").val(),
+                        join_date: row.find("input[name^='join_date_']").val(),
+                        gratuity_date: row.find("input[name^='gratuity_date_']").val(),
+                        fy_end_fiscal_date: row.find("input[name^='fy_end_fiscal_date_']").val(),
+                        service_year: row.find("input[name^='service_year_']").val(),
+                        base_salary: row.find("input[name^='base_salary_']").val(),
+                        gratuity_encash: row.find("input[name^='gratuity_encash_']").val(),
+                        pre_gratuity_encash: row.find("input[name^='pre_gratuity_encash_']").val(),
+                        net_gratuity_encash: row.find("input[name^='net_gratuity_encash_']").val(),
+                        remarks: row.find("input[name^='remarks_']").val()
+                    });
+                });
+                return extraSettings;
+            }
+
+            $(document).off("click", "#btnSave").on("click", "#btnSave", function () { $("#mode").val("update"); updateDataNoChk(ilaka + "Save"); });
+
+            $(document).off("click", "#btnClear").on("click", "#btnClear", function () {
+                if (!confirm(msg_are_you_sure_to_clear)) {
+                    return;
+                }
+
+                $.ajax({
+                    url: '/Payroll/GratuityAccrualClear',
+                    type: 'POST',
+                    data: {
+                        fiscalYear: $("#FiscalYearFilter").val(),
+                        period: $("#PeriodFilter").val(),
+                        __RequestVerificationToken: $('input[name="__RequestVerificationToken"]').val()
+                    },
+                    success: function (res) {
+                        if (res.status === "success") {
+                            $('#modal-message').removeClass().addClass('success').html(msg_gratuity_accrual_cleared_successfully).show();
+                        } else {
+                            $('#modal-message').removeClass().addClass('error').html(err_in_process + res.message).show();
+                        }
+                        $("#tblData").DataTable().ajax.reload();
+                    },
+                    error: function (xhr, status, error) {
+                        $('#modal-message').removeClass().addClass('error').html(err_in_process + error).show();
+                    }
+                });
+            });
+
+            $(document).off("click", "#btnExport").on("click", "#btnExport", function () {
+                $.ajax({
+                    url: '/Payroll/ExportGratuityAccrual',
+                    type: 'POST',
+                    data: {
+                        fiscalYear: $("#FiscalYearFilter").val(),
+                        period: $("#PeriodFilter").val(),
+                        __RequestVerificationToken: $('input[name="__RequestVerificationToken"]').val()
+                    },
+                    success: function (res) {
+                        if (res.status === "success") {
+                            // Create download link dynamically
+                            var link = document.createElement('a');
+                            link.href = 'data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,' + res.fileContent;
+                            link.download = res.fileName;
+                            link.click();
+                            $('#modal-message').removeClass().addClass('success').html(msg_data_exported_success).show();
+                            $("#tblData").DataTable().ajax.reload();
+                        } else {
+                            $('#modal-message').removeClass().addClass('error').html(err_in_process + res.error).show();
+                        }
+                    },
+                    error: function (xhr, status, error) {
+                        $('#modal-message').removeClass().addClass('error').html(err_in_process + error).show();
+                    }
+                });
+            });
+
+            // Attach click handler directly to CCD button
+            $(document).off("click", "#btnCCD").on("click", "#btnCCD", function () {
+                $.ajax({
+                    url: '/Payroll/ExportGratuityAccrualCCD',
+                    type: 'POST',
+                    data: {
+                        fiscalYear: $("#FiscalYearFilter").val(),
+                        period: $("#PeriodFilter").val(),
+                        __RequestVerificationToken: $('input[name="__RequestVerificationToken"]').val()
+                    },
+                    success: function (res) {
+                        if (res.status === "success") {
+                            // Create download link dynamically
+                            var link = document.createElement('a');
+                            link.href = 'data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,' + res.fileContent;
+                            link.download = res.fileName;
+                            link.click();
+                            $('#modal-message').removeClass().addClass('success').html(msg_data_exported_success).show();
+                            $("#tblData").DataTable().ajax.reload();
+                        } else {
+                            $('#modal-message').removeClass().addClass('error').html(err_in_process + res.error).show();
+                        }
+                    },
+                    error: function (xhr, status, error) {
+                        $('#modal-message').removeClass().addClass('error').html(err_in_process + error).show();
+                    }
+                });
+            });
+
+            function calculate_net_gratuity_encashment(parm_cnt) {
+                // Get values from the textboxes
+                let tot_gratuity_encash = document.getElementById("gratuity_encash_" + parm_cnt)?.value || "0";
+                let pre_gratuity_encash = document.getElementById("pre_gratuity_encash_" + parm_cnt)?.value || "0";
+
+                // Convert to numbers
+                let total = parseFloat(tot_gratuity_encash) || 0;
+                let pre = parseFloat(pre_gratuity_encash) || 0;
+
+                // Calculate net
+                let net_gratuity_encash = total - pre;
+
+                // Write back to the net textbox
+                let netBox = document.getElementById("net_gratuity_encash_" + parm_cnt);
+                if (netBox) {
+                    netBox.value = net_gratuity_encash.toFixed(2);
+                }
+            }
+        </script>
+    }
+}

@@ -259,6 +259,20 @@ namespace wwfpp.Services
             var options = new Dictionary<string, string> { { "B", "% in Basic Salary" }, { "T", "Max Amount" }, { "F", "Fixed Amount" } };
             return GblUtilities.BuildSelectList(options, selvalue);
         }
-        /***************************************************************************************************/
+        /***************************************************************************************************
+        * Since : 2026-Aug-18
+        * Contribution: 
+        ****************************************************************************************************/
+        public SelectList PeriodFilter(string selvalue = "")
+        {
+            var options = new Dictionary<string, string>
+            {
+                { "1", "1" },
+                { "2", "2" },
+                { "3", "3" },
+                { "4", "4" }
+            };
+            return GblUtilities.BuildSelectList(options, selvalue);
+        }
     }
 }

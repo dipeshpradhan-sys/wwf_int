@@ -156,6 +156,13 @@ var msg_cant_edit_overtime_salary_processed = "Salary has already been processed
 '* Payroll Administration > LEAVE ACCRUAL'
 '*--------------------------------------------------------------------------------*/
 var msg_leave_accrual_cleared_scuccessfully = "Leave accrual cleared successfully";
+
+/*--------------------------------------------------------------------------------'
+'* Payroll Administration > GRATUITY ACCRUAL'
+'*--------------------------------------------------------------------------------*/
+var msg_gratuity_accrual_cleared_successfully = "Gratuity accrual cleared successfully";
+
+
 var msg_date_required = "Date is required.";
 
 

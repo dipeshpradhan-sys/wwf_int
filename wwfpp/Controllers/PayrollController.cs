@@ -894,9 +894,35 @@ namespace wwfpp.Controllers
                 canSaveButton = exists ? "Y" : "N"
             };
         }
-        private void SetInsertAccrualFundSource(string parm_check_table, string parmId, int parmEmpId, string parmFiscalYear, DateTime parmStartFiscalDate, DateTime parmEndFiscalDate, string parmInsertTable, short? parmPeriod)
+        public void SetInsertAccrualFundSource(string parm_check_table, string parmId, int parmEmpId, string parmFiscalYear, DateTime parmStartFiscalDate, DateTime parmEndFiscalDate, string parmInsertTable, short? parmPeriod)
         {
-            var exists = _context.tbl_employee_dashain_allowance_emp_wise.Any(x => x.id == parmId && x.counter == parmPeriod);
+            var checkProp = _context.GetType().GetProperty(parm_check_table);
+            if (checkProp == null) throw new ArgumentException("Unknown check table: " + parm_check_table);
+            var checkTable = (IQueryable)checkProp.GetValue(_context);
+
+            var insertProp = _context.GetType().GetProperty(parmInsertTable);
+            if (insertProp == null) throw new ArgumentException("Unknown insert table: " + parmInsertTable);
+
+            // Detect counter type
+            var counterClrType = checkTable.ElementType.GetProperty("counter")?.PropertyType;
+
+            bool exists;
+            if (counterClrType == typeof(int) || counterClrType == typeof(int?))
+            {
+                exists = checkTable.Cast<object>().Any(e =>
+                    EF.Property<string>(e, "id") == parmId &&
+                    EF.Property<int?>(e, "counter") == parmPeriod);
+            }
+            else if (counterClrType == typeof(short) || counterClrType == typeof(short?))
+            {
+                exists = checkTable.Cast<object>().Any(e =>
+                    EF.Property<string>(e, "id") == parmId &&
+                    EF.Property<short?>(e, "counter") == parmPeriod);
+            }
+            else
+            {
+                throw new InvalidOperationException("Unsupported counter type: " + counterClrType?.Name);
+            }
 
             if (!exists) return;
 
@@ -912,6 +938,8 @@ namespace wwfpp.Controllers
                 .ToList();
 
             int fnCnt = 0;
+            var insertEntityType = insertProp.PropertyType.GenericTypeArguments[0];
+
             foreach (var fs in fundSources)
             {
                 fnCnt++;
@@ -922,20 +950,32 @@ namespace wwfpp.Controllers
                 {
                     string fsid = parmId + fnCnt;
 
-                    var newRecord = new tbl_employee_dashain_allowance_fund_wise
-                    {
-                        id = fsid,
-                        emp_id = parmEmpId,
-                        fiscal_year = parmFiscalYear,
-                        fund_id = fnFundId,
-                        hours = fnAnnualHrs,
-                        submit_date = DateTime.Now,
-                        counter = parmPeriod
-                    };
+                    var newRecord = Activator.CreateInstance(insertEntityType);
+                    var entry = _context.Entry(newRecord);
 
-                    _ = _context.Set<tbl_employee_dashain_allowance_fund_wise>().Add(newRecord);
+                    entry.Property("id").CurrentValue = fsid;
+                    entry.Property("emp_id").CurrentValue = parmEmpId;
+                    entry.Property("fiscal_year").CurrentValue = parmFiscalYear;
+                    entry.Property("fund_id").CurrentValue = fnFundId;
+                    entry.Property("hours").CurrentValue = fnAnnualHrs;
+                    entry.Property("submit_date").CurrentValue = DateTime.Now;
+
+                    // Handle counter type dynamically
+                    var counterProp = entry.Property("counter");
+                    var clrType = counterProp.Metadata.ClrType;
+
+                    if (clrType == typeof(short) || clrType == typeof(short?))
+                        counterProp.CurrentValue = (short?)parmPeriod;
+                    else if (clrType == typeof(int) || clrType == typeof(int?))
+                        counterProp.CurrentValue = (int?)parmPeriod;
+                    else
+                        throw new InvalidOperationException("Unsupported counter type: " + clrType.Name);
+
+                    // ✅ Use non-generic Set(Type) overload
+                    _context.Add(newRecord);
                 }
             }
+
             _context.SaveChanges();
         }
         [HttpGet]
@@ -4710,6 +4750,337 @@ namespace wwfpp.Controllers
         }
 
         #endregion
+        /********************************************************************************************************************/
+        #region 10911 GRATUITY ACCRUAL
+        [HttpGet]
+        public IActionResult GratuityAccrual(string fiscalYearFilter, string? periodInput)
+        {
+            string PageId = "10911";
+            #region FOR PERMISSION
+            var perm = _accountServices.GetMenuPermission(PageId);
+            if (perm.vpern == "false") { return RedirectToAction("PermissionDenied", "Home"); }
+            ViewBag.apern = perm.apern;
+            ViewBag.epern = perm.epern;
+            ViewBag.dpern = perm.dpern;
+            #endregion FOR END PERMISSION
+            string? FiscalYearActive = HttpContext.Session.GetString("FiscalYear");
+            ViewBag.FiscalYearActive = FiscalYearActive;
+            ViewBag.FiscalYearList = _settingsServices.GetFiscalYears(HttpContext.Session.GetString("fiscal_year"));
+
+            ViewBag.PeriodList = _payrollServices.PeriodFilter();
+
+            return PartialView("Payroll/_GratuityAccrual", "");
+        }
+        public async Task<IActionResult> GratuityAccrualList([FromForm] DataFilterRequest request)
+        {
+            var (pageSize, skip, draw, sortColumn, sortColumnDir, searchValue) = DataTableHelper.GetParameters(Request);
+
+            string fiscal_year = request.FiscalYearFilter ?? "";
+            string[] fiscal_year_break = fiscal_year.Split('/');
+
+            string periodInput = request.PeriodFilter ?? "";
+            int period = 1;
+
+            // Classic ASP logic for period calculation
+            if (int.Parse(fiscal_year.Substring(0, 4)) < 2015)
+            {
+                period = 1;
+            }
+            else
+            {
+                if (string.IsNullOrEmpty(periodInput))
+                {
+                    DateTime start_fiscal_date = _context.tbl_fiscal_year
+                        .Where(f => f.fiscal_year == fiscal_year)
+                        .Select(f => f.date_from)
+                        .FirstOrDefault() ?? DateTime.Now;
+
+                    int cur_date_diff = ((DateTime.Now.Year - start_fiscal_date.Year) * 12 +
+                                         DateTime.Now.Month - start_fiscal_date.Month) + 1;
+
+                    if (cur_date_diff <= 3) period = 1;
+                    else if (cur_date_diff <= 6) period = 2;
+                    else if (cur_date_diff <= 9) period = 3;
+                    else period = 4;
+                }
+                else
+                {
+                    period = int.Parse(periodInput);
+                }
+            }
+
+            // Check accrual already processed
+            bool hasAccrual = _context.tbl_employee_gratuity_accrual
+                .Any(a => a.fiscal_year == fiscal_year && a.counter == period);
+
+            bool? blnShow = null;
+
+            List<dynamic> rawData;
+
+            if (!hasAccrual)
+            {
+                var employees = await (
+                    from e in _context.tbl_employee
+                    where e.emp_status == "A"
+                          && _context.tbl_employee_salary_extra_settings
+                               .Any(s => s.emp_id == e.emp_id && s.get_gratuity_accrual == "Y")
+                    orderby e.firstname, e.middlename, e.lastname
+                    select e
+                ).ToListAsync();
+
+                // Pre fiscal year logic
+                string pre_fiscal_year = (int.Parse(fiscal_year_break[0]) - 1) + "/" + (int.Parse(fiscal_year_break[1]) - 1);
+
+                DateTime start_fiscal_date = _context.tbl_fiscal_year
+                    .Where(f => f.fiscal_year == fiscal_year)
+                    .Select(f => f.date_from)
+                    .FirstOrDefault() ?? DateTime.Now;
+
+                DateTime end_fiscal_date = _context.tbl_fiscal_year
+                    .Where(f => f.fiscal_year == fiscal_year)
+                    .Select(f => f.date_to)
+                    .FirstOrDefault() ?? DateTime.Now;
+
+                rawData = employees.Select(e =>
+                {
+                    int emp_id = e.emp_id;
+                    string emp_code = e.emp_code;
+                    string full_name = $"{e.firstname} {e.middlename} {e.lastname}";
+                    string emp_status = e.emp_status;
+                    DateTime? join_date = e.join_date;
+                    decimal base_salary = e.salary ?? 0;
+
+                    // Service year calculation
+                    DateTime fy_end_fiscal_date = (period == 4)
+                        ? end_fiscal_date
+                        : new DateTime(start_fiscal_date.Year, start_fiscal_date.Month, 1)
+                            .AddMonths((period * 3) - 1)
+                            .AddMonths(1)
+                            .AddDays(-1);
+
+                    DateTime? gratuity_date = _context.tbl_employee_salary_extra_settings
+                        .Where(s => s.emp_id == emp_id && s.get_gratuity_accrual == "Y")
+                        .Select(s => s.gratuity_date)
+                        .FirstOrDefault();
+
+                    double service_year = ((fy_end_fiscal_date - (gratuity_date ?? DateTime.Now)).TotalDays + 1) / 365.0;
+                    service_year = Math.Round(service_year, 2);
+                    if (service_year < 0) service_year = 0;
+
+                    // Gratuity encash
+                    decimal gratuity_encash = Math.Round(base_salary * (decimal)service_year, 2);
+
+                    // Previous gratuity encash
+                    decimal pre_gratuity_encash = _context.tbl_employee_gratuity_accrual
+                        .Where(a => a.emp_id == emp_id && a.fiscal_year == pre_fiscal_year && a.counter == period - 1)
+                        .OrderByDescending(a => a.counter)
+                        .Select(a => a.gratuity_encash ?? 0)
+                        .FirstOrDefault();
+
+
+
+                    decimal net_gratuity_encash = gratuity_encash - pre_gratuity_encash;
+
+                    return new
+                    {
+                        emp_id,
+                        emp_code,
+                        full_name,
+                        join_date,
+                        base_salary,
+                        emp_status,
+                        fy_end_fiscal_date,
+                        service_year,
+                        gratuity_date,
+                        gratuity_encash,
+                        pre_gratuity_encash,
+                        net_gratuity_encash,
+                        remarks = ""
+                    };
+                }).Cast<dynamic>().ToList();
+
+                blnShow = true;
+            }
+            else
+            {
+                // Equivalent of ASP "else if blnShow = true"
+                var accruals = await (
+                    from a in _context.tbl_employee_gratuity_accrual
+                    join e in _context.tbl_employee on a.emp_id equals e.emp_id
+                    where a.fiscal_year == fiscal_year && a.counter == period
+                    orderby e.firstname, e.middlename, e.lastname
+                    select new
+                    {
+                        a.emp_id,
+                        e.emp_code,
+                        full_name = e.firstname + " " + e.middlename + " " + e.lastname,
+                        e.emp_status,
+                        join_date = a.join_date,
+                        gratuity_date = a.gratuity_date,
+                        fy_end_fiscal_date = a.fy_end_date,
+                        service_year = a.service_year,
+                        base_salary = a.basic_salary,
+                        gratuity_encash = a.gratuity_encash,
+                        pre_gratuity_encash = a.pre_encash,
+                        net_gratuity_encash = a.net_encash,
+                        remarks = a.remarks
+                    }).ToListAsync();
+
+                rawData = accruals.Cast<dynamic>().ToList();
+                blnShow = false;
+            }
+
+            // Search filter
+            if (!string.IsNullOrEmpty(searchValue))
+            {
+                rawData = rawData
+                    .Where(e => e.full_name.Contains(searchValue) || e.emp_code.Contains(searchValue))
+                    .ToList();
+            }
+
+            // Sorting
+            if (!string.IsNullOrEmpty(sortColumn) && !string.IsNullOrEmpty(sortColumnDir))
+            {
+                rawData = rawData.AsQueryable().OrderBy($"{sortColumn} {sortColumnDir}").ToList();
+            }
+
+            int recordsTotal = rawData.Count;
+            if (pageSize == -1) pageSize = recordsTotal;
+            var cData = rawData.Skip(skip).Take(pageSize).ToList();
+
+            var jsonData = new
+            {
+                draw = draw,
+                recordsFiltered = recordsTotal,
+                recordsTotal = recordsTotal,
+                totalRecordSub = !string.IsNullOrEmpty(fiscal_year)
+                    ? _context.tbl_employee_gratuity_accrual.Count(h => h.fiscal_year == fiscal_year && h.counter == period)
+                    : 0,
+                blnShow = blnShow,
+                data = cData.Select(x => new
+                {
+                    x.emp_id,
+                    x.full_name,
+                    x.emp_code,
+                    join_date = x.join_date?.ToString("dd/MM/yyyy"),
+                    gratuity_date = x.gratuity_date?.ToString("dd/MM/yyyy"),
+                    fy_end_fiscal_date = x.fy_end_fiscal_date?.ToString("dd/MM/yyyy"),
+                    base_salary = Math.Round(x.base_salary ?? 0, 2),
+                    emp_status = x.emp_status,
+                    service_year = Math.Round(x.service_year ?? 0, 2),
+                    gratuity_encash = Math.Round(x.gratuity_encash ?? 0, 2),
+                    pre_gratuity_encash = Math.Round(x.pre_gratuity_encash ?? 0, 2),
+                    net_gratuity_encash = Math.Round(x.net_gratuity_encash ?? 0, 2),
+                    remarks = x.remarks
+                })
+            };
+
+            return new JsonResult(jsonData);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<JsonResult> GratuityAccrualSave([FromBody] EmployeeGratuityAccrualListViewModel model)
+        {
+            string PageId = "10912";
+
+            #region FOR PERMISSION
+            var perm = _accountServices.GetMenuPermission(PageId);
+            ViewBag.apern = perm.apern;
+            ViewBag.epern = perm.epern;
+            #endregion
+
+            if (perm.apern != "true" && perm.epern != "true") return Json(new { status = "invalid", message = "Not Authorized User" });
+            if (!ModelState.IsValid) return Json(new { status = "error", message = Lang.msg_error_invalid });
+            if (model?.Fields == null || !model.Fields.Any()) return Json(new { status = "error", message = "No employees received." });
+
+            foreach (var update in model.Fields)
+            {
+                if (update.emp_id > 0)
+                {
+                    // Classic ASP variables
+                    string id = Guid.NewGuid().ToString() + update.period;   // UniqueID()&j
+                    int? empid = update.emp_id;
+                    DateTime? join_date = update.join_date;
+                    DateTime? gratuity_date = update.gratuity_date;
+                    DateTime? fy_end_fiscal_date = update.fy_end_fiscal_date;
+                    double? service_year = update.service_year ?? 0;
+                    decimal? base_salary = update.base_salary ?? 0;
+                    decimal? gratuity_encash = update.gratuity_encash ?? 0;
+                    decimal? pre_gratuity_encash = update.pre_gratuity_encash ?? 0;
+                    decimal? net_gratuity_encash = update.net_gratuity_encash ?? 0;
+                    string remarks = update.remarks ?? "";
+                    string fiscal_year = update.fiscal_year!;
+                    short? period = update.period;
+
+                    // Get fiscal start/end dates
+                    var StartEndDates = _settingsServices.GetFiscalStartEndDate(fiscal_year);
+                    DateTime start_fiscal_date = StartEndDates.StartDate;
+                    DateTime end_fiscal_date = StartEndDates.EndDate;
+
+                    // total_hours calculation (same as Classic ASP SQL)
+                    var total_hours = await (
+                        from f in _context.tbl_employee_fund_source
+                        where f.emp_id == empid
+                              && f.start_date >= start_fiscal_date
+                              && f.start_date <= end_fiscal_date
+                              && (from fs in _context.tbl_fund_source
+                                  where fs.fund_status == "A"
+                                        && fs.expiry_date > DateTime.Now
+                                  select fs.fund_id).Contains(f.fund_id)
+                        select f.annual_hrs
+                    ).SumAsync() ?? 0;
+
+                    // Insert into tbl_employee_gratuity_accrual
+                    var newRow = new tbl_employee_gratuity_accrual
+                    {
+                        id = id,
+                        emp_id = empid,
+                        fiscal_year = fiscal_year,
+                        join_date = join_date,
+                        gratuity_date = gratuity_date,
+                        fy_end_date = fy_end_fiscal_date,
+                        service_year = service_year,
+                        basic_salary = base_salary,
+                        gratuity_encash = gratuity_encash,
+                        pre_encash = pre_gratuity_encash,
+                        net_encash = net_gratuity_encash,
+                        total_hours = total_hours,
+                        submit_date = DateTime.Now,
+                        remarks = remarks,
+                        counter = period
+                    };
+
+                    _context.tbl_employee_gratuity_accrual.Add(newRow);
+                    await _context.SaveChangesAsync();
+
+                    // Fund source breakdown insert
+                    SetInsertAccrualFundSource("tbl_employee_gratuity_accrual",id,Convert.ToInt32(empid),fiscal_year,start_fiscal_date,end_fiscal_date,"tbl_employee_gratuity_accrual_fund_wise",period);
+                }
+            }
+
+            return Json(new { status = "success", message = Lang.msg_update_success });
+        }
+
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<JsonResult> GratuityAccrualClear(string? fiscalYear, int? period)
+        {
+            await _context.Database.ExecuteSqlRawAsync("DELETE FROM tbl_employee_gratuity_accrual WHERE fiscal_year = {0} AND counter = {1}", fiscalYear, period);
+            await _context.Database.ExecuteSqlRawAsync("DELETE FROM tbl_employee_gratuity_accrual_fund_wise WHERE fiscal_year = {0} AND counter = {1}", fiscalYear, period);
+
+            return Json(new
+            {
+                status = "success",
+                message = "clearsuccess",
+                fiscal_year = fiscalYear,
+                period = period
+            });
+        }
+
+        #endregion
+
         public IActionResult Index()
         {
             return View();

@@ -30,6 +30,8 @@ namespace wwfpp.Models
         public int? Year { get; set; } // Custom filter
 
         public int? Month { get; set; } // Custom filter
+        public string? PeriodFilter { get; set; } // Custom filter
+        
     }
     public class CostumFilterRequest
     {
