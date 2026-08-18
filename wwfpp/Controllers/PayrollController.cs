@@ -521,9 +521,15 @@ namespace wwfpp.Controllers
 
                 Totals = new TotalsRow
                 {
-                    TotalPaidLoan = (amount + intAmount) -
+                    TotalPaidLoan = (_context.tbl_employee_swf_loan_direct_settle.Where(s => s.swf_loan_id == loanId).Sum(s => s.amount ?? 0) +
+                         _context.vw_swf_payback.Where(q => q.emp_id == empId && q.loan != 0 && q.fiscal >= Convert.ToDateTime(fiscal)).Sum(q => q.loan ?? 0)),
+                    TotalDueLoan = (amount + intAmount) -
                         (_context.tbl_employee_swf_loan_direct_settle.Where(s => s.swf_loan_id == loanId).Sum(s => s.amount ?? 0) +
                          _context.vw_swf_payback.Where(q => q.emp_id == empId && q.loan != 0 && q.fiscal >= Convert.ToDateTime(fiscal)).Sum(q => q.loan ?? 0))
+                },
+                TloanInt = new SwfLoanTotalViewModel
+                {
+                    TLoanInt = amount + intAmount
                 }
             };
 

@@ -178,8 +178,7 @@ else
         $(document).off("input", "#amount").on("input", "#amount", function() {calculateSWFLoan();});
         $(document).off("input", "#int_amount").on("input", "#int_amount", function() {calculateSWFLoan();});
         $(document).off("input", "#no_of_installment").on("input", "#no_of_installment", function() {calculateSWFLoan();});
-        
-        $(document).off("click", "#btnUpdate").on("click", "#btnUpdate", function() { show_calendar('frm.s_date'); });
+        $(document).off("click", "input[name=btndate]").on("click", "input[name=btndate]", function() { show_calendar('frm.s_date'); });
         $(document).off("click", "#btnUpdate").on("click", "#btnUpdate", function() { SWFLoanSettlement(); });
         $(document).off("click", "#btnDelete").on("click", "#btnDelete", function() { SWFLoanSettlementDelete(); });
     
@@ -226,6 +225,20 @@ else
                             .addClass('success')
                             .html(data.message)
                             .show();
+                            //reload divPaidTillDate
+                            var year = parseInt($("#start_year").val());
+                            var month = parseInt($("#start_month").val());
+                            var fiscal = month + "/01/" + year;
+
+                            $("#divPaidTillDate").load("/Payroll/GetPaidTillDate", {
+                                empId: $('#emp_id').val(),
+                                fiscal: fiscal,
+                                amount: $("#amount").val(),
+                                intAmount: $("#int_amount").val(),
+                                loanId: $("#id").val(),
+                                __RequestVerificationToken: $('input[name="__RequestVerificationToken"]').val()
+                            });
+                            //end
                         loadWithSpinner("#swfLoanTotal", "/Payroll/SwfLoanTotal/?employeeID=" + empId);
                     }
                 }
@@ -249,6 +262,20 @@ else
                             $('#s_date').val("");
                             $('#paid_amount').val(0);
                             $('#s_remarks').val("");
+                            //reload divPaidTillDate
+                            var year = parseInt($("#start_year").val());
+                            var month = parseInt($("#start_month").val());
+                            var fiscal = month + "/01/" + year;
+
+                            $("#divPaidTillDate").load("/Payroll/GetPaidTillDate", {
+                            empId: $('#emp_id').val(),
+                                fiscal: fiscal,
+                                amount: $("#amount").val(),
+                                intAmount: $("#int_amount").val(),
+                                loanId: $("#id").val(),
+                                __RequestVerificationToken: $('input[name="__RequestVerificationToken"]').val()
+                            });
+                            //end
                             loadWithSpinner("#swfLoanTotal", "/Payroll/SwfLoanTotal/?employeeID=" + empId);
                         }
                     }
@@ -264,5 +291,14 @@ else
             if (dd < 10) dd = "0" + dd;
 
             return mm + "/" + dd + "/" + yyyy;
+        }
+        function loadWithSpinner(selector, url) {
+            var employeeID = parseInt($('#EmployeeFilter').val()) || 0;
+            if (employeeID > 0) {
+                $(selector).html("<div class='spinner'></div>");
+                $(selector).load(url, function(response, status) {
+                    if (status === "error") $(selector).html("Failed to load data.");
+                });
+            }
         }
     </script>

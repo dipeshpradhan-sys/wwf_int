@@ -28,6 +28,7 @@
         public List<SettlementRow> Settlements { get; set; } = new List<SettlementRow>();
         public List<HistoryRow> History { get; set; } = new List<HistoryRow>();
         public TotalsRow Totals { get; set; } = new TotalsRow();
+        public SwfLoanTotalViewModel TloanInt { get; set; } = new SwfLoanTotalViewModel();
 
     }
     public class SettlementRow
@@ -46,12 +47,14 @@
 
     public class TotalsRow
     {
-        public decimal TotalPaidLoan { get; set; }
+        public decimal? TotalDueLoan { get; set; }
+        public decimal? TotalPaidLoan { get; set; }
     }
     public class SwfLoanTotalViewModel
     {
         public decimal? amount { get; set; }  //[money] NULL,
         public decimal? int_amount { get; set; }  //[money] NULL,
+        public decimal? TLoanInt { get; set; }  //[money] NULL,
         public decimal? paid_amount { get; set; }  //[money] NULL,
     }
 
