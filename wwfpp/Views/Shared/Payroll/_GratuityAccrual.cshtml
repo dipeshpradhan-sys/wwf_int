@@ -134,7 +134,7 @@ else
                         }
                     },
                     { data: "net_gratuity_encash", name: "net_gratuity_encash", autoWidth: false, render: function(data, type, row, meta) { return '<input type="text" name="net_gratuity_encash_' + row.emp_id + '" id="net_gratuity_encash_' + row.emp_id + '" value="' + data + '" class="form-control rate-input" style="width:115px;" readonly>'; } },
-                    { data: "remarks", name: "remarks", autoWidth: false, render: function(data, type, row, meta) { return '<input type="text" name="remarks_' + row.emp_id + '" id="remarks_' + row.emp_id + '" value="' + data + '" class="form-control rate-input" style="width:90px;"><input type="hidden" name="counter_' + meta.row + '" id="counter_' + meta.row + '" value="' + row.period + '"><input type="hidden" name="emp_id_' + meta.row + '" id="emp_id_' + meta.row + '" value="' + row.emp_id + '">'; } },
+                    { data: "remarks", name: "remarks", autoWidth: false, render: function(data, type, row, meta) { return '<input type="text" name="remarks_' + row.emp_id + '" id="remarks_' + row.emp_id + '" value="' + data + '" class="form-control rate-input" style="width:90px;"><input type="hidden" name="period_' + meta.row + '" id="period_' + meta.row + '" value="' + row.period + '"><input type="hidden" name="emp_id_' + meta.row + '" id="emp_id_' + meta.row + '" value="' + row.emp_id + '">'; } },
                 ],
                     {
                         fiscalYearFilter: "FiscalYearFilter",
@@ -174,19 +174,33 @@ else
                 $("#tblData tbody tr").each(function() {
                     var row = $(this);
                     extraSettings.push({
-                        emp_id: row.find("input[name^='emp_id']").val(),
-                        join_date: row.find("input[name^='join_date_']").val(),
-                        gratuity_date: row.find("input[name^='gratuity_date_']").val(),
-                        fy_end_fiscal_date: row.find("input[name^='fy_end_fiscal_date_']").val(),
-                        service_year: row.find("input[name^='service_year_']").val(),
-                        base_salary: row.find("input[name^='base_salary_']").val(),
-                        gratuity_encash: row.find("input[name^='gratuity_encash_']").val(),
-                        pre_gratuity_encash: row.find("input[name^='pre_gratuity_encash_']").val(),
-                        net_gratuity_encash: row.find("input[name^='net_gratuity_encash_']").val(),
-                        remarks: row.find("input[name^='remarks_']").val()
+                        emp_id: parseInt(row.find("input[name^='emp_id']").val(), 10) || null,
+                        fiscal_year: $("#FiscalYearFilter").val(),
+                        join_date: formatDate(row.find("input[name^='join_date_']").val()),
+                        gratuity_date: formatDate(row.find("input[name^='gratuity_date_']").val()),
+                        fy_end_fiscal_date: formatDate(row.find("input[name^='fy_end_fiscal_date_']").val()),
+                        service_year: parseFloat(row.find("input[name^='service_year_']").val()) || null,
+                        base_salary: parseFloat(row.find("input[name^='base_salary_']").val()) || null,
+                        gratuity_encash: parseFloat(row.find("input[name^='gratuity_encash_']").val()) || null,
+                        pre_gratuity_encash: parseFloat(row.find("input[name^='pre_gratuity_encash_']").val()) || null,
+                        net_gratuity_encash: parseFloat(row.find("input[name^='net_gratuity_encash_']").val()) || null,
+                        remarks: row.find("input[name^='remarks_']").val() || null,
+                        period: $("#PeriodFilter").val(),
                     });
                 });
                 return extraSettings;
+            }
+
+            // helper to convert "dd/MM/yyyy" into ISO string
+            function formatDate(val) {
+                if (!val) return null;
+                var parts = val.split("/");
+                if (parts.length === 3) {
+                    // assumes dd/MM/yyyy
+                    var d = new Date(parts[2], parts[1] - 1, parts[0]);
+                    return d.toISOString();
+                }
+                return null;
             }
 
             $(document).off("click", "#btnSave").on("click", "#btnSave", function () { $("#mode").val("update"); updateDataNoChk(ilaka + "Save"); });
@@ -230,11 +244,13 @@ else
                     success: function (res) {
                         if (res.status === "success") {
                             // Create download link dynamically
+                            alert(res.status);
                             var link = document.createElement('a');
                             link.href = 'data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,' + res.fileContent;
                             link.download = res.fileName;
                             link.click();
                             $('#modal-message').removeClass().addClass('success').html(msg_data_exported_success).show();
+                            alert(msg_data_exported_success);
                             $("#tblData").DataTable().ajax.reload();
                         } else {
                             $('#modal-message').removeClass().addClass('error').html(err_in_process + res.error).show();
@@ -293,6 +309,54 @@ else
                     netBox.value = net_gratuity_encash.toFixed(2);
                 }
             }
+            function PeriodSelect(){
+                var fiscalYear = $(this).val();
+                var periodSelect = $("#PeriodFilter");
+                //alert(fiscalYear+'--'+periodSelect);
+                // Clear existing options
+                periodSelect.empty();
+
+                // Default: always add period 1
+                periodSelect.append(new Option("1", "1"));
+
+                // If fiscal year >= 2015, add 2–4
+                if (parseInt(fiscalYear.substring(0, 4)) >= 2015) {
+                    periodSelect.append(new Option("2", "2"));
+                    periodSelect.append(new Option("3", "3"));
+                    periodSelect.append(new Option("4", "4"));
+
+                    // Auto‑select based on current date difference
+                    //var startFiscalDate = new Date(fiscalYear.substring(0, 4), 3, 1); // Example: fiscal year starts April
+                    var startFiscalDateStr = '@Context.Session.GetString("date_from")';
+                    var startFiscalDate = new Date(startFiscalDateStr);
+                    var today = new Date();
+                    var curDateDiff = (today.getFullYear() - startFiscalDate.getFullYear()) * 12 +
+                                      (today.getMonth() - startFiscalDate.getMonth()) + 1;
+
+                    var autoPeriod = 1;
+                    if (curDateDiff > 3 && curDateDiff <= 6) autoPeriod = 2;
+                    else if (curDateDiff > 6 && curDateDiff <= 9) autoPeriod = 3;
+                    else if (curDateDiff > 9) autoPeriod = 4;
+
+                    periodSelect.val(autoPeriod.toString());
+                } else {
+                    // For fiscal year < 2015, always period 1
+                    periodSelect.val("1");
+                }
+
+                // Trigger change event if needed
+                periodSelect.trigger("change");
+
+            }
+            $(document).ready(function () {
+                // Run once on page load
+                PeriodSelect.call($("#FiscalYearFilter"));
+
+                // Bind to change event of FiscalYearFilter
+                $("#FiscalYearFilter").on("change", function () {
+                    PeriodSelect.call(this);
+                });
+            });
         </script>
     }
 }

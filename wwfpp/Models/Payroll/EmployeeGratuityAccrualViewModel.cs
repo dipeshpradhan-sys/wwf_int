@@ -2,7 +2,7 @@
 {
     public class EmployeeGratuityAccrualViewModel
     {
-        public string id { get; set; }  //[nvarchar](50) NOT NULL,
+        public string? id { get; set; }  //[nvarchar](50) NOT NULL,
         public int? emp_id { get; set; }  //[int] NULL,
         public string? fiscal_year { get; set; }  //[nvarchar](9) NULL,
         public DateTime? join_date { get; set; }  //[datetime] NULL,

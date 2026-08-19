@@ -424,36 +424,6 @@ namespace wwfpp.Controllers
                 message = Lang.msg_delete_success.Replace("[<DELETED-ROWS>]", (loansToDelete.Count + settleToDelete.Count).ToString())
             });
         }
-
-        public async Task<IActionResult> SwfLoanTotal(int? employeeID)
-        {
-            // Sum loan amounts and interest from tbl_employee_swf_loan
-            var totalLoanAmount = _context.tbl_employee_swf_loan
-                .Where(l => l.emp_id == employeeID)
-                .Sum(l => (decimal?)l.amount) ?? 0;
-
-            var totalInterestAmount = _context.tbl_employee_swf_loan
-                .Where(l => l.emp_id == employeeID)
-                .Sum(l => (decimal?)l.int_amount) ?? 0;
-
-            // Sum paid amounts from tbl_employee_swf_loan_direct_settle
-            var totalPaidAmount = (from settle in _context.tbl_employee_swf_loan_direct_settle
-                                   join loan in _context.tbl_employee_swf_loan
-                                       on settle.swf_loan_id equals loan.id
-                                   where loan.emp_id == employeeID
-                                   select (decimal?)settle.amount).Sum() ?? 0;
-
-            // Calculate due
-            var totalDue = (totalLoanAmount + totalInterestAmount) - totalPaidAmount;
-
-            // Pass values to ViewBag
-            ViewBag.TotalLoan = totalLoanAmount;
-            ViewBag.TotalInterest = totalInterestAmount;
-            ViewBag.TotalPaid = totalPaidAmount;
-            ViewBag.TotalDue = totalDue;
-
-            return PartialView("Payroll/_SwfLoanTotal", "");
-        }
         [HttpPost]
         public async Task<IActionResult> SWFLoanSettlementSave(string? id, decimal? s_amount, DateTime? s_date, string? s_remarks)
         {
@@ -498,7 +468,7 @@ namespace wwfpp.Controllers
         }
 
         [HttpPost]
-        [HttpPost]
+        [ValidateAntiForgeryToken]
         public IActionResult GetPaidTillDate(int empId, string fiscal, decimal amount, decimal intAmount, string loanId)
         {
             var model = new SwfLoanViewModel
@@ -4977,7 +4947,6 @@ namespace wwfpp.Controllers
 
             return new JsonResult(jsonData);
         }
-
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<JsonResult> GratuityAccrualSave([FromBody] EmployeeGratuityAccrualListViewModel model)
@@ -5061,8 +5030,6 @@ namespace wwfpp.Controllers
 
             return Json(new { status = "success", message = Lang.msg_update_success });
         }
-
-
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<JsonResult> GratuityAccrualClear(string? fiscalYear, int? period)
@@ -5077,6 +5044,226 @@ namespace wwfpp.Controllers
                 fiscal_year = fiscalYear,
                 period = period
             });
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult ExportGratuityAccrual(string fiscalYear, int period)
+        {
+            // Get organization name
+            var orgName = _context.tbl_pp_options
+                .FirstOrDefault(x => x.option_name == "op_org_name")?.option_value ?? "";
+
+            // Query employee gratuity accrual records
+            var records = (from e in _context.tbl_employee
+                           join g in _context.tbl_employee_gratuity_accrual
+                               on e.emp_id equals g.emp_id
+                           where g.fiscal_year == fiscalYear && g.counter == period
+                           orderby e.firstname, e.middlename, e.lastname
+                           select new
+                           {
+                               e.emp_code,
+                               FullName = e.firstname + " " + e.middlename + " " + e.lastname,
+                               g.join_date,
+                               g.gratuity_date,
+                               g.fy_end_date,
+                               g.service_year,
+                               g.basic_salary,
+                               g.gratuity_encash,
+                               g.pre_encash,
+                               g.net_encash,
+                               g.total_hours,
+                               g.remarks
+                           }).ToList();
+
+            using (var workbook = new XLWorkbook())
+            {
+                var ws = workbook.Worksheets.Add("GratuityAccrual");
+
+                int row = 1;
+                ws.Range(row, 1, row, 3).Merge();
+                ws.Cell(row++, 1).Value = "Organization: " + orgName;
+
+                ws.Range(row, 1, row, 3).Merge();
+                ws.Cell(row++, 1).Value = "Fiscal Year: " + fiscalYear;
+
+                ws.Range(row, 1, row, 3).Merge();
+                ws.Cell(row++, 1).Value = "Period: " + period;
+
+                ws.Range(row, 1, row, 3).Merge();
+                ws.Cell(row++, 1).Value = "Staff Statement of Gratuity Accrual";
+
+                row++;
+                // Header row
+                ws.Cell(row, 1).Value = "SN";
+                ws.Cell(row, 2).Value = "Employee Name";
+                ws.Cell(row, 3).Value = "Employee ID";
+                ws.Cell(row, 4).Value = "Date of Employment";
+                ws.Cell(row, 5).Value = "Date effective for gratuity";
+                ws.Cell(row, 6).Value = "Date to";
+                ws.Cell(row, 7).Value = "Number of service year(s)";
+                ws.Cell(row, 8).Value = "Base Salary";
+                ws.Cell(row, 9).Value = "Total gratuity entitled for encashment";
+                ws.Cell(row, 10).Value = "Pre-Gratuity Encash";
+                ws.Cell(row, 11).Value = "Net Gratuity Encash";
+                ws.Cell(row, 12).Value = "Remarks";
+                ws.Row(row).Style.Font.Bold = true;
+                row++;
+
+                int serial = 1;
+                decimal totalSalary = 0, totalEncash = 0, totalPreEncash = 0, totalNetEncash = 0;
+
+                foreach (var r in records)
+                {
+                    ws.Cell(row, 1).Value = serial++;
+                    ws.Cell(row, 2).Value = r.FullName;
+                    ws.Cell(row, 3).Value = r.emp_code;
+                    ws.Cell(row, 4).Value = r.join_date?.ToString("dd/MM/yyyy");
+                    ws.Cell(row, 5).Value = r.gratuity_date?.ToString("dd/MM/yyyy");
+                    ws.Cell(row, 6).Value = r.fy_end_date?.ToString("dd/MM/yyyy");
+                    ws.Cell(row, 7).Value = r.service_year;
+                    ws.Cell(row, 8).Value = r.basic_salary;
+                    ws.Cell(row, 9).Value = r.gratuity_encash;
+                    ws.Cell(row, 10).Value = r.pre_encash;
+                    ws.Cell(row, 11).Value = r.net_encash;
+                    ws.Cell(row, 12).Value = r.remarks;
+
+                    totalSalary += r.basic_salary ?? 0;
+                    totalEncash += r.gratuity_encash ?? 0;
+                    totalPreEncash += r.pre_encash ?? 0;
+                    totalNetEncash += r.net_encash ?? 0;
+
+                    row++;
+                }
+
+                // Totals row
+                ws.Cell(row, 1).Value = "Total";
+                ws.Range(row, 1, row, 3).Merge();
+                ws.Cell(row, 8).Value = totalSalary;
+                ws.Cell(row, 9).Value = totalEncash;
+                ws.Cell(row, 10).Value = totalPreEncash;
+                ws.Cell(row, 11).Value = totalNetEncash;
+
+                ws.Columns().AdjustToContents();
+
+                using (var stream = new System.IO.MemoryStream())
+                {
+                    workbook.SaveAs(stream);
+                    var content = Convert.ToBase64String(stream.ToArray());
+
+                    return Json(new
+                    {
+                        status = "success",
+                        fileName = $"employee_gratuity_accrual_export_{fiscalYear.Split('/')[1]}_{period}.xlsx",
+                        fileContent = content
+                    });
+                }
+            }
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult ExportGratuityAccrualCCD(string fiscalYear, int period)
+        {
+            // Get Organization name
+            var orgName = _context.tbl_pp_options
+                .FirstOrDefault(x => x.option_name == "op_org_name")?.option_value ?? "";
+
+            // Query employee gratuity accrual records
+            var records = (from e in _context.tbl_employee
+                           join g in _context.tbl_employee_gratuity_accrual
+                               on e.emp_id equals g.emp_id
+                           where g.fiscal_year == fiscalYear && g.counter == period
+                           orderby e.firstname, e.middlename, e.lastname
+                           select new
+                           {
+                               e.emp_id,
+                               e.emp_code,
+                               FullName = e.firstname + " " + e.middlename + " " + e.lastname,
+                               g.total_hours,
+                               g.net_encash
+                           }).ToList();
+
+            using (var workbook = new XLWorkbook())
+            {
+                var ws = workbook.Worksheets.Add("GratuityAccrualCCD");
+
+                int row = 1;
+                ws.Range(row, 1, row, 3).Merge();
+                ws.Cell(row++, 1).Value = "Organization: " + orgName;
+
+                ws.Range(row, 1, row, 3).Merge();
+                ws.Cell(row++, 1).Value = "Fiscal Year: " + fiscalYear;
+
+                ws.Range(row, 1, row, 3).Merge();
+                ws.Cell(row++, 1).Value = "Period: " + period;
+
+                ws.Range(row, 1, row, 3).Merge();
+                ws.Cell(row++, 1).Value = "Staff Statement of Gratuity with Fund Source Allocated";
+
+                row++;
+                // Header
+                ws.Cell(row, 1).Value = "Serial Number";
+                ws.Cell(row, 2).Value = "Employee Name";
+                ws.Cell(row, 3).Value = "Employee ID";
+                ws.Cell(row, 4).Value = "Fund Source Code";
+                ws.Cell(row, 5).Value = "Hours";
+                ws.Cell(row, 6).Value = "Amount";
+                ws.Row(row).Style.Font.Bold = true;
+                row++;
+
+                int serial = 1;
+                foreach (var r in records)
+                {
+                    // Main employee row
+                    ws.Cell(row, 1).Value = serial++;
+                    ws.Cell(row, 2).Value = r.FullName;
+                    ws.Cell(row, 3).Value = r.emp_code;
+                    ws.Cell(row, 5).Value = r.total_hours;
+                    ws.Cell(row, 6).Value = r.net_encash;
+                    row++;
+
+                    // Fund-wise allocations
+                    var fundWise = _context.tbl_employee_gratuity_accrual_fund_wise
+                        .Where(f => f.emp_id == r.emp_id && f.fiscal_year == fiscalYear && f.counter == period)
+                        .ToList();
+
+                    foreach (var f in fundWise)
+                    {
+                        if (f.hours == 0) continue;
+
+                        string fundSource = _context.tbl_fund_source
+                            .Where(fs => fs.fund_id == f.fund_id)
+                            .Select(fs => fs.fund_source)
+                            .FirstOrDefault() ?? "";
+
+                        // Build GL code (same as Classic ASP)
+                        string append0000 = int.Parse(fiscalYear.Substring(fiscalYear.Length - 4)) > 2015 ? "0000-" : "";
+                        string glFundSourceCode = $"{fundSource.Substring(0, Math.Min(17, fundSource.Length))}-{append0000}{r.emp_code}";
+
+                        decimal amount = r.total_hours != 0
+                            ? Math.Round(((r.net_encash ?? 0m) * (decimal)(f.hours ?? 0d)) / (decimal)r.total_hours, 2)
+                            : 0m;
+
+                        ws.Cell(row, 4).Value = glFundSourceCode;
+                        ws.Cell(row, 5).Value = f.hours;
+                        ws.Cell(row, 6).Value = amount;
+                        row++;
+                    }
+                }
+
+                ws.Columns().AdjustToContents();
+
+                using (var stream = new System.IO.MemoryStream())
+                {
+                    workbook.SaveAs(stream);
+                    var content = Convert.ToBase64String(stream.ToArray());
+                    return Json(new
+                    {
+                        status = "success",
+                        fileName = $"employee_gratuity_accrual_ccd_{fiscalYear.Split('/')[1]}_{period}.xlsx",
+                        fileContent = content
+                    });
+                }
+            }
         }
 
         #endregion
