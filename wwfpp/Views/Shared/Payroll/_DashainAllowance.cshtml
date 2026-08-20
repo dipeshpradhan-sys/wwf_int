@@ -122,7 +122,7 @@
             return extraSettings;
         }
         //$(document).on('blur', '.dashain_amount-input', function () { OnlyNumericCtrl(this); });
-        $(document).off("click", "#btnSave").on("click", "#btnSave", function () {$("#mode").val("update");updateDataJSON(ilaka+"Save");});
+        $(document).off("click", "#btnSave").on("click", "#btnSave", function () { $("#mode").val("update"); updateDataNoChk(ilaka + "Save","Y");});
         $(document).off("click", "#btnExport").on("click", "#btnExport", function () {dashainAllowanceExport();});
         $(document).off("click", "#btnCostCenter").on("click", "#btnCostCenter", function () { dashainAllowanceExportCCD();});
         $(document).off("click", "#btnClear").on("click", "#btnClear", function () { dashainAllowanceClear();});
@@ -149,11 +149,12 @@
         }
 
         function IsAllDashainZero() {
+            var FiscalYearFilter = $("#FiscalYearFilter").val();
             $.ajax({
                 url: ilaka+'CheckEligibility',
                 type: 'POST',
                 data: {
-                    FiscalYearFilter: $("#FiscalYearFilter").val(),
+                    FiscalYearFilter: FiscalYearFilter,
                     __RequestVerificationToken: $('input[name="__RequestVerificationToken"]').val()
                 },
                 success: function(response) {
@@ -195,8 +196,9 @@
                     __RequestVerificationToken: $('input[name="__RequestVerificationToken"]').val()
                 },
                 success: function (res) {
-                    if (res.success) {
+                    if (res.status === "success") {
                         showSuccess("Dashain Allowance Cleared Scuccessfully");
+                        IsAllDashainZero();
                         $("#tblData").DataTable().ajax.reload();
                     } else {
                         showError(err_in_process + res.message);

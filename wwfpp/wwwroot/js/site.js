@@ -400,28 +400,32 @@ function updateStatus(parm, status) {
 
 }
 /*----------------------------------------------------------------------------------------*/
-function updateDataNoChk(parm) {
+function updateDataNoChk(parm, callback=null) {
 	if (confirm(msg_are_you_sure_to_perform_this_action)) {
-		var payload = {
-			mode: "updateDataNoChk"
-		};
+		var payload = { mode: "updateDataNoChk" };
 		if (typeof collectExtraFields === "function") {
 			var extraFields = collectExtraFields();
 			if (extraFields && extraFields.length > 0) {
 				payload.Fields = extraFields;
 			}
 		}
+
 		$.ajax({
 			type: "POST",
 			url: parm,
 			data: JSON.stringify(payload),
-			contentType: "application/json; charset=utf-8", // ? tell server it's JSON
-			dataType: "json",                     // expect JSON back
+			contentType: "application/json; charset=utf-8",
+			dataType: "json",
 			headers: { "RequestVerificationToken": $('input[name="__RequestVerificationToken"]').val() },
 			success: function (data) {
-				if (data.status) {   // match your controller return { status = true/false }
+				if (data.status) {
 					showSuccess(data.message);
 					$('#tblData').DataTable().ajax.reload(null, false);
+
+					// ✅ Only run callback when status is true
+					if (callback === "Y") {
+						IsAllDashainZero();
+					}
 				} else {
 					showError("Error: " + data.message);
 				}
@@ -430,10 +434,9 @@ function updateDataNoChk(parm) {
 				showError("Request failed: " + error);
 			}
 		});
-
 	}
-
 }
+
 /*----------------------------------------------------------------------------------------*/
 function updateDataJSON(parm) {
 	if (doAnyCheckboxSelected(msg_select_at_least_one_checkbox) == false) { return false; }

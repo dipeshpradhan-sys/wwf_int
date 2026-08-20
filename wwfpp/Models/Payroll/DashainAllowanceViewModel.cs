@@ -28,7 +28,6 @@ namespace wwfpp.Models.Payroll
     public class DashainAllowancListeViewModel
     {
         public string? mode { get; set; }
-        public List<string> selectedIds { get; set; }
         public List<DashainAllowanceViewModel> Fields { get; set; }
     }
 }
