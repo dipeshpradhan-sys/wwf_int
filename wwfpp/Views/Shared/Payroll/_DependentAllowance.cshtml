@@ -39,9 +39,10 @@
         <div class="row align-items-center">
             <!-- Right side: Buttons -->
             <div class="col-auto ms-auto">
-                <button type="button" name="btnClear" id="btnClear" class="button btn-primary" onclick="DependentAllowanceClear()">Clear</button>
-                <button type="button" name="btnClearAll" id="btnClearAll" class="button btn-primary" onclick="DependentAllowanceDelete()">Delete</button>
-                <button type="button" name="btnExport" id="btnExport" class="button btn-primary" onclick="DependentAllowanceExport()">Export</button>
+                <button type="button" name="btnClear" id="btnClear" class="button btn-primary">Clear</button>
+                <button type="button" name="btnClearAll" id="btnClearAll" class="button btn-primary">Delete</button>
+                <button type="button" name="btnCCD" id="btnCCD" class="button btn-primary">Cost Center Distribution</button>
+                <button type="button" name="btnExport" id="btnExport" class="button btn-primary">Export</button>
             </div>
         </div>
     </div>
@@ -172,29 +173,6 @@ else
             }
             $(document).off("click", "#btnSave").on("click", "#btnSave", function () {$("#mode").val("update");updateDataNoChk("/Payroll/DependentAllowanceSave");});
 
-            function DependentAllowanceClear() {
-                if (!confirm(msg_are_you_sure_to_clear)) {
-                    return;
-                }
-                $.ajax({
-                    url: '/Payroll/DependentAllowanceClear',
-                    type: 'POST',
-                    data: {
-                        __RequestVerificationToken: $('input[name="__RequestVerificationToken"]').val()
-                    },
-                    success: function(res) {
-                        if (res.status === "success") {
-                            showMessageHeaderAlert(msg_dependent_allowance_cleared_scuccessfully,'50px','success');
-                        } else {
-                            showMessageHeaderAlert(err_in_process + res.message,'50px','error');
-                        }
-                    },
-                    error: function(xhr, status, error) {
-                        showMessageHeaderAlert(err_in_process + error,'50px','error');
-                    }
-                });
-            }
-
             function DependentAllowanceDelete() {
                 if (!confirm(msg_are_you_sure_to_delete)) {
                     return;
@@ -225,8 +203,56 @@ else
                 });
             }
 
+            $(document).off("click", "#btnClearAll").on("click", "#btnClearAll", function() {
+                if (!confirm(msg_are_you_sure_to_clear)) {
+                    return;
+                }
 
-            function DependentAllowanceExport() {
+                $.ajax({
+                    url: '/Payroll/DependentAllowanceDelete',
+                    type: 'POST',
+                    data: {
+                        fiscalYear: $("#FiscalYearFilter").val(),
+                        __RequestVerificationToken: $('input[name="__RequestVerificationToken"]').val()
+                    },
+                    success: function(res) {
+                        if (res.status === "success") {
+                            $('#modal-message').removeClass().addClass('success').html(msg_dependent_allowance_cleared_scuccessfully).show();
+                        } else {
+                            $('#modal-message').removeClass().addClass('error').html(err_in_process + res.message).show();
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        $('#modal-message').removeClass().addClass('error').html(err_in_process + error).show();
+                    }
+                });
+            });
+
+            $(document).off("click", "#btnClear").on("click", "#btnClear", function () {
+                if (!confirm(msg_are_you_sure_to_clear)) {
+                    return;
+                }
+
+                $.ajax({
+                    url: '/Payroll/DependentAllowanceClear',
+                    type: 'POST',
+                    data: {
+                        __RequestVerificationToken: $('input[name="__RequestVerificationToken"]').val()
+                    },
+                    success: function (res) {
+                        if (res.status === "success") {
+                            $('#modal-message').removeClass().addClass('success').html(msg_dependent_allowance_cleared_scuccessfully).show();
+                        } else {
+                            $('#modal-message').removeClass().addClass('error').html(err_in_process + res.message).show();
+                        }
+                    },
+                    error: function (xhr, status, error) {
+                        $('#modal-message').removeClass().addClass('error').html(err_in_process + error).show();
+                    }
+                });
+            });
+
+            $(document).off("click", "#btnExport").on("click", "#btnExport", function () {
                 $.ajax({
                     url: '/Payroll/DependentAllowanceExport',
                     type: 'POST',
@@ -237,26 +263,49 @@ else
                     },
                     success: function (res) {
                         if (res.status === "success") {
+                            // Create download link dynamically
                             var link = document.createElement('a');
                             link.href = 'data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,' + res.fileContent;
                             link.download = res.fileName;
                             link.click();
-
-                            showMessageHeaderAlert(msg_export_scuccessfully, '50px', 'success');
+                            $('#modal-message').removeClass().addClass('success').html(msg_data_exported_success).show();
                             $("#tblData").DataTable().ajax.reload();
                         } else {
-                            showMessageHeaderAlert(err_in_process + res.message, '50px', 'error');
+                            $('#modal-message').removeClass().addClass('error').html(err_in_process + res.error).show();
                         }
                     },
                     error: function (xhr, status, error) {
-                        showMessageHeaderAlert(
-                            err_in_process + error,
-                            '50px',
-                            'error'
-                        );
+                        $('#modal-message').removeClass().addClass('error').html(err_in_process + error).show();
                     }
                 });
-            }
+            });
+            $(document).off("click", "#btnCCD").on("click", "#btnCCD", function() {
+                $.ajax({
+                    url: '/Payroll/ExportDependentAllowanceCCD',
+                    type: 'POST',
+                    data: {
+                        fiscalYear: $("#FiscalYearFilter").val(),
+                        period: 1,
+                        __RequestVerificationToken: $('input[name="__RequestVerificationToken"]').val()
+                    },
+                    success: function(res) {
+                        if (res.status === "success") {
+                            // Create download link dynamically
+                            var link = document.createElement('a');
+                            link.href = 'data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,' + res.fileContent;
+                            link.download = res.fileName;
+                            link.click();
+                            $('#modal-message').removeClass().addClass('success').html(msg_data_exported_success).show();
+                            $("#tblData").DataTable().ajax.reload();
+                        } else {
+                            $('#modal-message').removeClass().addClass('error').html(err_in_process + res.error).show();
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        $('#modal-message').removeClass().addClass('error').html(err_in_process + error).show();
+                    }
+                });
+            });
         </script>
     }
 }
