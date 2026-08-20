@@ -18,7 +18,10 @@ using wwfpp.Data;
 using wwfpp.EmailServices;
 using wwfpp.Helpers;
 using wwfpp.Models;
+using wwfpp.Models.Employee;
 using wwfpp.Models.Payroll;
+using wwfpp.Models.Request;
+using wwfpp.Models.Settings;
 using wwfpp.Services;
 
 using static GblUtilities;
@@ -4175,6 +4178,490 @@ namespace wwfpp.Controllers
                 if (emst == "true") { SendCount++; }
             }
             return Json(new { status = "success", message = $"{SendCount} Pay Slip(s) sent." });
+        }
+        #endregion
+        /********************************************************************************************************************/
+        #region 10904 DEPENDENT ALLOWANCE
+        public IActionResult DependentAllowance(string fiscalYearFilter)
+        {
+            string PageId = "10904";
+            #region FOR PERMISSION
+            var perm = _accountServices.GetMenuPermission(PageId);
+            if (perm.vpern == "false") { return RedirectToAction("PermissionDenied", "Home"); }
+            ViewBag.apern = perm.apern;
+            ViewBag.epern = perm.epern;
+            ViewBag.dpern = perm.dpern;
+            #endregion FOR END PERMISSION
+            ViewBag.FiscalYearActive = fiscalYearFilter;
+            ViewBag.FiscalYearList = _settingsServices.GetFiscalYears(HttpContext.Session.GetString("fiscal_year"));
+
+            var setting = _context.tbl_setting_dependent_children_details.FirstOrDefault();
+            if (setting == null)
+            {
+                ViewBag.SettingMessage = "Settings not defined yet.";
+            }
+            return PartialView("Payroll/_DependentAllowance", "");
+        }
+        public async Task<IActionResult> DependentAllowanceList([FromForm] DataFilterRequest request)
+        {
+            var (pageSize, skip, draw, sortColumn, sortColumnDir, searchValue) = DataTableHelper.GetParameters(Request);
+            var fiscalYearFilter = request.FiscalYearFilter;
+            ViewBag.FiscalYearFilter = fiscalYearFilter;
+
+            DateTime? dt_to_check_dependent_age = null;
+            decimal first_range_amt = 0;
+            decimal second_range_amt = 0;
+            double childProRata = 0;
+            double empProRata = 0;
+            var setting = _context.tbl_setting_dependent_children_details.FirstOrDefault();
+            if (setting != null)
+            {
+                // Step 1: Load settings
+                int max_nos = 0;
+                if (!string.IsNullOrEmpty(setting.max_nos_dep_child_eligible_paid.ToString()))
+                {
+                    max_nos = Convert.ToInt32(setting.max_nos_dep_child_eligible_paid);
+                }
+                first_range_amt = setting.max_amt_first_age_range ?? 0;
+                second_range_amt = setting.max_amt_second_age_range ?? 0;
+                dt_to_check_dependent_age = setting.age_checking_date;
+                childProRata = setting.child_pro_rata_age ?? 0;
+                empProRata = setting.emp_pro_rata_age ?? 0;
+            }
+            /******************************************************************************************************'
+            'UPDATE STATUS TO INACTIVE (ELIGIBILITY = 'I') FOR THE DEPENENDENT WHO CROSSED AGE 25
+            '******************************************************************************************************/
+            await DeactivateDependent(Convert.ToDateTime(dt_to_check_dependent_age));
+
+            bool? blnShowSave = false;
+            // Step 3: Check if allowance already processed for fiscal year
+            // Step 1: SQL-side query (base amounts only)
+            var dependentsRaw =
+                from a in _context.tbl_employee_dependent_children_details
+                join b in _context.tbl_employee on a.emp_id equals b.emp_id
+                join allowance in _context.tbl_dependent_children_details_allowance
+                    on a.emp_dep_id equals allowance.emp_dep_id into allowanceGroup
+                from c in allowanceGroup
+                    .Where(x => x.fiscal_year == fiscalYearFilter)
+                    .DefaultIfEmpty()
+                where a.eligibility == "A" && b.emp_status == "A"
+                let age = (a.date_of_birth.HasValue && dt_to_check_dependent_age.HasValue)
+                    ? Math.Round(((dt_to_check_dependent_age.Value - a.date_of_birth.Value).TotalDays + 1) / 365, 2)
+                    : (double?)null
+                let service_age = (b.join_date.HasValue && dt_to_check_dependent_age.HasValue)
+                    ? Math.Round(((dt_to_check_dependent_age.Value - b.join_date.Value).TotalDays + 1) / 365, 2)
+                    : (double?)null
+                orderby b.firstname, b.middlename, b.lastname, a.date_of_birth
+                select new
+                {
+                    a.emp_dep_id,
+                    a.emp_id,
+                    b.firstname,
+                    b.middlename,
+                    b.lastname,
+                    a.date_of_birth,
+                    b.emp_status,
+                    a.eligibility,
+                    fiscalYear = c != null ? c.fiscal_year : null,
+                    amount_actual = c != null ? c.amount_actual :
+                        (age >= 18 && age < 25
+                            ? (_context.tbl_employee_dependent_children_details_sub
+                                .Any(sub => sub.emp_dep_id == a.emp_dep_id
+                                         && sub.fiscal_year == fiscalYearFilter
+                                         && sub.status == "A")
+                                ? second_range_amt
+                                : 0)
+                        : (age >= 25 ? 0 : first_range_amt)),
+                    // Base allowance only (like Classic ASP amount_actu)
+                    baseAmount = c != null ? c.amount_paid :
+                        (age >= 18 && age < 25
+                            ? (_context.tbl_employee_dependent_children_details_sub
+                                .Any(sub => sub.emp_dep_id == a.emp_dep_id
+                                         && sub.fiscal_year == fiscalYearFilter
+                                         && sub.status == "A")
+                                ? second_range_amt
+                                : 0)
+                        : (age >= 25 ? 0 : first_range_amt)),
+                    age,
+                    service_age,
+                    ageCheckingDate = c != null ? c.age_checking_date : null,
+                    isProcessed = c != null,
+                    fullName = b.firstname + " " + b.middlename + " " + b.lastname,
+                    c_name = a.c_name,
+                    join_date = b.join_date,
+                    fiscalYearFilter = fiscalYearFilter,
+                    age_checking_date = dt_to_check_dependent_age
+                };
+
+            // Step 2: In-memory projection (pro-rata adjustments)
+            var dependentsQuery = dependentsRaw
+                .AsEnumerable() // switch to LINQ-to-Objects
+                .Select(x => new
+                {
+                    x.emp_dep_id,
+                    x.emp_id,
+                    x.firstname,
+                    x.middlename,
+                    x.lastname,
+                    x.date_of_birth,
+                    x.emp_status,
+                    x.eligibility,
+                    x.fiscalYear,
+                    x.amount_actual,
+                    x.baseAmount,
+
+                    // Apply pro-rata rules
+                    amount_paid = (x.age.HasValue && x.age < childProRata)
+                    ? Math.Round((x.baseAmount ?? 0) * (decimal)x.age.Value, 2)
+                    : (x.service_age.HasValue && x.service_age < empProRata)
+                        ? Math.Round((x.baseAmount ?? 0) * (decimal)x.service_age.Value, 2)
+                        : x.baseAmount,
+
+                    x.ageCheckingDate,
+                    x.isProcessed,
+                    x.fullName,
+                    x.c_name,
+                    x.age,
+                    x.join_date,
+                    x.service_age,
+                    fiscalYearFilter = fiscalYearFilter,
+                    age_checking_date = dt_to_check_dependent_age
+                });
+
+
+
+            if (!string.IsNullOrEmpty(searchValue))
+            {
+                dependentsQuery = dependentsQuery.Where(e => EF.Functions.Like(((string)e.GetType().GetProperty("fullName").GetValue(e)), $"%{searchValue}%")
+                                    || EF.Functions.Like(((string)e.GetType().GetProperty("c_name").GetValue(e)), $"%{searchValue}%"));
+            }
+
+            var dependents = dependentsQuery.ToList();
+            if (dependents.Any(d => d.isProcessed))
+            {
+                blnShowSave = false;
+            }
+            else
+            {
+                blnShowSave = true;
+            }
+
+            // Step 5: Fiscal year check
+            if (int.Parse(fiscalYearFilter.Substring(0, 4)) != int.Parse(HttpContext.Session.GetString("fiscal_year").Substring(0, 4)) && (bool)ViewBag.blnShowSave)
+            {
+                // do nothing
+            }
+
+            int recordsTotal = dependents.Count;
+            if (pageSize == -1) pageSize = recordsTotal;
+            var cData = dependents.Skip(skip).Take(pageSize).ToList();
+
+            var jsonData = new
+            {
+                draw = draw,
+                recordsFiltered = recordsTotal,
+                recordsTotal = recordsTotal,
+                data = cData,
+                blnShow = blnShowSave
+            };
+
+            return new JsonResult(jsonData);
+        }
+        public async Task DeactivateDependent(DateTime checkingDate)
+        {
+            // Get all dependents with eligibility = 'A'
+            var dependents = await _context.tbl_employee_dependent_children_details
+                                           .Where(d => d.eligibility == "A")
+                                           .ToListAsync();
+
+            foreach (var dep in dependents)
+            {
+                if (dep.date_of_birth.HasValue)
+                {
+                    // Calculate age in years (rounded to 2 decimals)
+                    var days = (checkingDate - dep.date_of_birth.Value).TotalDays + 1;
+                    var age = Math.Round(days / 365, 2);
+
+                    if (age >= 25)
+                    {
+                        dep.eligibility = "I"; // mark inactive
+                    }
+                }
+            }
+
+            // Save all changes in one batch
+            await _context.SaveChangesAsync();
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<JsonResult> DependentAllowanceSave([FromBody] DependentChildrenDetailsListAllowanceViewModel model)
+        {
+            string PageId = "10904";
+            #region FOR PERMISSION
+            var perm = _accountServices.GetMenuPermission(PageId);
+            ViewBag.apern = perm.apern;
+            ViewBag.epern = perm.epern;
+            #endregion FOR END PERMISSION
+
+            if (perm.apern != "true" && perm.epern != "true") { return Json(new { status = "invalid", message = "Not Authorized User" }); }
+            if (!ModelState.IsValid) { return Json(new { status = "error", message = Lang.msg_error_invalid }); }
+            if (model?.Fields == null || !model.Fields.Any()) { return Json(new { status = "error", message = "No employees received." }); }
+            foreach (var update in model.Fields)
+            {
+                if (update.amount_actual > 0 && update.amount_paid > 0)
+                {
+                    var nextId = Guid.NewGuid().ToString();
+                    var newRow = new tbl_dependent_children_details_allowance
+                    {
+                        dep_allow_id = nextId,
+                        fiscal_year = update.fiscal_year,
+                        emp_dep_id = update.emp_dep_id,
+                        amount_actual = update.amount_actual,
+                        amount_paid = update.amount_paid,
+                        age_checking_date = update.age_checking_date
+                    };
+
+                    _context.tbl_dependent_children_details_allowance.Add(newRow); // 👈 inside the if
+                }
+            }
+            await _context.SaveChangesAsync();
+
+            // Step 2: Update employee totals
+            // Get distinct employee IDs from the dependents you just inserted
+            var distinctEmpIds = model.Fields
+                .Where(f => f.emp_id > 0)
+                .Select(f => f.emp_id)   // make sure your ViewModel includes emp_id
+                .Distinct()
+                .ToList();
+
+            foreach (var empId in distinctEmpIds)
+            {
+                var fiscalYear = model.Fields.FirstOrDefault(f => f.fiscal_year != null)?.fiscal_year;
+
+                if (!string.IsNullOrEmpty(fiscalYear))
+                {
+                    var amountPaid = (from a in _context.tbl_dependent_children_details_allowance
+                                      join d in _context.tbl_employee_dependent_children_details
+                                          on a.emp_dep_id equals d.emp_dep_id
+                                      where a.fiscal_year == fiscalYear
+                                            && d.emp_id == empId
+                                      select a.amount_paid)
+                                 .Sum() ?? 0;
+
+                    var employee = await _context.tbl_employee.FirstOrDefaultAsync(e => e.emp_id == empId);
+                    if (employee != null)
+                    {
+                        employee.child_edu_all = amountPaid;
+                        _context.tbl_employee.Update(employee);
+                    }
+                }
+            }
+            await _context.SaveChangesAsync();
+
+            // Step 3: Final check
+            bool hasRecords = _context.tbl_dependent_children_details_allowance
+                .Any(a => a.fiscal_year == model.Fields.First().fiscal_year);
+
+            string msgst = hasRecords ? "updatesuccess" : "errorupdate";
+            return Json(new { status = msgst, message = Lang.msg_update_success });
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<JsonResult> DependentAllowanceClear()
+        {
+            await _context.Database.ExecuteSqlRawAsync("UPDATE tbl_employee SET child_edu_all=0");
+            return Json(new
+            {
+                status = "success",
+                message = "clearsuccess"
+            });
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<JsonResult> DependentAllowanceDelete(string fiscalYear)
+        {
+            // Step 1: Delete all dependent allowances for the fiscal year
+            var allowancesToDelete = _context.tbl_dependent_children_details_allowance
+                .Where(a => a.fiscal_year == fiscalYear);
+
+            _context.tbl_dependent_children_details_allowance.RemoveRange(allowancesToDelete);
+
+            // Step 2: Reset child_edu_all for all employees
+            var allEmployees = _context.tbl_employee.ToList();
+            foreach (var emp in allEmployees)
+            {
+                emp.child_edu_all = 0;
+                _context.tbl_employee.Update(emp);
+            }
+
+            await _context.SaveChangesAsync();
+
+            // Step 3: One more layer check
+            bool hasRecords = await _context.tbl_dependent_children_details_allowance
+                .AnyAsync(a => a.fiscal_year == fiscalYear);
+
+            string msgst = hasRecords ? "errorupdate" : "updatesuccess";
+
+            return Json(new { status = msgst });
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult DependentAllowanceExport(string fiscalYear)
+        {
+            var OrgName = _context.tbl_pp_options
+                .FirstOrDefault(x => x.option_name == "op_org_name");
+
+            var records = (from dep in _context.tbl_employee_dependent_children_details
+                           join emp in _context.tbl_employee on dep.emp_id equals emp.emp_id
+                           join allow in _context.tbl_dependent_children_details_allowance on dep.emp_dep_id equals allow.emp_dep_id
+                           where allow.fiscal_year == fiscalYear
+                           orderby emp.firstname, emp.middlename, emp.lastname, dep.date_of_birth
+                           select new
+                           {
+                               emp.emp_id,
+                               FullName = emp.firstname + " " + emp.middlename + " " + emp.lastname,
+                               emp.join_date,
+                               dep.c_name,
+                               dep.date_of_birth,
+                               allow.amount_actual,
+                               allow.amount_paid,
+                               allow.age_checking_date
+                           }).ToList();
+
+            using (var workbook = new XLWorkbook())
+            {
+                var ws = workbook.Worksheets.Add("DependentAllowance");
+
+                int row = 1;
+                ws.Cell(row, 1).Value = OrgName?.option_value ?? "Organization";
+                ws.Range(row, 1, row, 3).Merge();
+                row++;
+                ws.Cell(row, 1).Value = "Fiscal Year : " + fiscalYear;
+                ws.Range(row, 1, row, 3).Merge();
+                row++;
+                ws.Cell(row, 1).Value = "Dependent children allowance reimbursement";
+                ws.Range(row, 1, row, 3).Merge();
+                row++;
+
+                row++;
+
+                int serial = 1;
+                decimal grandTotal = 0;
+                decimal employeeTotal = 0;
+                int? oldEmpId = null;
+                decimal subSerial = 1;
+                int counter = 0;
+
+                foreach (var r in records)
+                {
+                    counter++;
+                    double age = 0, serviceAge = 0;
+                    if (r.age_checking_date.HasValue)
+                    {
+                        if (r.age_checking_date.HasValue)
+                        {
+                            // r.date_of_birth must be non-nullable DateTime
+                            TimeSpan diff = (DateTime)r.age_checking_date.Value - (DateTime)r.date_of_birth;
+                            age = Math.Round(diff.TotalDays / 365, 2);
+                        }
+                        if (r.age_checking_date.HasValue)
+                        {
+                            // r.date_of_birth must be non-nullable DateTime
+                            TimeSpan diff = (DateTime)r.age_checking_date.Value - (DateTime)r.join_date;
+                            serviceAge = Math.Round(diff.TotalDays / 365, 2);
+                        }
+                    }
+
+                    // When switching to a new employee, write subtotal
+                    if (oldEmpId != null && r.emp_id != oldEmpId)
+                    {
+                        ws.Cell(row, 1).Value = "Total :";
+                        ws.Range(row, 1, row, 5).Merge();
+                        ws.Cell(row, 6).Value = employeeTotal;
+                        ws.Row(row).Style.Fill.BackgroundColor = XLColor.Yellow;
+                        row++;
+                        employeeTotal = 0;
+                        subSerial = 1;
+                    }
+
+                    // Employee header row
+                    if (r.emp_id != oldEmpId)
+                    {
+                        if (counter == 1)
+                        {
+                            ws.Cell(row, 1).Value = "";
+                            ws.Cell(row, 2).Value = "Employee Name";
+                            ws.Cell(row, 3).Value = "Join Date";
+                            ws.Cell(row, 4).Value = "Number of service year(s)";
+                            ws.Cell(row, 5).Value = "Amount";
+                            ws.Range(row, 5, row, 6).Merge();
+                            ws.Row(row).Style.Font.Bold = true;
+                            ws.Row(row).Style.Fill.BackgroundColor = XLColor.LightGray;
+                            row++;
+
+                            // Dependent header row
+                            ws.Cell(row, 1).Value = "S.N";
+                            ws.Cell(row, 2).Value = "Dependent Name";
+                            ws.Cell(row, 3).Value = "Date of Birth";
+                            ws.Cell(row, 4).Value = "Age (Year)";
+                            ws.Cell(row, 5).Value = "Actual";
+                            ws.Cell(row, 6).Value = "Paid";
+                            ws.Row(row).Style.Font.Bold = true;
+                            ws.Row(row).Style.Fill.BackgroundColor = XLColor.LightGray;
+                            row++;
+                        }
+
+                        ws.Cell(row, 1).Value = serial++;
+                        ws.Cell(row, 2).Value = r.FullName;
+                        ws.Cell(row, 3).Value = r.join_date?.ToString("M/d/yyyy") ?? "";
+                        ws.Cell(row, 4).Value = serviceAge;
+                        ws.Row(row).Style.Fill.BackgroundColor = XLColor.MayaBlue;
+                        row++;
+                    }
+
+                    // Dependent row
+                    ws.Cell(row, 1).Value = $"{serial - 1}.{subSerial++}";
+                    ws.Cell(row, 2).Value = r.c_name;
+                    ws.Cell(row, 3).Value = r.date_of_birth?.ToString("M/d/yyyy");
+                    ws.Cell(row, 4).Value = age;
+                    ws.Cell(row, 5).Value = r.amount_actual;
+                    ws.Cell(row, 6).Value = r.amount_paid;
+                    ws.Row(row).Style.Fill.BackgroundColor = XLColor.LightGreen;
+
+                    employeeTotal += r.amount_paid ?? 0;
+                    grandTotal += r.amount_paid ?? 0;
+                    oldEmpId = r.emp_id;
+                    row++;
+                }
+
+                // Final subtotal for last employee
+                ws.Cell(row, 1).Value = "Total :";
+                ws.Range(row, 1, row, 5).Merge();
+                ws.Cell(row, 6).Value = employeeTotal;
+                ws.Row(row).Style.Fill.BackgroundColor = XLColor.Yellow;
+                row++;
+
+                // Grand total
+                ws.Cell(row, 1).Value = "Grand Total :";
+                ws.Range(row, 1, row, 5).Merge();
+                ws.Cell(row, 6).Value = grandTotal;
+                ws.Row(row).Style.Fill.BackgroundColor = XLColor.Yellow;
+
+                ws.Columns().AdjustToContents();
+
+                using (var stream = new MemoryStream())
+                {
+                    workbook.SaveAs(stream);
+                    var content = Convert.ToBase64String(stream.ToArray());
+
+                    return Json(new
+                    {
+                        status = "success",
+                        fileName = $"employee_dependent_allowance_export_{fiscalYear.Split('/')[1]}.xlsx",
+                        fileContent = content
+                    });
+                }
+            }
         }
         #endregion
         /********************************************************************************************************************/
