@@ -53,6 +53,7 @@
 }
 else
 {
+    <div id="message_header"><p id="process-message" class="note"></p></div>
     <div class="form-group p-2">
         <table id="tblData" class="display compact nowrap" style="width:100%">
             <thead>
@@ -150,6 +151,11 @@ else
                         $('#saveSection').hide();
                         $('#deleteSection').show();
                     }
+                    if (blnShowSave == false) {
+                        showSuccess("The dependent allowance for the fiscal year has already been processed.  ", "process-message");
+                    } else {
+                        showError("The dependent allowance for the fiscal year has not processed yet", "process-message");
+                    }
                 });
 
             });
@@ -172,35 +178,6 @@ else
             }
             $(document).off("click", "#btnSave").on("click", "#btnSave", function () {$("#mode").val("update");updateDataNoChk("/Payroll/DependentAllowanceSave");});
 
-            function DependentAllowanceDelete() {
-                if (!confirm(msg_are_you_sure_to_delete)) {
-                    return;
-                }
-                $.ajax({
-                    url: '/Payroll/DependentAllowanceDelete',
-                    type: 'POST',
-                    data: {
-                        fiscalYear: $("#FiscalYearFilter").val(),
-                        __RequestVerificationToken: $('input[name="__RequestVerificationToken"]').val()
-                    },
-                    success: function (res) {
-                        if (res.status === "updatesuccess") {
-                            showMessageHeaderAlert("", '50px', 'success');
-                            showMessageHeaderAlert(msg_update_success, '50px', 'success');
-                            $('#saveSection').show();
-                            $('#deleteSection').hide();
-                            $("#tblData").DataTable().ajax.reload();
-                            $("#tblData input[type='text'], #tblData input[type='number']").prop("readonly", false);
-                        } else {
-                            showMessageHeaderAlert("", '50px', 'success');
-                            showMessageHeaderAlert(msg_some_error_occcured_please_try_again + res.message, '50px', 'error');
-                        }
-                    },
-                    error: function (xhr, status, error) {
-                        showMessageHeaderAlert(err_in_process + error, '50px', 'error');
-                    }
-                });
-            }
 
             $(document).off("click", "#btnClearAll").on("click", "#btnClearAll", function() {
                 if (!confirm(msg_are_you_sure_to_clear)) {
@@ -216,13 +193,13 @@ else
                     },
                     success: function(res) {
                         if (res.status === "success") {
-                            $('#modal-message').removeClass().addClass('success').html(msg_dependent_allowance_cleared_scuccessfully).show();
+                            $('#message').removeClass().addClass('success').html(msg_dependent_allowance_cleared_scuccessfully).show();
                         } else {
-                            $('#modal-message').removeClass().addClass('error').html(err_in_process + res.message).show();
+                            $('#message').removeClass().addClass('error').html(err_in_process + res.message).show();
                         }
                     },
                     error: function(xhr, status, error) {
-                        $('#modal-message').removeClass().addClass('error').html(err_in_process + error).show();
+                        $('#message').removeClass().addClass('error').html(err_in_process + error).show();
                     }
                 });
             });
@@ -240,13 +217,13 @@ else
                     },
                     success: function (res) {
                         if (res.status === "success") {
-                            $('#modal-message').removeClass().addClass('success').html(msg_dependent_allowance_cleared_scuccessfully).show();
+                            $('#message').removeClass().addClass('success').html(msg_dependent_allowance_cleared_scuccessfully).show();
                         } else {
-                            $('#modal-message').removeClass().addClass('error').html(err_in_process + res.message).show();
+                            $('#message').removeClass().addClass('error').html(err_in_process + res.message).show();
                         }
                     },
                     error: function (xhr, status, error) {
-                        $('#modal-message').removeClass().addClass('error').html(err_in_process + error).show();
+                        $('#message').removeClass().addClass('error').html(err_in_process + error).show();
                     }
                 });
             });
@@ -267,17 +244,44 @@ else
                             link.href = 'data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,' + res.fileContent;
                             link.download = res.fileName;
                             link.click();
-                            $('#modal-message').removeClass().addClass('success').html(msg_data_exported_success).show();
+                            $('#message').removeClass().addClass('success').html(msg_data_exported_success).show();
                             $("#tblData").DataTable().ajax.reload();
                         } else {
-                            $('#modal-message').removeClass().addClass('error').html(err_in_process + res.error).show();
+                            $('#message').removeClass().addClass('error').html(err_in_process + res.error).show();
                         }
                     },
                     error: function (xhr, status, error) {
-                        $('#modal-message').removeClass().addClass('error').html(err_in_process + error).show();
+                        $('#message').removeClass().addClass('error').html(err_in_process + error).show();
                     }
                 });
             });
-         </script>
+            /*$(document).off("click", "#btnCCD").on("click", "#btnCCD", function() {
+                $.ajax({
+                    url: '/Payroll/ExportDependentAllowanceCCD',
+                    type: 'POST',
+                    data: {
+                        fiscalYear: $("#FiscalYearFilter").val(),
+                        period: 1,
+                        __RequestVerificationToken: $('input[name="__RequestVerificationToken"]').val()
+                    },
+                    success: function(res) {
+                        if (res.status === "success") {
+                            // Create download link dynamically
+                            var link = document.createElement('a');
+                            link.href = 'data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,' + res.fileContent;
+                            link.download = res.fileName;
+                            link.click();
+                            showSuccess(msg_data_exported_success, "modal-message");
+                            $("#tblData").DataTable().ajax.reload();
+                        } else {
+                            showError(err_in_process + res.error, "modal-message");
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        showError(err_in_process + error, "modal-message");
+                    }
+                });
+            });*/
+        </script>
     }
 }

@@ -220,14 +220,14 @@ else
                     },
                     success: function (res) {
                         if (res.status === "success") {
-                            $('#modal-message').removeClass().addClass('success').html(msg_gratuity_accrual_cleared_successfully).show();
+                            $('#message').removeClass().empty().addClass('success').html(msg_gratuity_accrual_cleared_successfully).show();
                         } else {
-                            $('#modal-message').removeClass().addClass('error').html(err_in_process + res.message).show();
+                            $('#message').removeClass().addClass('error').html(err_in_process + res.message).show();
                         }
                         $("#tblData").DataTable().ajax.reload();
                     },
                     error: function (xhr, status, error) {
-                        $('#modal-message').removeClass().addClass('error').html(err_in_process + error).show();
+                        $('#message').removeClass().addClass('error').html(err_in_process + error).show();
                     }
                 });
             });
@@ -249,15 +249,15 @@ else
                             link.href = 'data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,' + res.fileContent;
                             link.download = res.fileName;
                             link.click();
-                            $('#modal-message').removeClass().addClass('success').html(msg_data_exported_success).show();
+                            $('#message').removeClass().empty().addClass('success').html(msg_data_exported_success).show();
                             alert(msg_data_exported_success);
                             $("#tblData").DataTable().ajax.reload();
                         } else {
-                            $('#modal-message').removeClass().addClass('error').html(err_in_process + res.error).show();
+                            $('#message').removeClass().addClass('error').html(err_in_process + res.error).show();
                         }
                     },
                     error: function (xhr, status, error) {
-                        $('#modal-message').removeClass().addClass('error').html(err_in_process + error).show();
+                        $('#message').removeClass().addClass('error').html(err_in_process + error).show();
                     }
                 });
             });
@@ -279,14 +279,14 @@ else
                             link.href = 'data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,' + res.fileContent;
                             link.download = res.fileName;
                             link.click();
-                            $('#modal-message').removeClass().addClass('success').html(msg_data_exported_success).show();
+                            $('#message').removeClass().addClass('success').html(msg_data_exported_success).show();
                             $("#tblData").DataTable().ajax.reload();
                         } else {
-                            $('#modal-message').removeClass().addClass('error').html(err_in_process + res.error).show();
+                            $('#message').removeClass().addClass('error').html(err_in_process + res.error).show();
                         }
                     },
                     error: function (xhr, status, error) {
-                        $('#modal-message').removeClass().addClass('error').html(err_in_process + error).show();
+                        $('#message').removeClass().addClass('error').html(err_in_process + error).show();
                     }
                 });
             });

@@ -153,6 +153,13 @@ var msg_data_exported_success = "Data exported Successfully.";
 var msg_cant_edit_overtime_salary_processed = "Salary has already been processed for the selected period. You can't edit the overtime for this period.";
 
 /*--------------------------------------------------------------------------------'
+'* Payroll Administration > Dependent Allowance Distribution'
+'*--------------------------------------------------------------------------------*/
+var msg_dependent_allowance_cleared_scuccessfully = "Dependent allowance cleared successfully";
+var msg_update_success = "Record(s) updated successfully."
+var msg_some_error_occcured_please_try_again = "Some error has been occcured while processing the page! Please try again.";
+
+/*--------------------------------------------------------------------------------'
 '* Payroll Administration > LEAVE ACCRUAL'
 '*--------------------------------------------------------------------------------*/
 var msg_leave_accrual_cleared_scuccessfully = "Leave accrual cleared successfully";
