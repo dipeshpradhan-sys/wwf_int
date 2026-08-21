@@ -4663,6 +4663,119 @@ namespace wwfpp.Controllers
                 }
             }
         }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult ExportDependentAllowanceCCD(string fiscalYear, int period)
+        {
+            // Get Organization name
+            var orgName = _context.tbl_pp_options
+                .FirstOrDefault(x => x.option_name == "op_org_name")?.option_value ?? "";
+
+            // Query employee dependent allowance records
+            var records = (from e in _context.tbl_employee
+                           join d in _context.tbl_dependent_children_details_allowance_emp_wise
+                               on e.emp_id equals d.emp_id
+                           where d.fiscal_year == fiscalYear && d.counter == period
+                           orderby e.firstname, e.middlename, e.lastname
+                           select new
+                           {
+                               e.emp_id,
+                               e.emp_code,
+                               FullName = e.firstname + " " + e.middlename + " " + e.lastname,
+                               total_hours = d.total_hours,
+                               dependent_a = d.amount_paid
+                           }).ToList();
+
+            using (var workbook = new XLWorkbook())
+            {
+                var ws = workbook.Worksheets.Add("DependentAllowanceCCD");
+
+                int row = 1;
+                ws.Cell(row++, 1).Value = "Organization: " + orgName;
+                ws.Cell(row++, 1).Value = "Fiscal Year: " + fiscalYear;
+                ws.Cell(row++, 1).Value = "Period: " + period;
+                ws.Cell(row++, 1).Value = "Staff Statement of Dependent Allowance with Fund Source Allocation";
+
+                row++;
+                // Header
+                ws.Cell(row, 1).Value = "Serial Number";
+                ws.Cell(row, 2).Value = "Employee Name";
+                ws.Cell(row, 3).Value = "Employee ID";
+                ws.Cell(row, 4).Value = "Fund Source";
+                ws.Cell(row, 5).Value = "Hours";
+                ws.Cell(row, 6).Value = "Amount";
+                ws.Row(row).Style.Font.Bold = true;
+                row++;
+
+                int serial = 1;
+                foreach (var r in records)
+                {
+                    // Main employee row
+                    ws.Cell(row, 1).Value = serial++;
+                    ws.Cell(row, 2).Value = r.FullName;
+                    ws.Cell(row, 3).Value = r.emp_code;
+                    ws.Cell(row, 4).Value = "";
+                    ws.Cell(row, 5).Value = r.total_hours;
+                    ws.Cell(row, 6).Value = r.dependent_a;
+                    row++;
+
+                    // Fund-wise allocations
+                    var fundWise = _context.tbl_dependent_children_details_allowance_fund_wise
+                        .Where(f => f.emp_id == r.emp_id && f.fiscal_year == fiscalYear && f.counter == period)
+                        .ToList();
+
+                    foreach (var f in fundWise)
+                    {
+                        if (f.hours == 0) continue;
+
+                        string fundSource = _context.tbl_fund_source
+                            .Where(fs => fs.fund_id == f.fund_id)
+                            .Select(fs => fs.fund_source)
+                            .FirstOrDefault();
+
+                        // Staff type and GL code
+                        string staffType = _context.tbl_employee_salary_extra_settings
+                            .Where(s => s.emp_id == r.emp_id)
+                            .Select(s => s.staff_type)
+                            .FirstOrDefault();
+
+                        string glCode = _payrollServices.GetGLCode(staffType, "C");
+                        //string glCode = _context.tbl_settings_gl_codes
+
+
+                            
+
+
+                        // Append 00000- conditionally
+                        string append0000 = (new DateTime(period, 3, 15) < DateTime.Now) ? "00000-" : "";
+                        string glFundSourceCode = $"{glCode}-{fundSource?.Substring(0, Math.Min(21, fundSource.Length))}-{append0000}{r.emp_code}";
+
+                        decimal amount = r.total_hours != 0
+                            ? Math.Round(((r.dependent_a ?? 0m) * (decimal)(f.hours ?? 0d)) / (decimal)r.total_hours, 2)
+                            : 0m;
+
+                        ws.Cell(row, 4).Value = glFundSourceCode;
+                        ws.Cell(row, 5).Value = f.hours;
+                        ws.Cell(row, 6).Value = amount;
+                        row++;
+                    }
+                }
+
+                ws.Columns().AdjustToContents();
+
+                using (var stream = new System.IO.MemoryStream())
+                {
+                    workbook.SaveAs(stream);
+                    var content = Convert.ToBase64String(stream.ToArray());
+                    return Json(new
+                    {
+                        status = "success",
+                        fileName = $"employee_dependent_allowance_ccd_{fiscalYear.Split('/')[1]}_{period}.xlsx",
+                        fileContent = content
+                    });
+                }
+            }
+        }
         #endregion
         /********************************************************************************************************************/
         #region 10912 LEAVE ACCRUAL
