@@ -166,6 +166,15 @@ namespace wwfpp.Data
         public DbSet<vwAttendanceDailyStaffUpdate> vwAttendanceDailyStaffUpdate { get; set; }
         public DbSet<vwAttendanceDailyStaffUpdateSub> vwAttendanceDailyStaffUpdateSub { get; set; }
         public DbSet<vwAttendanceDailyStaffUpdateChangeLog> vwAttendanceDailyStaffUpdateChangeLog { get; set; }
+        public DbSet<vw_Employee> vw_Employee { get; set; } = null!;
+        public DbSet<vw_EmployeeOvertime> vw_EmployeeOvertime { get; set; } = null!;
+        public DbSet<vw_employee_leave_hash> vw_employee_leave_hash { get; set; } = null!;
+        public DbSet<vw_Employee_Medical_Insurance> vw_Employee_Medical_Insurance { get; set; } = null!;
+        public DbSet<vw_employee_salary_extra_settings> vw_employee_salary_extra_settings { get; set; } = null!;
+        public DbSet<vw_employee_salary_previous> vw_employee_salary_previous { get; set; } = null!;
+        public DbSet<vw_year_salary> vw_year_salary { get; set; } = null!;
+        public DbSet<vw_timesheet_sub> vw_timesheet_sub { get; set; } = null!;
+
 
         //User Administration
         public DbSet<tbl_user_module> tbl_user_module { get; set; }
@@ -369,34 +378,10 @@ namespace wwfpp.Data
                 .HasDatabaseName("index_email_list_search")
                 .IncludeProperties(e => new { e.to_add, e.subject, e.sent_date, e.submit_date, e.cc_add });
 
-            _ = modelBuilder.Entity<que_employee_salary_previous>()
-                .ToView("que_employee_salary_previous")   // tells EF Core it's a view, not a table
-                .HasKey(e => e.sal_id);                   // use sal_id as the primary key  
 
             _ = modelBuilder.Entity<vw_swf_payback>()
                             .HasKey(t => new { t.emp_id, t.sal_month, t.sal_year });
 
-            _ = modelBuilder.Entity<que_timesheet_sub>(entity =>
-            {
-                _ = entity.ToView("que_timesheet_sub"); // exact SQL view name
-
-                // Composite key: emp_id + emp_year + emp_month + emp_day + submit_counter
-                _ = entity.HasKey(e => new { e.emp_id, e.emp_year, e.emp_month, e.emp_day, e.submit_counter });
-
-                _ = entity.Property(e => e.emp_id).HasColumnName("emp_id");
-                _ = entity.Property(e => e.emp_year).HasColumnName("emp_year");
-                _ = entity.Property(e => e.emp_month).HasColumnName("emp_month");
-                _ = entity.Property(e => e.emp_day).HasColumnName("emp_day");
-                _ = entity.Property(e => e.fund_id).HasColumnName("fund_id");
-                _ = entity.Property(e => e.time_hours).HasColumnName("time_hours");
-                _ = entity.Property(e => e.overtime_hours).HasColumnName("overtime_hours");
-                _ = entity.Property(e => e.submit_date).HasColumnName("submit_date");
-                _ = entity.Property(e => e.is_active).HasColumnName("is_active");
-                _ = entity.Property(e => e.submit_counter).HasColumnName("submit_counter");
-                _ = entity.Property(e => e.fiscal_year).HasColumnName("fiscal_year");
-                _ = entity.Property(e => e.emp_week).HasColumnName("emp_week");
-                _ = entity.Property(e => e.fiscal).HasColumnName("fiscal");
-            });
 
 
             // 🔑 Global delete behavior convention: Restrict by default
@@ -406,15 +391,50 @@ namespace wwfpp.Data
                 relationship.DeleteBehavior = DeleteBehavior.Restrict;
             }
 
-            // ✅ Example override: allow cascade delete for a specific FK
-            //Come here and put as below example code for casscade delete required
-            /*
-            modelBuilder.Entity<TABLEContract>()
-                .HasOne(c => c.TABLEEmployee)
-                .WithMany(e => e.TABLEContracts)
-                .HasForeignKey(c => c.EmpId)            //foreign key
-                .OnDelete(DeleteBehavior.Cascade);
-            */
+            // Map the view with emp_id as the key
+            _ = modelBuilder.Entity<vw_Employee>()
+                            .ToView("vw_Employee")       // map to SQL view
+                            .HasKey(e => e.emp_id);
+
+            _ = modelBuilder.Entity<vw_EmployeeOvertime>()
+                .ToView("vw_EmployeeOvertime")       // map to SQL view
+                .HasKey(e => e.OtReqId);           // use OtReqId as unique key
+
+            _ = modelBuilder.Entity<vw_employee_leave_hash>()
+                .ToView("vw_employee_leave_hash")       // map to SQL view
+                .HasKey(e => e.emp_leave_id);           // use emp_leave_id as unique key
+            _ = modelBuilder.Entity<tbl_employee_overtime_request_sub>()
+                .HasKey(s => new { s.ot_req_id, s.sno });
+            _ = modelBuilder.Entity<vw_Employee_Medical_Insurance>()
+                .ToView("vw_Employee_Medical_Insurance")       // map to SQL view
+                .HasKey(e => e.id);           // use Id as unique key
+            _ = modelBuilder.Entity<vw_employee_salary_previous>()
+                .ToView("vw_employee_salary_previous")   // tells EF Core it's a view, not a table
+                .HasKey(e => e.sal_id);                  // use sal_id as the primary key
+            _ = modelBuilder.Entity<vw_year_salary>()
+                .HasNoKey()
+                .ToView("vw_year_salary");
+            _ = modelBuilder.Entity<vw_timesheet_sub>(entity =>
+            {
+                entity.ToView("vw_timesheet_sub"); // exact SQL view name
+
+                // Composite key: emp_id + emp_year + emp_month + emp_day + submit_counter
+                entity.HasKey(e => new { e.emp_id, e.emp_year, e.emp_month, e.emp_day, e.submit_counter });
+
+                entity.Property(e => e.emp_id).HasColumnName("emp_id");
+                entity.Property(e => e.emp_year).HasColumnName("emp_year");
+                entity.Property(e => e.emp_month).HasColumnName("emp_month");
+                entity.Property(e => e.emp_day).HasColumnName("emp_day");
+                entity.Property(e => e.fund_id).HasColumnName("fund_id");
+                entity.Property(e => e.time_hours).HasColumnName("time_hours");
+                entity.Property(e => e.overtime_hours).HasColumnName("overtime_hours");
+                entity.Property(e => e.submit_date).HasColumnName("submit_date");
+                entity.Property(e => e.is_active).HasColumnName("is_active");
+                entity.Property(e => e.submit_counter).HasColumnName("submit_counter");
+                entity.Property(e => e.fiscal_year).HasColumnName("fiscal_year");
+                entity.Property(e => e.emp_week).HasColumnName("emp_week");
+                entity.Property(e => e.fiscal).HasColumnName("fiscal");
+            });
         }
     }
 }

@@ -1,0 +1,135 @@
+﻿@using Microsoft.AspNetCore.Http;
+@inject IHttpContextAccessor HttpContextAccessor;
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var PageTitle = "Employee Medical/Insurance";
+    var Page_Tips = "";  //Tool tip message on right side
+    var msg_please_wait = "";
+    var Page_Mode = PageTitle;
+    var Pern = ViewBag.vpern;
+    ViewData["Title"] = "| " + PageTitle;
+    var Help_Tips = GblUtilities.HelpTips(Page_Tips);
+    /*success|fail|error'*/
+    string ShowMsg = GblUtilities.MsgDisplay(Context.Request.Query["msg"].ToString());
+    int? EmployeeId = Convert.ToInt32(Context.Session.GetString("emp_id"));
+}
+<style>
+    #tblDataList td, #tblDataList th {
+        padding: 15px 10px;
+        font-size: 15px;
+        height: 15px;
+    }
+</style>
+@Html.AntiForgeryToken()
+<h2 class="titlebig"><span name="header" id="header">@Page_Mode</span> @Html.Raw(Help_Tips)</h2>
+@Html.Hidden("mode", "")
+<div id="message_header"><p id="loading" class="loading displaynone">@msg_please_wait</p></div>
+<div id="message_header">@Html.Raw(ShowMsg)</div>
+<div class="d-flex align-items-center">
+    <label class="me-2">Fiscal Year:</label>
+    <select id="FiscalYearList" class="form-control-sm" asp-items="ViewBag.FiscalYearList">
+        <option value="">-- Fiscal year --</option>
+    </select>
+
+    <div class="col-auto"
+         style="background: linear-gradient(90deg, #fceabb, #f8b500);
+        padding:8px;
+        border-radius:4px;
+        font-weight:bold;
+        color:#333;">
+        Employee: @ViewBag.EmployeeFullNameCodeWithStatus
+    </div>
+</div>
+<!-- Controls row under the header -->
+@if (ViewBag.apern == "true" && EmployeeId > 0)
+{
+    <div class="p-0 bg-white rounded mb-3">
+        <div class="row align-items-center">
+            <!-- Right side: Buttons -->
+            <div class="col-auto ms-auto">
+                @if (ViewBag.apern == "true")
+                {
+                    <button id="btnAdd" class="button bg-green">Add New Employee Medical Insurance</button>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+<!-- DataTable -->
+<div class="form-group p-2">
+    <table id="tblData" class="display compact nowrap" style="width:100%">
+        <thead>
+            <tr style="background-color:silver; height:40px;">
+                <th>S.N</th>
+                <th>Type</th>
+                <th>Ref. Number</th>
+                <th>Payment Date</th>
+                <th>Martial Status</th>
+                <th>Self Amount</th>
+                <th>Spouse Amount</th>
+                <th>Other Dependant Amount</th>
+                <th>Total</th>
+                <th>Submit Date</th>
+                <th>Status</th>
+                <th>Period</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+    </table>
+</div>
+@await Html.PartialAsync("_SharedModal", new wwfpp.Models.ModalViewModel { ModalId = "ModalID", DialogClass = "modal-lg", BodyId = "ModalBody", })
+@section Scripts {
+    <script>
+        var perma = '@ViewBag.apern';
+        var perme = '@ViewBag.epern';
+        var ilaka = "/Request/MedicalInsurance";
+        var selectedIds = new Set();
+        var table;
+        $(document).ready(function ()
+        {
+            GetAllData(ilaka, "id", [
+                { data: "reim_type", name: "reim_type", autoWidth: false },
+                { data: "bill_no", name: "bill_no", autoWidth:  false},
+                { data: "bill_date", name: "bill_date", autoWidth:  false,render: function (data, type, row) {if (type === 'display' || type === 'filter') {return moment(data).format(my_format);}return data;}},
+                { data: "marital_status", name: "marital_status", autoWidth:  false},
+                { data: "self_amt", name: "self_amt", autoWidth: false },
+                { data: "spouse_amt", name: "spouse_amt", autoWidth: false },
+                { data: "other_dep_amt", name: "other_dep_amt", autoWidth: false },
+                { data: "total_amt", name: "total_amt", autoWidth: false },
+                { data: "submit_date", name: "submit_date", autoWidth:  false,render: function (data, type, row) {if (type === 'display' || type === 'filter') {return moment(data).format(my_format);}return data;}},
+                { data: "app_status", name: "app_status", autoWidth: false },
+                { data: "period", name: "period", autoWidth: false },
+
+                ],
+                {
+                    fiscalYearFilter: "FiscalYearList"
+
+                }
+                );
+            });
+            $("#FiscalYearList").off("change").on("change", function () {
+                table.draw();
+            });
+
+            $(document).off("click", "#btnAdd").on("click", "#btnAdd", function (e) {
+                const fyV = $('#FiscalYearList').val();
+                if(!fyV) {
+                    $('#message_header')
+                    .html('<p id="message" class="error">Please select fiscal year.</p>')
+                    .css('height', '50px')
+                    .show();
+                    return false;
+                }
+                add(e,null,fyV);
+            });
+
+            $('#btnDelete').on('click', function () { delData(ilaka+'Delete');});
+            $(document).on("click", "#tblData .button", function () {ViewData($(this).data("id"),$('#FiscalYearList').val());});
+            $(document).off('click', '#btnC').on('click', '#btnC', function () {modalCloseCancel($(this));});
+
+
+    </script>
+}
+
+
