@@ -607,9 +607,11 @@ namespace wwfpp.Controllers
                 var approver = await _approverResolver.ResolveApproverAsync(Convert.ToInt32(model.emp_id));
                 var toEmpID = approver.toEmpId ?? 0;
                 var toID = approver.toId ?? 0;
-
+                var maxId = _context.tbl_employee_leave.Max(e => (int?)e.emp_leave_id) ?? 0;
+                var newId = maxId + 1;
                 var Efs = new tbl_employee_leave
                 {
+                    emp_leave_id = newId,
                     leave_type_id = model.leave_type_id,
                     submit_date = SubmitDate,
                     leave_from_date = model.leave_from_date,
