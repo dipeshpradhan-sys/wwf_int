@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace wwfpp.Models.Request
 {
-    public class EmployeeMedicalReimburseVM
+    public class EmployeeMedicalReimburseViewModel
     {
         public string? Id { get; set; }
         public string FiscalYear { get; set; }
@@ -20,6 +20,8 @@ namespace wwfpp.Models.Request
         public double? OtherDepAmt { get; set; }
 
         public string Remarks { get; set; }
+        public string? emp_status { get; set; }  //[nvarchar](50) NULL,
+        public string? app_status { get; set; }  //[nvarchar](50) NULL,
     }
 
 }

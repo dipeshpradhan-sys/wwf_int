@@ -67,7 +67,7 @@ else
             submitSaveUpdate("/Employee/DayOff");
         }
     });
-    $(document).off('blur', '#dayoff_date').on('blur', '#dayoff_date', function () { convert_date(end_date, 'modal-message'); });
+    $(document).off('blur', '#dayoff_date').on('blur', '#dayoff_date', function() { convert_date(dayoff_date, 'modal-message'); });
     $(document).off('click', '#btndate').on('click', '#btndate', function () { show_calendar('frm.dayoff_date'); });
 
 </script>

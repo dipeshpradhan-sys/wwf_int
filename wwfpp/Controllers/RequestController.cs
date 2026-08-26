@@ -63,8 +63,6 @@ namespace wwfpp.Controllers
             ViewBag.epern = perm.epern;
             ViewBag.dpern = perm.dpern;
             #endregion FOR END PERMISSION
-            string? FiscalYearActive = HttpContext.Session.GetString("FiscalYear");
-            ViewBag.FiscalYearList = _settingsServices.GetFiscalYears(FiscalYearActive ?? string.Empty);
 
             int EmployeeID = Convert.ToInt32(HttpContext.Session.GetString("emp_id"));
             string empName = _employeeServices.GetEmployeeName(EmployeeID);
@@ -72,14 +70,31 @@ namespace wwfpp.Controllers
                 ViewBag.EmployeeFullNameCodeWithStatus = empName;
             else
                 ViewBag.EmployeeFullNameCodeWithStatus = "Administrator";
+
+            var Records = (
+                        from con in _context.tbl_employee_medical_reimburse
+                        join cdt in _context.tbl_fiscal_year
+                            on con.fiscal_year equals cdt.fiscal_year
+                        //join emp in _context.tbl_employee
+                        //    on con.emp_id equals emp.emp_id
+                        where con.emp_id == EmployeeID
+                        orderby con.id descending
+                        select new EmployeeMedicalReimburseViewModel
+                        {
+                            Id = con.id
+                        }).ToList();
+
+            ViewBag.FiscalYearFilter = _settingsServices.GetFiscalYears(HttpContext.Session.GetString("fiscal_year"));
+            ViewBag.ViewButtons = _accountServices.getAddEditDeleteAccess("Request/MedicalInsurance", "ADD", PageId, Records.Count);
+
             return PartialView("Request/_MedicalInsuranceList", "");
         }
         [HttpPost]
-        public async Task<IActionResult> MedicalInsuranceList([FromForm] DataFilterRequest request)
+        public async Task<IActionResult> MedicalInsuranceList([FromForm] MultipleCostumFilterRequest request)
         {
             var (pageSize, skip, draw, sortColumn, sortColumnDir, searchValue) = DataTableHelper.GetParameters(Request);
 
-            string? FiscalYearFilter = request.FiscalYearFilter;
+            string? FiscalYearFilter = request.FilterValue1;
             int EmployeeID = Convert.ToInt32(HttpContext.Session.GetString("emp_id"));
             if (EmployeeID <= 0 || string.IsNullOrEmpty(FiscalYearFilter))
             {
@@ -94,6 +109,14 @@ namespace wwfpp.Controllers
                 query = query.Where(e => e.fiscal_year == FiscalYearFilter);
             }
             query = query.OrderByDescending(e => e.submit_date);
+
+            if (!string.IsNullOrWhiteSpace(searchValue))
+            {
+                query = query.Where(a =>
+                    (a.reim_type != null && a.reim_type.Contains(searchValue)) ||
+                    (a.app_status != null && a.app_status.Contains(searchValue))
+                );
+            }
 
             var data = await query.ToListAsync();
 
@@ -130,22 +153,21 @@ namespace wwfpp.Controllers
 
             ViewBag.mode = mode;
 
-
             int employeeId = Convert.ToInt32(HttpContext.Session.GetString("emp_id"));
-            string fiscalYearActive = HttpContext.Session.GetString("FiscalYear");
+            string fiscalYearActive = HttpContext.Session.GetString("fiscal_year");
 
-            EmployeeMedicalReimburseVM model;
+            EmployeeMedicalReimburseViewModel model;
+            // ADD MODE → only marital status from vw_Employee
+            var emp = _context.tbl_employee.FirstOrDefault(e => e.emp_id == employeeId);
 
             if (!string.IsNullOrEmpty(id) && id == "0" && mode == "add")
             {
-                // ADD MODE → only marital status from vw_Employee
-                var emp = _context.vw_Employee.FirstOrDefault(e => e.emp_id == employeeId);
-
                 model = new EmployeeMedicalReimburseViewModel
                 {
                     EmpId = employeeId,
-                    FiscalYear = fiscalYear ?? fiscalYearActive,
-                    MaritalStatus = emp?.marital_status == "M" ? "Married" : "Not Married"
+                    FiscalYear = fiscalYearActive,
+                    MaritalStatus = emp?.marital_status == "M" ? "Married" : "Not Married",
+                    emp_status = emp.emp_status
                 };
             }
             else
@@ -166,12 +188,13 @@ namespace wwfpp.Controllers
                     SpouseAmt = entity.spouse_amt,
                     OtherDepAmt = entity.other_dep_amt,
                     Remarks = entity.remarks,
-                    MaritalStatus = entity.marital_status == "M" ? "Married" : "Not Married"
+                    MaritalStatus = entity.marital_status == "M" ? "Married" : "Not Married",
+                    emp_status = emp.emp_status,
+                    app_status = entity.app_status
                 };
             }
             return PartialView("Request/_MedicalInsuranceAddEdit", model);
         }
-
         [HttpPost]
         public async Task<IActionResult> MedicalInsuranceSave(EmployeeMedicalReimburseViewModel vm, string mode)
         {
@@ -181,7 +204,7 @@ namespace wwfpp.Controllers
             }
 
             int employeeId = Convert.ToInt32(HttpContext.Session.GetString("emp_id"));
-            string fiscalYearActive = HttpContext.Session.GetString("FiscalYear");
+            string fiscalYearActive = HttpContext.Session.GetString("fiscal_year");
 
             // Always fetch marital status from vw_Employee
             var emp = _context.vw_Employee.FirstOrDefault(e => e.emp_id == employeeId);
@@ -227,7 +250,6 @@ namespace wwfpp.Controllers
             if (taxSetting != null)
             {
                 r_max_med_e = taxSetting.max_medical_expenses_reimbursed ?? 0;
-
             }
 
             if (totalAppMedClaim > r_max_med_e)
@@ -236,7 +258,7 @@ namespace wwfpp.Controllers
             }
 
             // --- Save ---
-            if (!string.IsNullOrEmpty(vm.Id) && vm.Id == "0" && mode == "add")
+            if (string.IsNullOrEmpty(vm.Id) && mode == "add")
             {
                 // ADD
                 var entity = new tbl_employee_medical_reimburse

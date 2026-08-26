@@ -1,23 +1,17 @@
-﻿@model wwfpp.Models.Request.EmployeeMedicalReimburseViewModel
+﻿@using wwfpp.Services
+@inject SettingsServices SettingsServices
+@model wwfpp.Models.Request.EmployeeMedicalReimburseViewModel
 @{
-    string mode = ViewBag.mode;
+    string? mode = ViewBag.mode;
+    string? DATE_FORMAT = ViewBag.DATE_FORMAT;
+    string? bill_date = Model.BillDate.ToString();
+    string? s_bill_date = SettingsServices.DateformatToDt(bill_date ?? string.Empty);
+    string? cur_fiscal_year = Context.Session.GetString("fiscal_year");
 }
-<script language="javascript">
-$(document).ready(function () {
-    $('#PaymentDate').datepicker({
-            format: 'mm/dd/yyyy',
-            autoclose: true,
-            todayHighlight: true,
-            todayBtn: "linked",   // ensures clicking Today sets the date
-            clearBtn: true
-    });
-
-});
-</script>
 <partial name="_ConstantValues" view-data='new ViewDataDictionary(ViewData) { { "NoteKey", "RequiredField" } }' />
     @Html.AntiForgeryToken()
-@Html.HiddenFor(m => m.Id)
-@Html.HiddenFor(m => m.FiscalYear)
+    @Html.HiddenFor(m => m.Id)
+    @Html.HiddenFor(m => m.FiscalYear)
     <div class="mb-3 row">
         <label class="col-sm-2 col-form-label text-end">Type <span class="text-danger">*</span></label>
         <div class="col-sm-4">
@@ -43,11 +37,10 @@ $(document).ready(function () {
     <div class="mb-3 row">
         <label class="col-sm-2 col-form-label text-end">Bill Date <span class="text-danger">*</span></label>
         <div class="col-sm-4">
-            @Html.TextBoxFor(m => m.BillDate, "{0:yyyy-MM-dd}",
-                     new { @class = "form-control form-control-sm", @id = "BillDate", type = "date" })
+            @Html.TextBox("BillDate", s_bill_date, new { @class = "form-control", maxlength = "10" })
+            <div class="col-lg-8"><button Type="button" id="btndate" name="btndate" class="button bg-sky">Date...</button></div>
         </div>
     </div>
-
 
     <div class="mb-3 row">
         <label class="col-sm-2 col-form-label text-end">Ref. Number <span class="text-danger">*</span></label>
@@ -86,21 +79,15 @@ $(document).ready(function () {
 
 @if (mode == "add" && ViewBag.apern == "true")
 {
-    <text>
-        <script>
-                document.getElementById("modal-button-list").innerHTML =
-                '<button type="button" name ="btnSave" id="btnSave" class="button btn-primary">Save</button>'+
-                '<button type="button" name ="btnC" id="btnC" class="button btn-secondary">Close</button>';
-        </script>
-    </text>
+    <script>renderModalButtons("modal-button-list", "Save");</script>
 }
-else if (mode == "edit" && ViewBag.epern == "true")
+else if (mode == "edit" && ViewBag.epern == "true" && Model.emp_status == "A" && Model.app_status != "Approved" && Model.app_status != "Declined" && Model.FiscalYear == cur_fiscal_year)
 {
-    <script>
-        document.getElementById("modal-button-list").innerHTML =
-        '<button type="button" name ="btnSave" id="btnSave" class="button btn-primary">Edit</button>'+
-        '<button type="button" name ="btnC" id="btnC" class="button btn-secondary">Close</button>';
-    </script>
+    <script>renderModalButtons("modal-button-list", "Edit");</script>
+}
+else
+{
+    <script>renderModalCloseButton("modal-button-list")</script>
 }
 <script>
 
@@ -117,4 +104,6 @@ else if (mode == "edit" && ViewBag.epern == "true")
             submitSaveUpdate("/Request/MedicalInsurance");
         }
     });
+    $(document).off('blur', '#BillDate').on('blur', '#BillDate', function () { convert_date(BillDate, 'modal-message'); });
+    $(document).off('click', '#btndate').on('click', '#btndate', function () { show_calendar('frm.BillDate'); });
 </script>

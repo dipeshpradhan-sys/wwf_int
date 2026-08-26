@@ -435,6 +435,27 @@ namespace wwfpp.Data
                 entity.Property(e => e.emp_week).HasColumnName("emp_week");
                 entity.Property(e => e.fiscal).HasColumnName("fiscal");
             });
+            _ = modelBuilder.Entity<que_timesheet_sub>(entity =>
+            {
+                _ = entity.ToView("que_timesheet_sub"); // exact SQL view name
+
+                // Composite key: emp_id + emp_year + emp_month + emp_day + submit_counter
+                _ = entity.HasKey(e => new { e.emp_id, e.emp_year, e.emp_month, e.emp_day, e.submit_counter });
+
+                _ = entity.Property(e => e.emp_id).HasColumnName("emp_id");
+                _ = entity.Property(e => e.emp_year).HasColumnName("emp_year");
+                _ = entity.Property(e => e.emp_month).HasColumnName("emp_month");
+                _ = entity.Property(e => e.emp_day).HasColumnName("emp_day");
+                _ = entity.Property(e => e.fund_id).HasColumnName("fund_id");
+                _ = entity.Property(e => e.time_hours).HasColumnName("time_hours");
+                _ = entity.Property(e => e.overtime_hours).HasColumnName("overtime_hours");
+                _ = entity.Property(e => e.submit_date).HasColumnName("submit_date");
+                _ = entity.Property(e => e.is_active).HasColumnName("is_active");
+                _ = entity.Property(e => e.submit_counter).HasColumnName("submit_counter");
+                _ = entity.Property(e => e.fiscal_year).HasColumnName("fiscal_year");
+                _ = entity.Property(e => e.emp_week).HasColumnName("emp_week");
+                _ = entity.Property(e => e.fiscal).HasColumnName("fiscal");
+            });
         }
     }
 }

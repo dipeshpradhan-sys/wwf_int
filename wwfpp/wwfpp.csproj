@@ -18,11 +18,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Remove="Models\Request\EmployeeMedicalReimburseVM.cs" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Content Include="Models\Request\EmployeeMedicalReimburseVM.cs" />
+    <Content Include="Models\Request\EmployeeMedicalReimburseViewModel.cs" />
     <Content Include="Models\Request\EmployeeAdministratorViewModel.cs" />
     <Content Include="Models\Request\EmployeeLeaveHashViewModel.cs" />
     <Content Include="Models\Request\EmployeeLeaveIndvCafwPaidLapsViewModel.cs" />
