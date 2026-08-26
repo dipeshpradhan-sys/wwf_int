@@ -1,0 +1,231 @@
+﻿@using Microsoft.AspNetCore.Http;
+@inject IHttpContextAccessor HttpContextAccessor;
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var PageTitle = "Leave";
+    var Page_Tips = "";  //Tool tip message on right side
+    var msg_please_wait = "";
+    var Page_Mode = PageTitle;
+    var Pern = ViewBag.vpern;
+    ViewData["Title"] = "| " + PageTitle;
+    var Help_Tips = GblUtilities.HelpTips(Page_Tips);
+    /*success|fail|error'*/
+    string ShowMsg = GblUtilities.MsgDisplay(Context.Request.Query["msg"].ToString());
+    string CurrentFiscalYear = Context.Session.GetString("fiscal_year");
+    int? curEmployeeID = Convert.ToInt32(Context.Session.GetString("emp_id"));
+
+}
+<style>
+    #tblDataList td, #tblDataList th {
+    padding: 15px 10px;
+    font-size: 15px;
+    height: 15px;
+    }
+</style>
+@Html.AntiForgeryToken()
+@Html.Hidden("mode", "")
+@Html.Hidden("ilaka", "/Request/Leave")
+
+<h2 class="titlebig"><span name="header" id="header">@Page_Mode</span> @Html.Raw(Help_Tips)</h2>
+<div id="message_header"><p id="loading" class="loading displaynone">@msg_please_wait</p></div>
+<div id="message_header">@Html.Raw(ShowMsg)</div>
+
+<!-- Global overlay spinner -->
+<div id="processingOverlay" style="display:none;
+    position:fixed; top:0; left:0; width:100%; height:100%;
+    background:rgba(0,0,0,0.4); z-index:2000;
+    flex-direction:column; align-items:center; justify-content:center;">
+
+    <div class="spinner-border text-light mb-2" role="status">
+        <span class="visually-hidden">Processing...</span>
+    </div>
+    <div id="processingText" class="text-light fw-bold">Processing...</div>
+</div>
+
+<div class="d-flex align-items-center">
+    <label class="me-2">Fiscal Year:</label>
+    <select id="FiscalYearList" class="form-control-sm" asp-items="ViewBag.FiscalYearList">
+        <option value="">-- Fiscal year --</option>
+    </select>
+
+    <label class="me-2">Employee status:</label>
+    @Html.DropDownList("EmployeeStatusFilter", (SelectList)ViewBag.EmployeeStatusFilter,new { @class = "form-select me-4", style = "width:150px;" })
+
+    <label class="me-2">Leave Status:</label>
+    @Html.DropDownList("LeaveStatusFilter", (SelectList)ViewBag.StatusPAFilter,new { @class = "form-select me-4", style = "width:150px;" })
+
+</div>
+
+<div class="p-0 bg-white rounded mb-3">
+    <div class="row align-items-center">
+        <div class="col-auto ms-auto">
+            @Html.Raw(ViewBag.ViewButtons)
+        </div>
+    </div>
+</div>
+<!-- DataTable -->
+<div class="form-group p-2">
+    <table id="tblData" class="display compact nowrap" style="width:100%">
+        <thead>
+            <tr class="bg-secondary bg-opacity-25">
+                <th width="3%"><input type="checkbox" id="selectAll" /></th>
+                <th>Employee Name</th>
+                <th>Leave Type</th>
+                <th>Submit Date</th>
+                <th>Start Date</th>
+                <th>End Date</th>
+                <th>Hour(s) Days(s)</th>
+                <th>Status</th>
+                <th>Action</th>
+                <th></th>
+            </tr>
+        </thead>
+    </table>
+</div>
+
+@await Html.PartialAsync("_SharedModal", new wwfpp.Models.ModalViewModel { ModalId = "ModalID", DialogClass = "modal-lg", BodyId = "ModalBody", })
+
+@section Scripts {
+    <script>
+        var perma = '@ViewBag.apern';
+        var perme = '@ViewBag.epern';
+        var ilaka = document.getElementById('ilaka').value;
+        var selectedIds = new Set();
+        var table;
+        $(document).ready(function ()
+        {
+            GetAllData(ilaka, "emp_leave_id", [
+                { data: "employeename", name: "employeename", autoWidth: false },
+                { data: "description", name: "description", autoWidth: false },
+                { data: "submit_date", name: "submit_date", autoWidth:  false,render: function (data, type, row) {if (type === 'display' || type === 'filter') {return moment(data).format(my_format);}return data;}},
+                { data: "leave_from_date", name: "leave_from_date", autoWidth:  false,render: function (data, type, row) {if (type === 'display' || type === 'filter') {return moment(data).format(my_format);}return data;}},
+                { data: "leave_to_date", name: "leave_to_date", autoWidth:  false,render: function (data, type, row) {if (type === 'display' || type === 'filter') {return moment(data).format(my_format);}return data;}},
+                { data: "leave_in_hrs", name: "leave_in_hrs", autoWidth: false },
+                { data: "app_status", name: "app_status", autoWidth: false },
+                { data: "showBtnCan", name: "showBtnCan", autoWidth: false,orderable: false,
+                    render: function(data, type, row) {
+                        var comboFiscalYear = $("#FiscalYearList").val();
+                        var currentFiscalYear = '@CurrentFiscalYear';
+                        var curEmployeeID = '@curEmployeeID';
+
+                        if (data === "Y" && currentFiscalYear == comboFiscalYear && row.emp_id == curEmployeeID) {
+                            return '<button type="button" name="btnCancel" id="btnCancel" class="btnCancel" data-id="' + row.emp_leave_id + '">' +
+                                '<img src="/images/delete.png" title="Cancel" width="16" height="16">' +
+                                '</button>';
+                        } else {
+                            return "";
+                        }
+                    }
+
+                }
+                ],
+                {
+                    FilterValue1: "FiscalYearList",
+                    FilterValue2: "EmployeeStatusFilter",
+                    FilterValue3: "LeaveStatusFilter"
+                }
+             );
+        });
+            $("#EmployeeStatusFilter").off("change").on("change", function () {
+                table.draw();
+            });
+
+
+            $(document).on("click", "#tblData .button", function () {ViewData($(this).data("id"),$('#FiscalYearList').val());});
+            $(document).off('click', '#btnC').on('click', '#btnC', function () {modalCloseCancel($(this));});
+        
+
+            // OnBlur calling LeaveHours Calcuate Functions
+            $(document).on("blur change", "#leave_to_date", calculateLeaveHours);
+            $(document).on("blur change", "#leave_from_date", calculateLeaveHours);
+            $(document).on("change", "#leave_type_id", calculateLeaveHours);
+            function calculateLeaveHours() 
+            {
+                const empId = $("#emp_id").val();
+                const leaveTypeId = $("#leave_type_id").val();
+                const fromDate = $("#leave_from_date").val();
+                const toDate = $("#leave_to_date").val();
+
+                if (!empId || !leaveTypeId || !fromDate || !toDate) return;
+                $.ajax({
+                    url: '/Request/CalculateLeaveHours',
+                    type: 'POST',
+                    data: { empId, leaveTypeId, fromDate, toDate },
+                    success: function(result) {
+                        document.getElementById("leave_in_hrs").value = result.leaveInHrs;
+                        document.getElementById("leaveindays").innerText = result.leaveInDays.toFixed(1);
+                    },
+                    error: function() {
+                        console.error("Error calculating leave hours");
+                    }
+                });
+            }
+
+            // Utility functions
+            function parseDate(str) {
+                // expects MM/dd/yyyy
+                const parts = str.split('/');
+                return new Date(parts[2], parts[0] - 1, parts[1]);
+            }
+
+            function addDays(date, days) {
+                const result = new Date(date);
+                result.setDate(result.getDate() + days);
+                return result;
+            }
+
+        // Leave Balance
+        $("#btnMyLeaveBalance").on("click", function () {
+            // Show overlay spinner if you want
+            $("#processingOverlay").show();
+
+            var empId = $("#EmployeeFilter").val();
+            // Get the selected text (the option's display text)
+            var empName = $("#EmployeeFilter option:selected").text();
+
+            var FiscalYear = $("#FiscalYearList").val();
+            $.ajax({
+                url: '/Request/LeaveSummary',   // Controller action
+                type: 'GET',
+                data: { empId: empId, fiscalYear: FiscalYear },
+                success: function (result) {
+                    // Inject the returned Razor partial into modal body
+                    $("#ModalBody").html(result);
+
+                    // Update modal title
+                    $("#ModalID .modal-title").text("Leave Balance of - "+empName);
+                    // Hide footer buttons for summary
+                    $("#globalModalFooter").hide();
+
+                    // ✅ Use Bootstrap 5 API (same as Add New)
+                    var modal = new bootstrap.Modal(document.getElementById("ModalID"));
+                    modal.show();
+                },
+                complete: function () {
+                    $("#processingOverlay").hide();
+                },
+                error: function () {
+                    alert("Error loading leave balance.");
+                    $("#processingOverlay").hide();
+                }
+            });
+        });
+
+
+        $("#tblData").on("click", ".btnCancel", function() {
+            var id = $(this).data("id");
+            $.ajax({
+                url: '/Request/LeaveCancel',
+                type: 'GET',
+                data: { id: id },
+                success: function(result) {
+                    $("#ModalBody").html(result);
+                    $("#ModalID .modal-title").text("Leave [Cancel]");
+                    var modal = new bootstrap.Modal(document.getElementById("ModalID"));
+                    modal.show();
+                }
+            });
+        });
+    </script>
+}
+

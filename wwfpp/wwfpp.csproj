@@ -60,7 +60,6 @@
     <Folder Include="Models\Report\" />
     <Folder Include="Views\Shared\Reports\" />
     <Folder Include="Views\Shared\Profile\" />
-    <Folder Include="Views\Shared\Request\" />
     <Folder Include="wwwroot\images\" />
     <Folder Include="wwwroot\js\Account\" />
     <Folder Include="wwwroot\js\Admin\" />

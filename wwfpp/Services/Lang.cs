@@ -236,5 +236,14 @@ public static class Lang
     Thank You<br><[SITE-ADMIN-NAME]><br><[SITE-TITLE]> - <[ORG-NAME]>
     ";
 
+    public const string msg_emp_manager_not_defined = "Your Manager OR/AND Line Manager has not been defined.";
+    public const string msg_leave_apply_elligible = "Sorry, you are not elligible to apply for leave.";
+    public const string msg_pending_leave_exist = "Some of your applied leaves are in pending. You can apply further leaves only after approving/declining pending leaves from your approval authority.";
 
+    /*--------------------------------------------------------------------------------'
+    * Email Notification about LEAVE DISCARD
+    *--------------------------------------------------------------------------------'
+    */
+    public static string EMAIL_EMPLOYEE_CAN_DISCARD_SUBJECT = "Leave cancellation request discarded by <[EMPLOYEE-NAME-ONLY]>";
+    public static string EMAIL_EMPLOYEE_CAN_DISCARD_MESSAGE = "Dear Sir/Madam,<br/><br/>Please discard my previously submitted following Leave cancellation request below.<br/><br/><[STR-MESSAGE]><br/><br/>Regards<br/><[EMPLOYEE-NAME-ONLY]><br/><br/>";
 }

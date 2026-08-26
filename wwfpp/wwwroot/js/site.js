@@ -1368,7 +1368,38 @@ function updateDataWithoutJSON(parm) {
 
 	}
 }
+/*----------------------------------------------------------------------------------------
+ * Since : 2026-08-04
+ *---------------------------------------------------------------------------------------*/
+function renderModalDiscardButton(containerId) {
 
+
+	const container = document.getElementById(containerId);
+	container.textContent = "";
+
+	const saveBtn = document.createElement("button");
+	saveBtn.type = "button";
+	saveBtn.name = "btnSave";
+	saveBtn.id = "btnSave";
+	saveBtn.className = "button btn-primary";
+	saveBtn.textContent = "Save";
+
+	const discardBtn = document.createElement("button");
+	discardBtn.type = "button";
+	discardBtn.name = "btnDiscard";
+	discardBtn.id = "btnDiscard";
+	discardBtn.className = "button btn-primary";
+	discardBtn.textContent = "Discard";
+	container.append(saveBtn, discardBtn);
+
+	const closeBtn = document.createElement("button");
+	closeBtn.type = "button";
+	closeBtn.name = "btnC";
+	closeBtn.id = "btnC";
+	closeBtn.className = "button btn-secondary";
+	closeBtn.textContent = "Close";
+	container.append(saveBtn, discardBtn, closeBtn);
+}
 /*----------------------------------------------------------------------------------------
 *
 *---------------------------------------------------------------------------------------*/

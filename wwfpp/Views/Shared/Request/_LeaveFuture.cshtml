@@ -1,12 +1,11 @@
 ﻿@using Microsoft.AspNetCore.Http;
 @inject IHttpContextAccessor HttpContextAccessor;
-@model List<wwfpp.Models.Admin.ModulesViewModel>
 @{
     Layout = "~/Views/Shared/_Layout.cshtml";
-    var PageTitle = "LeaveFuture";
+    var PageTitle = "Employee Future Leave";
     var Page_Tips = "";  //Tool tip message on right side
     var msg_please_wait = "";
-    var Page_Mode = PageTitle; 
+    var Page_Mode = PageTitle;
     var Pern = ViewBag.vpern;
     ViewData["Title"] = "| " + PageTitle;
     var Help_Tips = GblUtilities.HelpTips(Page_Tips);
@@ -15,87 +14,162 @@
 
 }
 @Html.AntiForgeryToken()
-<h2 class="titlebig"><span name="header" id="header">@Page_Mode</span> @Html.Raw(Help_Tips)</h2>
-<input type="hidden" id="mode" name="mode" value="" />
-<input type="hidden" id="Id" name="Id" value="" />
+@Html.Hidden("mode", "")
+@Html.Hidden("ilaka", "/Request/FutureLeave")
 
+<h2 class="titlebig"><span name="header" id="header">@Page_Mode</span> @Html.Raw(Help_Tips)</h2>
 <div id="message_header"><p id="loading" class="loading displaynone">@msg_please_wait</p></div>
 <div id="message_header">@Html.Raw(ShowMsg)</div>
 
-<!-- Controls row under the header -->
-@if (ViewBag.apern == "true" || ViewBag.dpern == "true")
-{
-    <div class="p-0 bg-white rounded mb-3">
-        <div class="row align-items-center">
-            <!-- Right side: Buttons -->
-            <div class="col-auto ms-auto">
-                @if (ViewBag.apern == "true")
-                {
-                    <button type="button" id="btnAdd" class="button bg-green">Add New</button>
-                }
-                @if (ViewBag.dpern == "true" && Model != null)
-                {
-                    <button type="button" id="btnDelete" class="button bg-red">Delete</button>
-                }
-            </div>
+<div class="d-flex align-items-center">
+    <label class="me-2">Fiscal Year:</label>
+    <select id="FiscalYearList" class="form-control-sm" asp-items="ViewBag.FiscalYearList">
+        <option value="">-- Fiscal year --</option>
+    </select>
+
+    <label class="me-2">Employee status:</label>
+    @Html.DropDownList("EmployeeStatusFilter", (SelectList)ViewBag.EmployeeStatusFilter,
+        new { @class = "form-select me-4", style = "width:150px;" })
+
+</div>
+
+<div class="p-0 bg-white rounded mb-3">
+    <div class="row align-items-center">
+        <div class="col-auto ms-auto">
+            @Html.Raw(ViewBag.ViewButtons)
         </div>
     </div>
-}
+</div>
+
 <!-- DataTable -->
-@if (Model == null)
-{
-    <div id="message_header"><p class="note">No record(s) found.</p></div>
-}
-else
-{
-    <div class="form-group p-2">
-        <table id="tblData" class="display compact nowrap" style="width:100%">
-            <thead>
-                <tr style="height: 40px; align-items: center;color:white;" class="bg-secondary bg-opacity-27">
-                    <th width="1%"><input type="checkbox" id="selectAll"></th>
-                    <th width="10%">Code</th>
-                    <th width="25%">Name</th>
-                    <th width="20%">Label</th>
-                    <th width="14%">Folder</th>
-                    <th width="10%">Sorting</th>
-                    <th width="10%">Status</th>
-                    <th width="10%">Action</th>
-                </tr>
-            </thead>
-            <tbody>
-                <!-- Data dynamically injected here -->
-            </tbody>
-        </table>
-    </div>
+<div class="form-group p-2">
+    <table id="tblData" class="display compact nowrap" style="width:100%">
+        <thead>
+            <tr class="bg-secondary bg-opacity-25">
+                <th width="3%"><input type="checkbox" id="selectAll" /></th>
+                <th>Employee Name</th>
+                <th>Leave Type</th>
+                <th>Submit Date</th>
+                <th>Start Date</th>
+                <th>End Date</th>
+                <th>Hour(s) Days(s)</th>
+                <th>Status</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+    </table>
+</div>
+@await Html.PartialAsync("_SharedModal", new wwfpp.Models.ModalViewModel { ModalId = "ModalID", DialogClass = "modal-lg", BodyId = "ModalBody", })
+@section Scripts {
+    <script>
+        var perma = '@ViewBag.apern';
+        var perme = '@ViewBag.epern';
+        var ilaka = "/Request/leavefuture";
+        var selectedIds = new Set();
+        var table;
+        $(document).ready(function ()
+        {
+            GetAllData(ilaka, "emp_leave_id", [
+                { data: "employeeName", name: "EmployeeName", autoWidth: false },
+                { data: "leaveType", name: "LeaveType", autoWidth: false },
+                { data: "submitDate", name: "SubmitDate", autoWidth:  false,render: function (data, type, row) {if (type === 'display' || type === 'filter') {return moment(data).format(my_format);}return data;}},
+                { data: "leaveFromDate", name: "LeaveFromDate", autoWidth:  false,render: function (data, type, row) {if (type === 'display' || type === 'filter') {return moment(data).format(my_format);}return data;}},
+                { data: "leaveToDate", name: "LeaveToDate", autoWidth:  false,render: function (data, type, row) {if (type === 'display' || type === 'filter') {return moment(data).format(my_format);}return data;}},
+                { data: "leaveInHours", name: "LeaveInHours", autoWidth: false },
+                { data: "status", name: "Status", autoWidth: false },
+                ],
+                {
+                    FilterValue1: "FiscalYearList",
+                    FilterValue2: "EmployeeStatusFilter"
 
-    <!-- Modal for Add/Edit -->
-    @await Html.PartialAsync("_SharedModal", new wwfpp.Models.ModalViewModel { ModalId = "ModalID", DialogClass = "modal-lg", BodyId = "ModalBody", })
-
-    @section scripts 
-    {
-        <script>
-            var perma = '@ViewBag.apern';
-            var perme = '@ViewBag.epern';
-            var ilaka = "/Admin/Modules"; 
-            var selectedIds = new Set();
-            $(document).ready(function () 
-            {
-                var table;
-                GetAllData(ilaka, perme, "module_id", [
-                    { data: "module_code", name: "module_code", autoWidth: false },
-                    { data: "module_name", name: "module_name", autoWidth: false },
-                    { data: "module_label", name: "module_label", autoWidth: false },
-                    { data: "module_folder", name: "module_folder", autoWidth: false },
-                    { data: "module_sort", name: "module_sort", autoWidth: false },
-                    { data: "module_status", name: "module_status", autoWidth: false }
-                ]);
-
-                $("#btnAdd").on("click", function(e) { add(e); });
-                $('#btnDelete').on('click', function () { delData(ilaka+'Delete');});
-                $(document).on("click", "#tblData .button", function () {ViewData($(this).data("id"));});
-                $(document).off('click', '#btnC').on('click', '#btnC', function () {modalCloseCancel($(this));});
-
+                }
+                );
             });
-        </script>
-    }
+            $("#EmployeeStatusFilter").off("change").on("change", function () {
+                table.draw();
+            });
+
+            $(document).on("click", "#tblData .button", function () {ViewData($(this).data("id"),$('#FiscalYearList').val());});
+            $(document).off('click', '#btnC').on('click', '#btnC', function () {modalCloseCancel($(this));});
+
+            // Delegated binding so it works for dynamically loaded modal content
+            $(document).on("blur change", "#leave_to_date", calculateLeaveHours);
+            $(document).on("blur change", "#leave_from_date", calculateLeaveHours);
+            $(document).on("change", "#LeaveTypeId", calculateLeaveHours);
+
+            // Utility functions
+            function parseDate(str) {
+                // expects MM/dd/yyyy
+                const parts = str.split('/');
+                return new Date(parts[2], parts[0] - 1, parts[1]);
+            }
+
+            function addDays(date, days) {
+                const result = new Date(date);
+                result.setDate(result.getDate() + days);
+                return result;
+            }
+            function calculateLeaveHours() {
+                const workingHrsEl = document.getElementById("working_hrs");
+                const leaveTypeEl = document.getElementById("LeaveTypeId");
+                const fromDateEl = document.getElementById("leave_from_date");
+                const toDateEl = document.getElementById("leave_to_date");
+
+                if (!workingHrsEl || !leaveTypeEl || !fromDateEl || !toDateEl) {
+                    console.warn("One or more elements not found yet");
+                    return;
+                }
+
+                const workingHrs = parseFloat(workingHrsEl.value);
+                const leaveTypeId = leaveTypeEl.value;
+                const fromDateStr = fromDateEl.value;
+                const toDateStr = toDateEl.value;
+
+                if (!leaveTypeId || !fromDateStr || !toDateStr) return;
+
+                const fromDate = parseDate(fromDateStr);
+                const toDate = parseDate(toDateStr);
+
+                if (fromDate > toDate) {
+                    fromDateEl.value = "";
+                    toDateEl.value = "";
+                    document.getElementById("leave_in_hrs").value = "0";
+                    document.getElementById("leaveindays").innerText = "0.0";
+                    return;
+                }
+
+                const days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+                let cntWeekend = 0, cntHoliday = 0, cntDayoff = 0, cntWorkday = 0;
+
+                let current = new Date(fromDate);
+                while (current <= toDate) {
+                    cntWorkday++;
+                    const dayName = days[current.getDay()];
+
+                    if (dayName === "Saturday" || dayName === "Sunday") {
+                        cntWeekend++;
+                    } else {
+                        if ((window.holidays || []).some(h => h.getTime() === current.getTime())) cntHoliday++;
+                        if ((window.dayOffs || []).some(d => d.getTime() === current.getTime())) cntDayoff++;
+                    }
+                    current = addDays(current, 1);
+                }
+
+                // Base leave days
+                let leaveInDays = ["12","13","14"].includes(leaveTypeId)
+                    ? cntWorkday
+                    : cntWorkday - (cntWeekend + cntHoliday + cntDayoff);
+
+                // Apply half-day factor consistently
+                let halfFactor = ["2","4","6","10"].includes(leaveTypeId) ? 0.5 : 1;
+                leaveInDays = leaveInDays * halfFactor;
+                let leaveInHrs = leaveInDays * workingHrs;
+
+                document.getElementById("leave_in_hrs").value = leaveInHrs;
+                document.getElementById("leaveindays").innerText = leaveInDays.toFixed(1);
+            }
+
+    </script>
 }
+
+

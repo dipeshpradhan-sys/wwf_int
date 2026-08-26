@@ -134,6 +134,11 @@ builder.Services.AddScoped<PayrollServices>();
 builder.Services.AddScoped<PaySlipManager>();
 builder.Services.AddScoped<OvertimeServices>();
 builder.Services.AddScoped<LeaveAccrualServices>();
+builder.Services.AddScoped<RequestServices>();
+builder.Services.AddScoped<ApproverResolverService>();
+builder.Services.AddScoped<EmployeeOvertimeServices>();
+builder.Services.AddScoped<AdministrationEmailService>();
+builder.Services.AddScoped<TravelApprovalService>();
 
 #endregion
 

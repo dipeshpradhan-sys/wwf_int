@@ -291,6 +291,10 @@ namespace wwfpp.Data
 
         //public DbSet<vw_user_module_menu> vw_user_module_menu { get; set; }
 
+        /* PROCEDURES */
+        public DbSet<GetEmployeeTimesheetPivot> GetEmployeeTimesheetPivot { get; set; } = null!;
+        public DbSet<GetEmployeeLeave> GetEmployeeLeave { get; set; } = null!;
+
         /*
          * Define the primery (if no primery key defined on single field) / Unique keys below for the table defined above 
          * Also for UNIQUE KEY GENERATOR FOR Tables/VIEWs IF NO PRIMARY KEY IS EXIST

@@ -612,7 +612,8 @@ public static class GblUtilities
         {
             { "Pending", "Pending" },
             { "Approved", "Approved" },
-            { "Declined", "Declined" }
+            { "Declined", "Declined" },
+            { "Cancelled", "Cancelled" }
         };
         return BuildSelectList(options, selvalue);
     }
