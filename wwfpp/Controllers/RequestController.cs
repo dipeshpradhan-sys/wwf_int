@@ -2741,7 +2741,7 @@ namespace wwfpp.Controllers
             */
             string EmployeeTimesheet = "";
             _emailService.SendEmail(null, toEmail, subject, body, EmployeeTimesheet, null, null, null, null);
-            System.IO.File.Delete(EmployeeTimesheet);
+            //System.IO.File.Delete(EmployeeTimesheet);
 
             return Json(new { success = true, message = "Timesheet has been sent for approval." });
 
