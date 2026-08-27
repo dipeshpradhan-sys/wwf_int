@@ -3223,22 +3223,38 @@ namespace wwfpp.Controllers
             var orgName = _context.tbl_pp_options
                 .FirstOrDefault(x => x.option_name == "op_org_name")?.option_value ?? "";
 
-            var employees = (from e in _context.tbl_employee
-                                join o in _context.vw_EmployeeOvertime
-                                    on e.emp_id equals o.EmpId
-                                where o.app_status == "A"
-                                    && o.ot_date >= startDate
-                                    && o.ot_date <= endDate
-                                    && e.emp_status == Status
-                                    && o.OvertimeStatus == "ReportType"
-                                select new
-                                {
-                                    e.emp_id,
-                                    FullName = e.firstname + " " + e.middlename + " " + e.lastname
-                                })
-                                .Distinct()
-                                .OrderBy(x => x.FullName)
-                                .ToList();
+            var employeesQuery = from e in _context.tbl_employee
+                                 join o in _context.vw_EmployeeOvertime
+                                     on e.emp_id equals o.EmpId
+                                 where o.app_status == "A"
+                                       && e.emp_status == Status
+                                       && o.OvertimeStatus == ReportType
+                                 select new
+                                 {
+                                     e.emp_id,
+                                     FullName = e.firstname + " " + e.middlename + " " + e.lastname,
+                                     o.OvertimeDate,
+                                     o.paid_date
+                                 };
+
+            // Apply date filter depending on ReportType
+            if (ReportType == "Approved")
+            {
+                employeesQuery = employeesQuery
+                    .Where(x => x.OvertimeDate >= startDate && x.OvertimeDate <= endDate);
+            }
+            else
+            {
+                employeesQuery = employeesQuery
+                    .Where(x => x.paid_date >= startDate && x.paid_date <= endDate);
+            }
+
+            var employees = employeesQuery
+                .Distinct()
+                .OrderBy(x => x.FullName)
+                .ToList();
+
+
 
             using (var workbook = new XLWorkbook())
             {

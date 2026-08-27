@@ -203,7 +203,7 @@ namespace wwfpp.Data
         public string? OvertimeStatus { get; set; }
         public string? OvertimePaidedStatus { get; set; }
         public string? app_status { get; set; }
-        public DateTime? ot_date { get; set; }
+        public DateTime? paid_date { get; set; }
     }
 
 
