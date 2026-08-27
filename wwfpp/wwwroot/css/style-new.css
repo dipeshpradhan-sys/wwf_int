@@ -1165,3 +1165,85 @@ body{
     text-overflow: ellipsis;
     max-width: 400px;
 }
+
+.fade-in {
+    animation: fadeIn 0.5s ease-in;
+}
+
+@@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+.calendar-table th,
+.calendar-table td {
+    font-size: 0.75rem; /* smaller font */
+    padding: 2px 4px; /* tighter spacing */
+    min-width: 40px; /* narrower cells */
+    text-align: center;
+}
+
+#summaryDiv {
+    margin-left: auto; /* pushes it to the right in a flex container */
+    font-weight: bold;
+}
+
+    /* Positive balance */
+    #summaryDiv.balance-ok {
+        background-color: #d4edda; /* light green */
+        color: #155724; /* dark green text */
+    }
+
+    /* Negative balance */
+    #summaryDiv.balance-negative {
+        background-color: #f8d7da; /* light red */
+        color: #721c24; /* dark red text */
+    }
+
+.fund-pill {
+    background-color: #d4edda; /* light green */
+    color: #155724; /* darker green text for contrast */
+    font-size: 0.9rem; /* slightly smaller text */
+    font-weight: 600; /* keep it bold but not too heavy */
+    transition: background-color 0.3s ease;
+}
+
+    .fund-pill:hover {
+        background-color: #c3e6cb; /* subtle hover effect */
+    }
+
+.big-number-input-WD {
+    width: 30px; /* or any size you prefer */
+}
+
+.number-input-WH {
+    width: 30px; /* or any size you prefer */
+}
+
+
+.ts-error {
+    border-color: red !important;
+    background-color: #ffe5e5 !important; /* light red background */
+}
+
+.alert i {
+    font-size: 1.2rem; /* slightly larger icon */
+}
+
+.alert-success {
+    border-left: 5px solid #28a745; /* green accent bar */
+}
+
+.alert-danger {
+    border-left: 5px solid #dc3545; /* red accent bar */
+}
+
+.alert-warning {
+    border-left: 5px solid #ffc107; /* yellow accent bar */
+}
+

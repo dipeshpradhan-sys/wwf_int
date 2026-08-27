@@ -30,11 +30,6 @@ namespace wwfpp.Services
             _requestServices = requestServices;
             _approverResolver = approverResolver;
         }
-
-        /// <summary>
-        /// Check if applied overtime hours exceed daily or weekly limits.
-        /// Returns "ND" (Not enough daily hours), "NW" (Not enough weekly hours), or "Y" (Allowed).
-        /// </summary>
         public string CheckOvertimeSufficiency(int empId, DateTime otDate, decimal appliedHours)
         {
             // Pull settings (normal + overtime working hours)
@@ -54,20 +49,12 @@ namespace wwfpp.Services
 
             return "Y";
         }
-
-        /// <summary>
-        /// Get total approved overtime hours for a given day.
-        /// </summary>
         public decimal GetApprovedHoursInDay(int empId, DateTime otDate)
         {
             return (decimal)_context.tbl_employee_overtime_request
                 .Where(o => o.emp_id == empId && o.ot_date == otDate && o.app_status == "A")
                 .Sum(o => o.total_hours ?? 0);
         }
-
-        /// <summary>
-        /// Get total approved overtime hours for the week containing otDate.
-        /// </summary>
         public decimal GetApprovedHoursInWeek(int empId, DateTime otDate)
         {
             var weekStart = GetWeekStart(otDate);
@@ -80,35 +67,21 @@ namespace wwfpp.Services
                             o.app_status == "A")
                 .Sum(o => o.total_hours ?? 0);
         }
-
-        /// <summary>
-        /// Helper to get start of week (Thursday).
-        /// </summary>
         private DateTime GetWeekStart(DateTime date)
         {
             // Thursday is considered the start of the week
             int diff = (7 + (date.DayOfWeek - DayOfWeek.Thursday)) % 7;
             return date.Date.AddDays(-diff);
         }
-
-        /// <summary>
-        /// Helper to get end of week (Wednesday).
-        /// </summary>
         private DateTime GetWeekEnd(DateTime date)
         {
             return GetWeekStart(date).AddDays(6);
         }
-
-
-        /// <summary>
-        /// Resolve OT Manager ID (placeholder, implement your own logic).
-        /// </summary>
         public int GetOTManagerId(int empId)
         {
             // Example: look up manager from employee table or config
             return _context.tbl_employee_overtime_settings.FirstOrDefault(e => e.emp_id == empId)?.approval_person ?? 0;
         }
-
         public async Task OvertimeSendEmailAsync(string otid, string mode)
         {
             // Fetch overtime request record

@@ -26,23 +26,10 @@
             <Table>
                 <tr>
                     <td>
-                        <select id="year" name="year" class="form-select w-auto">
-                            <option value="">--Select Year</option>
-                            @foreach (var y in years)
-                            {
-                                <option value="@y">@y</option>
-                            }
-                        </select>
-
+                        @Html.DropDownList("year", (SelectList)ViewBag.CalYears, "-- Select --", new { @class = "form-select" })
                     </td>
                     <td>
-                        <select id="month" name="month" class="form-select w-auto">
-                            <option value="">--Select Month</option>
-                            @for (int i = 1; i <= 12; i++)
-                            {
-                                <option value="@i">@System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(i)</option>
-                            }
-                        </select>
+                        @Html.DropDownList("month", (SelectList)ViewBag.CalMonth, "-- Select --", new { @class = "form-select" })
                     </td>
                     <td>
                         <select id="EmployeeList" class="form-select w-auto" asp-items="ViewBag.EmployeeList">
@@ -51,7 +38,7 @@
 
                     </td>
                     <td>
-                        <button type="button" class="button bg-green" onclick="loadDays()">Load Days</button>
+                        <button type="button" id="btnLoadDays" class="button bg-green">Load Days</button>
                 </td>
                 </tr>
             </Table>
@@ -73,32 +60,31 @@
 
     <partial name="_ValidationScriptsPartial.cshtml" />
     <script>
+        $(document).off("click", "#btnLoadDays").on("click", "#btnLoadDays", async function() {
+            await loadDays();
+        });
+        
         async function loadDays() {
             const year = document.getElementById("year").value;
             const month = document.getElementById("month").value;
             const EmployeeID = document.getElementById("EmployeeList").value;
             const spinner = document.getElementById("loadingSpinner");
             const tableDiv = document.getElementById("daysTable");
-            //showMessageHeaderAlert();// first reset to default if anything was there
             if (year === "") {
-                //showMessageHeaderAlert('Please select year.', '50px', 'error');
-                alert('Please select year.')
-                return; // stop here
+                $('#message').removeClass().addClass('error').html("Please select year.").show();
+                return;
             }
             if (month === "") {
-                //showMessageHeaderAlert('Please select month.', '50px', 'error');
-                alert('Please select month.')
-                return; // stop here
+                $('#message').removeClass().addClass('error').html('Please select month.').show();
+                return;
             }
             if (EmployeeID === "") {
-                //showMessageHeaderAlert('Please select employee.', '50px', 'error');
-                alert('Please select employee.')
-                return; // stop here
+                $('#message').removeClass().addClass('error').html('Please select employee.').show();
+                return;
             }
 
-            // --- Show spinner, hide table ---
             spinner.style.display = "block";
-            tableDiv.style.display = "none"; // hide until ready
+            tableDiv.style.display = "none";
             tableDiv.innerHTML = "";
 
             try {
@@ -189,7 +175,7 @@
 
 
                     }
-                    // await sendTimesheetForApproval(root, "/Request/TimesheetToBeSentForApproval", "Timesheet saved successfully!");
+
                     try {
                         alertHtml = `
                             <div class="alert alert-warning d-flex align-items-center fade-in mt-3" role="alert">
@@ -218,7 +204,7 @@
                             container.style.display = "block";
                         }
                     } catch (error) {
-                        alert("Error sending timesheet: " + error.message, "danger");
+                            $('#message').removeClass().addClass('error').html("Error sending timesheet: " + error.message).show();
                     }
 
                 });
@@ -233,12 +219,10 @@
 
             const formData = new FormData();
 
-            // Collect values manually
             formData.append("year", document.getElementById("year").value);
             formData.append("month", document.getElementById("month").value);
             formData.append("empid", document.getElementById("EmployeeList").value);
 
-            // Example: collect all inputs inside the container
             container.querySelectorAll("input, select, textarea").forEach(el => {
                 if (el.name) {
                     formData.append(el.name, el.value);
@@ -252,7 +236,7 @@
                 root.querySelector("#viewGrid").style.display = "block";
                 await loadDays();
             } catch (err) {
-                alert("Error processing timesheet.");
+                    $('#message').removeClass().addClass('error').html("Error processing timesheet.").show();
             }
         }
 
@@ -284,7 +268,7 @@
             try {
                 const response = await fetch(url, { method: "POST", body: formData });
                 if (!response.ok) throw new Error("Server error");
-                alert(successMessage);
+                $('#message').removeClass().addClass('success').html(successMessage).show();
 
                 // Toggle back to view grid
                 root.querySelector("#editGrid").style.display = "none";
@@ -293,7 +277,7 @@
                 // Optionally reload days to reflect saved values
                 await loadDays();
             } catch (err) {
-                alert("Error processing timesheet: " + (err?.message || err));
+                $('#message').removeClass().addClass('error').html("Error processing timesheet.").show();
             }
         }
 
@@ -426,7 +410,6 @@
             });
 
 
-            // 🔹 Show errors
             if (errors.length > 0) {
                 const alertHtml = errors.map(err => `
                     <div class="alert alert-danger d-flex align-items-center fade-in mt-3" role="alert">
@@ -596,9 +579,8 @@
 
         // Textboxes are only number or decimal inputs.
         $(document).on("input", "input[type='text']", function () {
-            // Replace commas with dots, remove invalid characters
             let val = $(this).val().replace(",", ".").replace(/[^0-9.]/g, "");
-            // Ensure only one decimal point
+
             let parts = val.split(".");
             if (parts.length > 2) {
                 val = parts[0] + "." + parts.slice(1).join("");
@@ -631,91 +613,5 @@
         }
 
 
-    </script>
-    
-    <style>
-        .fade-in 
-        {
-            animation: fadeIn 0.5s ease-in;
-        }
-
-        @@keyframes fadeIn 
-        {
-            from {
-                opacity: 0;
-            }
-
-            to {
-                opacity: 1;
-            }
-        }
-
-        .calendar-table th,
-        .calendar-table td 
-        {
-            font-size: 0.75rem; /* smaller font */
-            padding: 2px 4px; /* tighter spacing */
-            min-width: 40px; /* narrower cells */
-            text-align: center;
-        }
-
-        #summaryDiv {
-            margin-left: auto; /* pushes it to the right in a flex container */
-            font-weight: bold;
-        }
-
-            /* Positive balance */
-            #summaryDiv.balance-ok {
-                background-color: #d4edda; /* light green */
-                color: #155724; /* dark green text */
-            }
-
-            /* Negative balance */
-            #summaryDiv.balance-negative {
-                background-color: #f8d7da; /* light red */
-                color: #721c24; /* dark red text */
-            }
-
-        .fund-pill {
-            background-color: #d4edda; /* light green */
-            color: #155724; /* darker green text for contrast */
-            font-size: 0.9rem; /* slightly smaller text */
-            font-weight: 600; /* keep it bold but not too heavy */
-            transition: background-color 0.3s ease;
-        }
-
-            .fund-pill:hover {
-                background-color: #c3e6cb; /* subtle hover effect */
-            }
-
-        .big-number-input-WD {
-            width: 30px; /* or any size you prefer */
-        }
-
-        .number-input-WH {
-            width: 30px; /* or any size you prefer */
-        }
-
-
-        .ts-error {
-            border-color: red !important;
-            background-color: #ffe5e5 !important; /* light red background */
-        }
-
-        .alert i {
-            font-size: 1.2rem; /* slightly larger icon */
-        }
-
-        .alert-success {
-            border-left: 5px solid #28a745; /* green accent bar */
-        }
-
-        .alert-danger {
-            border-left: 5px solid #dc3545; /* red accent bar */
-        }
-
-        .alert-warning {
-            border-left: 5px solid #ffc107; /* yellow accent bar */
-        }
-    </style>
+    </script>    
 }

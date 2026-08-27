@@ -714,5 +714,17 @@ public static class GblUtilities
         DateTime newend = end ?? DateTime.MinValue;
         return (newend - newstart).Days + 1;
     }
+    /***************************************************************************************************
+    * Since : 2026-Jun-24
+    ****************************************************************************************************/
+    public static SelectList StatusPaidApprove(string selvalue = "")
+    {
+        var options = new Dictionary<string, string>
+        {
+            { "Paid", "Paid" },
+            { "Approved", "Approved" }
+        };
+        return BuildSelectList(options, selvalue);
+    }
 }
 

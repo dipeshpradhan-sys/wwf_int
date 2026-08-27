@@ -2156,18 +2156,36 @@ namespace wwfpp.Controllers
         #region TIMESHEET VIEW,ADD,UPDATE,APPROVAL
         public IActionResult timesheet()
         {
+            string PageId = "10203";
+            #region FOR PERMISSION
+            var perm = _accountServices.GetMenuPermission(PageId);
+            if (perm.vpern == "false") { return RedirectToAction("PermissionDenied", "Home"); }
+            ViewBag.apern = perm.apern;
+            ViewBag.epern = perm.epern;
+            ViewBag.dpern = perm.dpern;
+            #endregion FOR END PERMISSION
+
             //Employee List On Combo Box
             var Employee = _context.vw_Employee.OrderBy(c => c.employeename).ToList();
             ViewBag.EmployeeList = new SelectList(Employee, "emp_id", "employeename");
 
-            var years = Enumerable.Range(2000, DateTime.Now.Year - 2000 + 1).ToList();
-            ViewBag.Years = years.OrderByDescending(y => y).ToList();
+            ViewBag.CalYears = _settingsServices.GetYears(DateTime.Now.Year);
+            ViewBag.CalMonth = _settingsServices.GetMonths(DateTime.Now.Month);
+
             return PartialView("Request/_Timesheet");
         }
         [HttpGet]
         public async Task<IActionResult> TimesheetGetDays(int year, int month, int empid)
-
         {
+            string PageId = "10203";
+            #region FOR PERMISSION
+            var perm = _accountServices.GetMenuPermission(PageId);
+            if (perm.vpern == "false") { return RedirectToAction("PermissionDenied", "Home"); }
+            ViewBag.apern = perm.apern;
+            ViewBag.epern = perm.epern;
+            ViewBag.dpern = perm.dpern;
+            #endregion FOR END PERMISSION
+
             DateTime start = new DateTime(year, month, 1);
 
             DateTime end = start.AddMonths(1);
@@ -2557,9 +2575,7 @@ namespace wwfpp.Controllers
 
             return PartialView("Request/_TimesheetAddEdit", viewModel);
         }
-
         [HttpPost]
-
         public async Task<IActionResult> SaveTimesheet(IFormCollection form, int year, int month, int empid)
         {
             try
@@ -2746,45 +2762,6 @@ namespace wwfpp.Controllers
             return Json(new { success = true, message = "Timesheet has been sent for approval." });
 
         }
-
-        /*
-        public async Task<string> CreateEmployeeTimesheet(int year, int month, int empid, int timeSheetCounter)
-        {
-            string empName = _employeeServices.GetEmployeeName(empid);
-            string monthName = CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(month);
-
-            var uploadsFolder = Path.Combine(AppContext.BaseDirectory, "Reports", "Employee");
-            var filePath = Path.Combine(AppContext.BaseDirectory, "Temp", "Timesheet");
-
-            Directory.CreateDirectory(uploadsFolder);
-            Directory.CreateDirectory(filePath);
-
-            string rdlcPath = Path.Combine(uploadsFolder, "EmpTimesheet.rdlc");
-
-            LocalReport localReport = new LocalReport(rdlcPath);
-
-            var data = _requestServices.GetEmployeeTimesheet(year, month, empid, timeSheetCounter).ToList();
-            localReport.AddDataSource("DataSet1", data);
-
-            // Parameters are a dictionary
-            var parameters = new Dictionary<string, string>
-                {
-                    { "Employee", empName },
-                    { "Month", monthName },
-                    { "Year", year.ToString() }
-                };
-
-            // Render to Excel
-            ReportResult result = localReport.Execute(RenderType.ExcelOpenXml, 1, parameters);
-
-            string fileName = $"EmployeeTimesheet{DateTime.Now:MMddyyyy}.xlsx";
-            string fullPath = Path.Combine(filePath, fileName);
-            System.IO.File.WriteAllBytes(fullPath, result.MainStream);
-
-            return fileName;
-        }
-        */
-
         public async Task<IActionResult> GetPreviousApprovedTimesheets(int year, int month, int empid)
         {
             int maxtimeSheetCounter = await _requestServices.GetCurrentMaxCounterAsync(empid, year, month);
@@ -2863,9 +2840,420 @@ namespace wwfpp.Controllers
 
             return PartialView("Request/_PrevApprovedTimesheetsPartial", viewModel);
         }
-
-
-
         #endregion
+
+        #region EMPLOYEE Overtime LIST,ADD,EDIT,SAVE, MASS DELETE
+        [HttpGet]
+        public IActionResult overtime(string StatusFilter)
+        {
+            string PageId = "10207";
+            #region FOR PERMISSION
+            var perm = _accountServices.GetMenuPermission(PageId);
+            if (perm.vpern == "false") { return RedirectToAction("PermissionDenied", "Home"); }
+            ViewBag.apern = perm.apern;
+            ViewBag.epern = perm.epern;
+            ViewBag.dpern = perm.dpern;
+            #endregion FOR END PERMISSION;
+
+            ViewBag.EmployeeStatusFilter = StatusActivePassive("AD", "A");
+            ViewBag.FiscalYearList = _settingsServices.GetFiscalYears(HttpContext.Session.GetString("fiscal_year"));
+            ViewBag.StatusPAFilter = GblUtilities.ApprovalStatus();
+            ViewBag.ViewButtons = _accountServices.getAddEditDeleteAccess("Request/Overtime", "ADD|DEL", PageId, 1);
+            return PartialView("Request/_overtime");
+        }
+        [HttpPost]
+        public async Task<IActionResult> OvertimeList([FromForm] MultipleCostumFilterRequest request)
+        {
+            var (pageSize, skip, draw, sortColumn, sortColumnDir, searchValue) = DataTableHelper.GetParameters(Request);
+
+            string FiscalYearListFilter = request.FilterValue1;
+            string EmployeeStatusFilter = request.FilterValue2 == "A" ? "Active" : "Inactive";
+            string OtStatusFilter = request.FilterValue3;
+
+            DateTime? fiscalStart = Convert.ToDateTime(_settingsServices.GetFiscalYearValue(FiscalYearListFilter, "date_from"));
+            DateTime? fiscalEnd = Convert.ToDateTime(_settingsServices.GetFiscalYearValue(FiscalYearListFilter, "date_to"));
+
+            if (string.IsNullOrEmpty(FiscalYearListFilter))
+            {
+                FiscalYearListFilter = HttpContext.Session.GetString("FiscalYear");
+
+                fiscalStart = Convert.ToDateTime(HttpContext.Session.GetString("DateFrom"));
+                fiscalEnd = Convert.ToDateTime(HttpContext.Session.GetString("DateTo"));
+            }
+
+            var query =
+                from o in _context.tbl_employee_overtime_request
+                join e in _context.vw_Employee on o.requested_by equals e.emp_id into empJoin
+                from e in empJoin.DefaultIfEmpty()
+                join em in _context.vw_Employee on o.emp_id equals em.emp_id into empReqJoin
+                from em in empReqJoin.DefaultIfEmpty()
+                where o.ot_date >= Convert.ToDateTime(fiscalStart) && o.ot_date <= Convert.ToDateTime(fiscalEnd)
+                      && e.emp_status == EmployeeStatusFilter
+                select new { o, e, em };
+            // Apply filters
+            if (!string.IsNullOrEmpty(OtStatusFilter))
+            {
+                if (OtStatusFilter == "Pending")
+                    query = query.Where(x => x.o.req_status == "P");
+                else if (OtStatusFilter == "Approved")
+                    query = query.Where(x => x.o.app_status == "A");
+            }
+            if (!string.IsNullOrEmpty(searchValue))
+            {
+                query = query.Where(a => a.e.employeename != null && a.e.employeename.Contains(searchValue));
+            }
+            if (!string.IsNullOrEmpty(sortColumn) && !string.IsNullOrEmpty(sortColumnDir))
+                query = query.AsQueryable().OrderBy($"{sortColumn} {sortColumnDir}");
+
+            // Materialize first
+            var rawData = await query.OrderByDescending(x => x.o.ot_date).ToListAsync();
+            // Now project with formatting
+            var data = rawData.Select(x => new EmployeeOvertimeViewModel
+            {
+                OtReqId = x.o.ot_req_id,
+                OtDate = x.o.ot_date?.ToString("dd/MM/yyyy") ?? "",
+                SubmitDate = x.o.submit_date?.ToString("dd/MM/yyyy") ?? "",
+                TotalHours = x.o.total_hours ?? 0,
+                RequestedBy = x.e?.employeename ?? string.Empty,
+                OtDesc = !string.IsNullOrEmpty(x.o.ot_desc) && x.o.ot_desc.Length > 65
+                        ? x.o.ot_desc.Substring(0, 65) + "..."
+                        : (x.o.ot_desc ?? string.Empty),
+                Status = $"R: {x.o.req_status ?? "-"} | S: {x.o.app_status ?? "-"}",
+                AppStatus = x.o.app_status,
+                EmployeeName = x.em.employeename
+            });
+
+            int totalRecord = data.Count();
+            if (pageSize == -1) pageSize = totalRecord;
+
+            var cData = data.Skip(skip).Take(pageSize).ToList();
+            var jsonData = new
+            {
+                draw = draw,
+                recordsFiltered = totalRecord,
+                recordsTotal = totalRecord,
+                data = cData
+            };
+
+            return new JsonResult(jsonData);
+        }
+        public async Task<IActionResult> OvertimeAddEdit(string? id, string mode, int emp_id)
+        {
+            string PageId = "10207";
+            #region FOR PERMISSION
+            var perm = _accountServices.GetMenuPermission(PageId);
+            if (perm.vpern == "false") { return RedirectToAction("PermissionDenied", "Home"); }
+            ViewBag.apern = perm.apern;
+            ViewBag.epern = perm.epern;
+            ViewBag.dpern = perm.dpern;
+            ViewBag.mode = mode;
+            #endregion FOR END PERMISSION
+
+            EmployeeOvertimeAddEditViewModel model;
+            if (!string.IsNullOrEmpty(id) && id != "0")
+            {
+                // Edit mode
+                var overtime = await _context.tbl_employee_overtime_request.FirstOrDefaultAsync(o => o.ot_req_id == id);
+
+                if (overtime == null) return NotFound();
+
+                // Get child rows separately
+                var subs = await _context.tbl_employee_overtime_request_sub
+                    .Where(s => s.ot_req_id == id)
+                    .OrderBy(s => s.sno)
+                    .ToListAsync();
+
+                model = new EmployeeOvertimeAddEditViewModel
+                {
+                    OtReqId = overtime.ot_req_id,
+                    id = overtime.ot_req_id,
+                    emp_id = overtime.emp_id ?? 0,
+                    FiscalYear = overtime.fiscal_year ?? "",
+                    OtDate = overtime.ot_date,
+                    TotalHours = overtime.total_hours ?? 0,
+                    OtDesc = overtime.ot_desc ?? "",
+                    RequestedBy = overtime.requested_by,
+                    Sessions = subs
+                            .Where(s => s != null)
+                            .Select((s, idx) => new OvertimeSessionViewModel
+                            {
+                                Sno = s.sno ?? 0,
+                                StartHour = ParseHour(s.start_time),
+                                StartMinute = ParseMinute(s.start_time),
+                                EndHour = ParseHour(s.end_time),
+                                EndMinute = ParseMinute(s.end_time),
+                                Hours = CalculateHours(s.start_time, s.end_time),
+                                CanRemove = idx > 0 // 🔑 only allow remove for rows after the first
+                            }).ToList()
+                };
+                ViewBag.Employee = _employeeServices.GetEmployeeName((int)overtime.emp_id);
+                model.emp_status = _employeeServices.GetEmployeeStatus((int)overtime.emp_id);
+            }
+            else
+            {
+                // Add mode → only one default row, no Remove
+                model = new EmployeeOvertimeAddEditViewModel
+                {
+                    FiscalYear = HttpContext.Session.GetString("FiscalYear") ?? "",
+                    Sessions = new List<OvertimeSessionViewModel>
+                    {
+                        new OvertimeSessionViewModel { Sno = 1, CanRemove = false }
+                    }
+
+                };
+                model.emp_id = emp_id;
+            }
+
+            string? loggedInEmpId = HttpContext.Session.GetString("emp_id");
+
+            // Filter out the logged-in employee
+            var employees = _context.vw_Employee
+                .ToList();
+            ViewBag.EmployeeList = new SelectList(employees, "emp_id", "employeename");
+
+            var employeesRequestBy = _context.vw_Employee
+                .Where(e => e.emp_id != Convert.ToInt32(loggedInEmpId))
+                .ToList();
+            ViewBag.EmployeeRequestByList = new SelectList(employeesRequestBy, "emp_id", "employeename");
+            return PartialView("Request/_OvertimeAddEdit", model);
+        }
+        // Helper methods
+        private int? ParseHour(string? time)
+        {
+            if (string.IsNullOrEmpty(time)) return null;
+            var parts = time.Split(':');
+            return int.TryParse(parts[0], out var h) ? h : null;
+        }
+        private int? ParseMinute(string? time)
+        {
+            if (string.IsNullOrEmpty(time)) return null;
+            var parts = time.Split(':');
+            return parts.Length > 1 && int.TryParse(parts[1], out var m) ? m : null;
+        }
+        private double CalculateHours(string? start, string? end)
+        {
+            if (string.IsNullOrEmpty(start) || string.IsNullOrEmpty(end)) return 0;
+            var startParts = start.Split(':');
+            var endParts = end.Split(':');
+            if (startParts.Length < 2 || endParts.Length < 2) return 0;
+
+            var startDt = new DateTime(2000, 1, 1, int.Parse(startParts[0]), int.Parse(startParts[1]), 0);
+            var endDt = new DateTime(2000, 1, 1, int.Parse(endParts[0]), int.Parse(endParts[1]), 0);
+
+            var diff = (endDt - startDt).TotalHours;
+            return diff < 0 ? 0 : diff;
+        }
+        [HttpPost]
+        public async Task<IActionResult> OvertimeSave(EmployeeOvertimeAddEditViewModel model, string mode)
+        {
+            // --- Restrict multiple overtime for same day ---
+            bool overtimeExists = await _context.tbl_employee_overtime_request.AnyAsync(o =>
+                o.emp_id == model.emp_id &&
+                o.ot_date == model.OtDate &&
+                o.req_status != "D" &&
+                o.app_status != "D" &&
+                (mode == "add" || o.ot_req_id != model.id));
+
+            if (overtimeExists)
+            {
+                return Json(new { status = "error", message = Lang.msg_overtime_exist });
+            }
+            // --- Restrict defined number of hours in same week ---
+            var enoughHours = _employeeOvertimeServices.CheckOvertimeSufficiency(model.emp_id, Convert.ToDateTime(model.OtDate), Convert.ToDecimal(model.TotalHours));
+            if (enoughHours == "ND" || enoughHours == "NW")
+            {
+                var appWeekHours = _employeeOvertimeServices.GetApprovedHoursInWeek(model.emp_id, Convert.ToDateTime(model.OtDate));
+                var appDayHours = _employeeOvertimeServices.GetApprovedHoursInDay(model.emp_id, Convert.ToDateTime(model.OtDate));
+
+                return Json(new { status = "error", message = Lang.msg_overtime_not_enough_hour });
+            }
+            // --- Add or Edit main request ---
+
+            string msg = Lang.msg_update_success;
+            string otid = Guid.NewGuid().ToString();
+            tbl_employee_overtime_request entity;
+            if (mode == "edit")
+            {
+                otid = model.id;
+                entity = await _context.tbl_employee_overtime_request
+                    .FirstAsync(o => o.ot_req_id == otid);
+
+                if (entity == null) return NotFound();
+
+                entity.ot_date = model.OtDate;
+                entity.total_hours = model.TotalHours;
+                entity.ot_desc = model.OtDesc;
+                entity.requested_by = model.RequestedBy;
+                entity.submit_date = DateTime.Now.Date;
+            }
+            else
+            {
+
+                entity = new tbl_employee_overtime_request
+                {
+                    ot_req_id = otid,
+                    emp_id = model.emp_id,
+                    ot_date = model.OtDate,
+                    total_hours = model.TotalHours,
+                    ot_desc = model.OtDesc,
+                    requested_by = model.RequestedBy,
+                    req_status = "P",
+                    req_date = null,
+                    app_status = "P",
+                    app_by = _employeeOvertimeServices.GetOTManagerId(model.emp_id),
+                    app_date = null,
+                    submit_date = DateTime.Now.Date,
+                    is_paid = "N",
+                    paid_month = 0,
+                    paid_year = 0
+                };
+                _context.tbl_employee_overtime_request.Add(entity);
+                msg = Lang.msg_added_success;
+
+            }
+
+            // --- Save main record ---
+            await _context.SaveChangesAsync();
+            await _employeeOvertimeServices.OvertimeSendEmailAsync(otid, mode);
+            // --- Refresh child rows ---
+            var existingSubs = _context.tbl_employee_overtime_request_sub
+                .Where(s => s.ot_req_id == entity.ot_req_id);
+            _context.tbl_employee_overtime_request_sub.RemoveRange(existingSubs);
+
+            for (int i = 0; i < model.Sessions.Count; i++)
+            {
+                var s = model.Sessions[i];
+                string startTime = $"{s.StartHour:D2}:{s.StartMinute:D2}";
+                string endTime = $"{s.EndHour:D2}:{s.EndMinute:D2}";
+
+                var sub = new tbl_employee_overtime_request_sub
+                {
+                    ot_req_id = entity.ot_req_id,
+                    sno = (short)(i + 1),
+                    start_time = startTime,
+                    end_time = endTime
+                };
+                _context.tbl_employee_overtime_request_sub.Add(sub);
+            }
+
+            await _context.SaveChangesAsync();
+
+            return Json(new { status = "success", message = msg });
+
+
+        }
+        [HttpPost]
+        public async Task<IActionResult> OvertimeDelete([FromBody] DeleteRequest request)
+        {
+            if (request?.SelectedIds == null || !request.SelectedIds.Any())
+            {
+                return BadRequest(new { status = false, message = Lang.msg_no_record_selected });
+            }
+            // Fetch parent records
+            var recordsToDelete = await _context.tbl_employee_overtime_request
+                .Where(r => request.SelectedIds.Contains(r.ot_req_id))
+                .ToListAsync();
+
+            if (!recordsToDelete.Any())
+            {
+                return Json(new { status = "error", message = Lang.msg_no_record_found });
+            }
+            // Find records not pending
+            var employeeOvertimeNotPending = await (
+                from t in _context.tbl_employee_overtime_request
+                where request.SelectedIds.Contains(t.ot_req_id) && t.app_status != "P"
+                select t.ot_req_id
+            ).ToListAsync();
+            // Separate deletable vs undeletable
+            var deletableRecords = recordsToDelete
+                .Where(r => !employeeOvertimeNotPending.Contains(r.ot_req_id))
+                .ToList();
+            var undeletableCount = recordsToDelete.Count - deletableRecords.Count;
+
+            if (deletableRecords.Any())
+            {
+                // Collect IDs for sub table deletion
+                var idsToDelete = deletableRecords.Select(r => r.ot_req_id).ToList();
+
+                // Delete sub records first
+                var subRecords = await _context.tbl_employee_overtime_request_sub
+                    .Where(s => idsToDelete.Contains(s.ot_req_id ?? ""))
+                    .ToListAsync();
+
+                if (subRecords.Any())
+                {
+                    _context.tbl_employee_overtime_request_sub.RemoveRange(subRecords);
+                }
+
+                // Delete parent records
+                _context.tbl_employee_overtime_request.RemoveRange(deletableRecords);
+
+                await _context.SaveChangesAsync();
+            }
+
+
+            return Json(new { status = "success", message = Lang.msg_delete_success.Replace("[<DELETED-ROWS>]", deletableRecords.Count.ToString()) });
+
+
+        }
+        #endregion
+
+        #region Employee Overtime Report
+        public IActionResult OvertimeReport(string StatusFilter)
+        {
+            string PageId = "10207";
+            #region FOR PERMISSION
+            var perm = _accountServices.GetMenuPermission(PageId);
+            if (perm.vpern == "false") { return RedirectToAction("PermissionDenied", "Home"); }
+            ViewBag.apern = perm.apern;
+            ViewBag.epern = perm.epern;
+            ViewBag.dpern = perm.dpern;
+            #endregion FOR END PERMISSION;
+            ViewBag.StatusFilter = GblUtilities.StatusActivePassive("AD", "A");
+            ViewBag.EmployeeFilter = _employeeServices.GetEmployeeActiveOnly();
+            ViewBag.StatusPaidApprovedFilter = GblUtilities.StatusPaidApprove();
+
+            return PartialView("Request/_OvertimeReport", "");
+        }
+        /*public async Task<IActionResult> OvertimeReportGenerate(string ReportType, string? Status, int? Employee, DateTime StartDate, DateTime EndDate)
+        {
+            // Paths
+            var uploadsFolder = Path.Combine(AppContext.BaseDirectory, "Reports", "Request");
+            string rdlcPath = Path.Combine(uploadsFolder, "EmployeeOvertime.rdlc");
+
+            // Init report
+            LocalReport localReport = new LocalReport(rdlcPath);
+
+            // Data
+            var data = _requestServices.GetEmployeeOvertime(ReportType, Status, Employee, StartDate, EndDate).ToList();
+            localReport.AddDataSource("DataSetOvertime", data);
+
+            // Parameters
+            var parameters = new Dictionary<string, string>
+            {
+                { "StartDate", Convert.ToString(StartDate) },
+                { "EndDate", Convert.ToString(EndDate) },
+                { "Status", ReportType }
+            };
+
+            // 👉 Render to Excel (default in your code)
+            ReportResult result = localReport.Execute(RenderType.ExcelOpenXml, 1, parameters);
+            // For PDF
+            //ReportResult result = localReport.Execute(RenderType.Pdf, 1, parameters);
+            //string mimeType = "application/pdf";
+            // For Word
+            //ReportResult result = localReport.Execute(RenderType.WordOpenXml, 1, parameters);
+            //string fileName = $"Overtime-Report-{DateTime.Now:MMddyyyy}.docx";
+            //string mimeType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+            // File name + MIME type
+            string fileName = $"Overtime-Report-{DateTime.Now:MMddyyyy}.xlsx";
+            string mimeType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+            // Return file to browser
+            return File(result.MainStream, mimeType, fileName);
+        }*/
+        #endregion
+
     }
 }

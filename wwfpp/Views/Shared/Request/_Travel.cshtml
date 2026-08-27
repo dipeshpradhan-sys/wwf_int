@@ -12,7 +12,7 @@
     var Help_Tips = GblUtilities.HelpTips(Page_Tips);
     /*success|fail|error'*/
     string ShowMsg = GblUtilities.MsgDisplay(Context.Request.Query["msg"].ToString());
-    string CurrentFiscalYear = Context.Session.GetString("FiscalYear");
+    string CurrentFiscalYear = Context.Session.GetString("fiscal_year");
     int? curEmployeeID = Convert.ToInt32(Context.Session.GetString("emp_id"));
 }
 @Html.AntiForgeryToken()
