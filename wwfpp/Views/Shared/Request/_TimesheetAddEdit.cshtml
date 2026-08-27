@@ -1,75 +1,342 @@
-﻿@model wwfpp.Models.Admin.ModulesViewModel
-@{
-    string mode = ViewBag.mode;
+﻿@model wwfpp.Models.Request.TimesheetViewModel
+
+@functions {
+    string GetCellClass(wwfpp.Models.Request.DayData day)
+    {
+        var isWeekend = day.Date.DayOfWeek == DayOfWeek.Saturday || day.Date.DayOfWeek == DayOfWeek.Sunday;
+        var isToday = day.Date.Date == DateTime.Today;
+        var classes = new List<string> { "text-center" };
+        if (day.IsHoliday || day.IsEmpDayOff) classes.Add("table-danger");
+        if (isWeekend) classes.Add("table-warning");
+        if (isToday) classes.Add("table-success");
+        return string.Join(" ", classes);
+    }
 }
-<!-- (A) HTML DIALOG BOX -->
-<partial name="_ConstantValues" view-data='new ViewDataDictionary(ViewData) { { "NoteKey", "RequiredField" } }' />
-    @Html.HiddenFor(m => m.module_id) <!-- Needed for Edit -->
-    <div class="form-group row p-1">
+@{
+    var normalIndex = 1;
+    var overtimeIndex = 1001; // start OT at a higher range
+}
 
-        <label class="col-lg-12 col-form-label-lg">Code<span class="text-danger">*</span></label>
-        <div class="col-lg-12">
-        <input type="text" class="form-control" asp-for="module_code" name="module_code" id="module_code" autocomplete="module_code" placeholder="" maxlength="50" onKeyPress="javascript:goNext(event.keyCode,'module_name');" />
-        </div>
-    
-        <label class="col-lg-12 col-form-label-lg">Name<span class="text-danger">*</span></label>
-        <div class="col-lg-12">
-        <input type="text" class="form-control" asp-for="module_name" name="module_name" id="module_name" autocomplete="module_name" placeholder="" maxlength="250" onKeyPress="javascript:goNext(event.keyCode,'module_label');" />
-        </div>
-        
-        <label class="col-lg-12 col-form-label-lg">Label<span class="text-danger">*</span></label>
-        <div class="col-lg-12">
-        <input type="text" class="form-control" asp-for="module_label" name="module_label" id="module_label" autocomplete="module_label" placeholder="" maxlength="250"  onKeyPress="javascript:goNext(event.keyCode,'module_folder');" />
-        </div>
-        
-        <label class="col-lg-12 col-form-label-lg">Folder<span class="text-danger">*</span></label>
-        <div class="col-lg-12">
-        <input type="text" class="form-control" asp-for="module_folder" name="module_folder" id="module_folder" autocomplete="module_folder" placeholder="" maxlength="250" onKeyPress="javascript:goNext(event.keyCode,'module_sort');" />
-        </div>        
-        
-        <label class="col-lg-12 col-form-label-lg">Sorting<span class="text-danger">*</span></label>
-        <div class="col-lg-12">
-        <input type="text" class="form-control" asp-for="module_sort" name="module_sort" id="module_sort" autocomplete="module_sort" placeholder="" maxlength="2" onblur="javascript:OnlyNumeric('module_sort','modal_message')" onKeyPress="javascript:goNext(event.keyCode,'module_status');" />
-        </div>
+<!-- Stage 1: Read-only grid -->
+<div id="viewGrid">
+    <input type="hidden" name="timesheetFullyFilled" id="timesheetFullyFilled" value="@(ViewBag.TimesheetFullyFilled.ToString().ToLower())" />
+    <table class="table table-bordered table-striped calendar-table">
 
-        <label class="col-lg-12 col-form-label-lg">Status<span class="text-danger">*</span></label>
-        <div class="col-lg-12">
-        <select name="module_status" id="module_status" asp-for="module_status" class="form-control" onKeyPress="javascript:goNext(event.keyCode,'btnSave');">
-                <option value="">--Select--</option>
-                <option value="A">Active</option>
-                <option value="P">Passive</option>
-            </select>
+        <thead>
+            <tr>
+                @foreach (var day in Model.Days)
+                {
+                    <th class="@GetCellClass(day)">
+                        @day.Date.Day<br />@day.Date.ToString("ddd")
+                    </th>
+
+                }
+            </tr>
+            <tr>
+                @foreach (var day in Model.Days)
+                {
+                    <td class="@GetCellClass(day)">
+                        @(day.IsHoliday ? "H" : (day.IsEmpDayOff ? "D.O" :(day.Date.DayOfWeek == DayOfWeek.Saturday || day.Date.DayOfWeek == DayOfWeek.Sunday ? "W" : "")))
+
+                    </td>
+
+
+                }
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                @foreach (var day in Model.Days)
+                {
+                    <td class="@GetCellClass(day)">
+                        @day.Value
+                    </td>
+
+                }
+            </tr>
+
+            <!-- Row 3: Overtime Hours -->
+            <tr>
+                @foreach (var day in Model.Days)
+                {
+                    <td class="@GetCellClass(day)">
+                        @day.OvertimeValue
+                    </td>
+                }
+            </tr>
+
+        </tbody>
+    </table>
+
+
+    <!-- Messages + Button -->
+    @foreach (var msg in Model.Messages)
+    {
+        var alertClass = msg.Type switch
+        {
+            "error" => "alert-danger",
+            "warning" => "alert-warning",
+            "success" => "alert-success",
+            _ => "alert-info"
+        };
+
+        var icon = msg.Type switch
+        {
+            "error" => "bi-x-circle-fill",              // ❌ cross icon
+            "warning" => "bi-exclamation-triangle-fill", // ⚠️ warning icon
+            "success" => "bi-check-circle-fill",        // ✅ success icon
+            _ => "bi-info-circle-fill"
+        };
+
+        <div class="alert @alertClass d-flex align-items-center fade-in mt-3" role="alert">
+            <i class="bi @icon me-2"></i>
+            <span>@msg.Text</span>
+        </div>
+    }
+
+    <div class="mt-3">
+        @if (Model.ShowAddEditTimeSheetButton)
+        {
+
+            <button id="btnEdit" class="btn btn-warning btn-sm fw-bold">
+                <i class="bi bi-pencil-square"></i> Add / Edit Timesheet
+            </button>
+        }
+        @if (Model.ShowSendButton)
+        {
+            <button id="btnSend" class="btn btn-light fw-bold">
+                <i class="bi bi-pencil-square"></i> Send
+            </button>
+        }
+    </div>
+
+
+</div>
+@{
+    var firstFund = Model.FundRows.FirstOrDefault();
+}
+
+<!-- Stage 2: Editable grid -->
+<div id="alertContainer"></div>
+<div id="editGrid" style="display:none;">
+    @if (firstFund != null)
+    {
+
+        <div id="timesheetForm">
+
+        <table class="table table-bordered table-striped calendar-table">
+            <thead>
+                <tr>
+                    <th>Fund Source</th>
+                    <th>Expiry</th>
+                    <th>TTl Hours</th>
+                    <th>Remaining Hours</th>
+                    @foreach (var day in Model.FundRows.First().Days)
+                    {
+                            var allowOTEdit = day.AllowOvertimeBoxToUpdateOverLeave;
+                            <th class="@GetCellClass(day)">
+                                @day.Date.Day<br />@day.Date.ToString("ddd")<br />
+                                @if (!string.IsNullOrEmpty(day.EmployeeMaxOverTimeValueInAday) && Convert.ToDecimal(day.EmployeeMaxOverTimeValueInAday) > 0)
+                                {
+                                    <text><br />OT: @Convert.ToDecimal(day.EmployeeMaxOverTimeValueInAday).ToString("N2")</text>
+                                }
+                                @if (day.IsHoliday)
+                                {
+                                    <text><br />H</text>
+                                }
+                                @if (day.IsEmpDayOff)
+                                {
+                                    <text><br />D.O</text>
+                                }
+                                @if (!allowOTEdit)
+                                {
+                                    <text><br />L:(U/S)</text>
+                                }
+                                
+                            </th>
+
+                    }
+                    <th>Total NT</th>
+                    <th>Total OT</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var fundRow in Model.FundRows)
+                {
+                    <tr class="fund-row" data-fund="@fundRow.FundId">
+
+                        <td>@fundRow.FundSourceName</td>
+                        <td>@fundRow.ExpiryDate?.ToString("dd/MM/yyyy")</td>
+                        <td>@fundRow.AnnualHours</td>
+                        <td>@fundRow.RemainingHours
+                                <input type="hidden"
+                                       class="fund-remaining"
+                                       value="@fundRow.RemainingHours"
+                                       data-fund="@fundRow.FundId" 
+                                       data-fundname="@fundRow.FundSourceName" />
+                                             </td>
+                        @foreach (var day in fundRow.Days)
+                        {
+                            var dayKey = day.Date.ToString("yyyyMMdd");
+
+                            var isWeekend = day.Date.DayOfWeek == DayOfWeek.Saturday || day.Date.DayOfWeek == DayOfWeek.Sunday;
+                            var isHoliday = day.IsHoliday;
+                            var isDayOff = day.IsEmpDayOff;
+                            var allowOTEdit = day.AllowOvertimeBoxToUpdateOverLeave;
+                            var hoursOnWeekEnd = day.CanEditOnWeekEnd;
+                            var hoursOnHoliday = day.CanEditOnHoliday;
+
+                            <td class="@GetCellClass(day)">
+                                <!-- Normal Hours -->
+                                @if ((isWeekend && hoursOnWeekEnd == "N") || (isHoliday && hoursOnHoliday == "N") || isDayOff || !day.IsEditableByFund || fundRow.FundSourceDefault == "1")
+                                {
+                                    <input type="text"
+                                           class="form-control form-control-sm number-input-WH hour-normal"
+                                           value="@day.Value"
+                                           readonly
+                                           data-day="@dayKey" />
+                                }
+                                else
+                                {
+                                    <input type="text"
+                                           class="form-control form-control-sm big-number-input-WD hour-normal"
+                                           name="Hours[@fundRow.FundId][@dayKey]"
+                                           value="@day.Value"
+                                           data-day="@dayKey" tabindex="@normalIndex" />
+                                }
+                                @{
+                                    normalIndex++;
+                                }
+
+                                <!-- Overtime Hours -->
+                                @if ((isWeekend && hoursOnWeekEnd == "N") || (isHoliday && hoursOnHoliday == "N") || isDayOff || !day.IsEditableByFund || !day.OvertimeEditable || !allowOTEdit || fundRow.FundSourceDefault == "1")
+                                {
+                                    <input type="text"
+                                           class="form-control form-control-sm mt-1 number-input-WH hour-ot"
+                                               value="@day.OvertimeValue"
+                                           readonly
+                                           data-day="@dayKey" />
+                                }
+                                else
+                                {
+                                    <input type="text"
+                                           class="form-control form-control-sm big-number-input-WD mt-1 hour-ot"
+                                           name="OvertimeHours[@fundRow.FundId][@dayKey]"
+                                           value="@day.OvertimeValue"
+                                           data-day="@dayKey" />
+
+
+                                }
+                                @{
+                                    overtimeIndex++;
+                                }
+
+                            </td>
+                        }
+
+                        <!-- Per-fund totals cells with explicit classes -->
+                        <td class="fw-bold normal-total">@fundRow.TotalNormalHours</td>
+                        <td class="fw-bold overtime-total">@fundRow.TotalOvertimeHours</td>
+                    </tr>
+
+                }
+                <!-- Daily Totals Row (aggregated across all funds) -->
+                <tr class="table-primary fw-bold daily-totals-row">
+                    <td colspan="4" class="text-end">Daily Totals:</td>
+                    @foreach (var day in Model.FundRows.First().Days)
+                    {
+
+                        var dayKey = day.Date.ToString("yyyyMMdd");
+                        //var isWeekend = day.Date.DayOfWeek == DayOfWeek.Saturday || day.Date.DayOfWeek == DayOfWeek.Sunday;
+                        //var isHoliday = day.IsHoliday;
+                        //var isDayOff = day.IsEmpDayOff;
+                        //var hoursOnWeekEnd = day.CanEditOnWeekEnd;
+                        //var hoursOnHoliday = day.CanEditOnHoliday;
+                        //var allowOTEdit = day.AllowOvertimeBoxToUpdateOverLeave;
+
+                        string classIsWorkingDay = "class-validate-js-normal-hours";
+                        //if ((isWeekend && hoursOnWeekEnd == "N") || (isHoliday && hoursOnHoliday == "N") || isDayOff || !day.IsEditableByFund || !day.IsEditableByFund)
+                         //   classIsWorkingDay = "";
+                        <td>
+                                <input type="text" id="TotalNormalHoursPerDay[@dayKey]"
+                                   class="form-control form-control-sm daily-normal mb-1 @classIsWorkingDay"
+                                   data-day="@dayKey"
+                                   readonly />
+                                <input type="text" id="TotalOvertimeHoursPerDay[@dayKey]"
+                                   class="form-control form-control-sm daily-overtime"
+                                   data-day="@dayKey"
+                                   readonly />
+                                <input type="hidden" id="AllowedOvertimeHoursInThisDay[@dayKey]"
+                                       class="form-control form-control-sm overtime-available-for-the-day"
+                                       value="@day.EmployeeMaxOverTimeValueInAday" readonly />
+                        </td>
+                    }
+                    <td></td>
+                    <td></td>
+                </tr>
+
+
+
+                <!-- Grand Totals Row -->
+                <tr class="table-secondary fw-bold grand-row">
+                    <td colspan="@((Model.FundRows.First().Days.Count) + 4)" class="text-end">Grand Totals:</td>
+                    <td id="grandTotalNormal">@Model.GrandTotalNormal</td>
+                    <td id="grandTotalOvertime">@Model.GrandTotalOvertime</td>
+                </tr>
+
+            </tbody>
+        </table>
+
+            <input type="hidden" id="maxNormalHours" value="@Model.MaxNormalHours" />
+            <input type="hidden" id="maxOvertimeHours" value="@Model.MaxOvertimeHours" />
+        <input type="hidden" id="fundBalance" value="@Model.FundBalance" />
+
+
+        <div class="mt-3 d-flex align-items-center gap-2">
+            @if (Model.ShowSaveButton)
+            {
+                <button id="btnSave" type="button" class="btn btn-primary">Save</button>
+            }
+            <button id="btnCancelEdit" type="button" class="btn btn-secondary">Cancel</button>
+
+            <!-- Right-aligned group -->
+            <div class="d-flex align-items-center gap-4 ms-auto">
+                <!-- Summary Pill -->
+                <div id="summaryDiv" class="rounded-pill px-4 py-2 border bg-light fw-bold">
+                    <span id="totalHours">Total: @Model.GrandTotalNormal</span> |
+                    <span id="balanceHours">Balance: @Model.FundBalance</span>
+                </div>
+            </div>
         </div>
 
     </div>
+    }
+    @if (Model.PrevApprovedTimesheetCount > 0)
+    {
+        <div>
+            <button id="btnPreview" type="button" class="btn btn-sm"
+                    style="background-color: lightyellow; color: black; font-size: 0.85rem;"
+                    onclick="loadPrevApprovedTimesheets(@Model.Days.First().Date.Year, @Model.Days.First().Date.Month, document.getElementById('EmployeeList').value)">
+                Preview Previous Approved Timesheets (@Model.PrevApprovedTimesheetCount)
+            </button>
 
-@if (mode == "add" && ViewBag.apern == "true")
-{
-    <script>renderModalButtons("modal-button-list", "Save");</script>
-}
-else if (mode == "edit" && ViewBag.epern == "true")
-{
-    <script>renderModalButtons("modal-button-list", "Edit");</script>
-}
-else
-{
-    <script>renderModalCloseButton("modal-button-list")</script>
-}
-    <script>
-    // Toggle between Edit and Update
-    $(document).off("click", "#btnSave").on("click", "#btnSave", function () {
-        var btn = $(this);
-        if (btn.text() == "Edit") {$("#ModalID .modal-title").text("Update");btn.text("Update");$("#btnC").text("Cancel");return;}  
-        if (btn.text() === "Update" || btn.text() === "Save") {
+            <!-- Close button, hidden initially -->
+            <button id="btnClosePreview" type="button" class="btn btn-sm"
+                    style="background-color: red; color: white; font-size: 0.85rem; display:none;"
+                    onclick="closePrevApprovedTimesheets()">
+                Close Preview
+            </button>
+        </div>
 
-            if ( checkInput( 'txt', 'module_code', 'Code is required.', 'modal-message') == false ) {return false;}
-            if ( checkInput( 'txt', 'module_name', 'Name is required.', 'modal-message') == false ) {return false;}
-            if ( checkInput( 'txt', 'module_label', 'Label is required.', 'modal-message') == false ) {return false;}
-            if ( checkInput( 'txt', 'module_folder', 'Folder is required.', 'modal-message') == false ) {return false;}
-            if ( checkInput( 'txt', 'module_sort', 'Sorting is required.', 'modal-message') == false ) {return false;}
-            if ( checkInput( 'cmb', 'module_status', 'Status is required.', 'modal-message') == false ) {return false;}
+        <div id="prevApprovedContainer"></div>
+    }
 
-            submitSaveUpdate('@Url.Content("~/Admin/Modules")');
-        }
-    });
-    </script>
+
+</div>
+
+<script>
+    // Run immediately when this partial is rendered
+    recalcTotals();
+
+</script>
+

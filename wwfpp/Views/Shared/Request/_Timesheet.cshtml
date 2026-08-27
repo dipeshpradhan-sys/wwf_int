@@ -1,101 +1,721 @@
 ﻿@using Microsoft.AspNetCore.Http;
 @inject IHttpContextAccessor HttpContextAccessor;
-@model List<wwfpp.Models.Admin.ModulesViewModel>
+@model wwfpp.Models.Request.TimesheetViewModel
 @{
     Layout = "~/Views/Shared/_Layout.cshtml";
     var PageTitle = "Timesheet";
     var Page_Tips = "";  //Tool tip message on right side
     var msg_please_wait = "";
-    var Page_Mode = PageTitle; 
+    var Page_Mode = PageTitle;
     var Pern = ViewBag.vpern;
     ViewData["Title"] = "| " + PageTitle;
     var Help_Tips = GblUtilities.HelpTips(Page_Tips);
     /*success|fail|error'*/
     string ShowMsg = GblUtilities.MsgDisplay(Context.Request.Query["msg"].ToString());
 
+    var years = ViewBag.Years as List<int>;
 }
-@Html.AntiForgeryToken()
 <h2 class="titlebig"><span name="header" id="header">@Page_Mode</span> @Html.Raw(Help_Tips)</h2>
-<input type="hidden" id="mode" name="mode" value="" />
-<input type="hidden" id="Id" name="Id" value="" />
-
 <div id="message_header"><p id="loading" class="loading displaynone">@msg_please_wait</p></div>
 <div id="message_header">@Html.Raw(ShowMsg)</div>
 
-<!-- Controls row under the header -->
-@if (ViewBag.apern == "true" || ViewBag.dpern == "true")
-{
-    <div class="p-0 bg-white rounded mb-3">
-        <div class="row align-items-center">
-            <!-- Right side: Buttons -->
-            <div class="col-auto ms-auto">
-                @if (ViewBag.apern == "true")
-                {
-                    <button type="button" id="btnAdd" class="button bg-green">Add New</button>
-                }
-                @if (ViewBag.dpern == "true" && Model != null)
-                {
-                    <button type="button" id="btnDelete" class="button bg-red">Delete</button>
-                }
-            </div>
-        </div>
-    </div>
-}
-<!-- DataTable -->
-@if (Model == null)
-{
-    <div id="message_header"><p class="note">No record(s) found.</p></div>
-}
-else
-{
-    <div class="form-group p-2">
-        <table id="tblData" class="display compact nowrap" style="width:100%">
-            <thead>
-                <tr style="height: 40px; align-items: center;color:white;" class="bg-secondary bg-opacity-27">
-                    <th width="1%"><input type="checkbox" id="selectAll"></th>
-                    <th width="10%">Code</th>
-                    <th width="25%">Name</th>
-                    <th width="20%">Label</th>
-                    <th width="14%">Folder</th>
-                    <th width="10%">Sorting</th>
-                    <th width="10%">Status</th>
-                    <th width="10%">Action</th>
+<div class="p-0 bg-white rounded">
+
+    <div>
+        <form asp-action="CalendarLoad" method="post" id="calendarForm">
+            <Table>
+                <tr>
+                    <td>
+                        <select id="year" name="year" class="form-select w-auto">
+                            <option value="">--Select Year</option>
+                            @foreach (var y in years)
+                            {
+                                <option value="@y">@y</option>
+                            }
+                        </select>
+
+                    </td>
+                    <td>
+                        <select id="month" name="month" class="form-select w-auto">
+                            <option value="">--Select Month</option>
+                            @for (int i = 1; i <= 12; i++)
+                            {
+                                <option value="@i">@System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(i)</option>
+                            }
+                        </select>
+                    </td>
+                    <td>
+                        <select id="EmployeeList" class="form-select w-auto" asp-items="ViewBag.EmployeeList">
+                            <option value="">-- Select Employee --</option>
+                        </select>
+
+                    </td>
+                    <td>
+                        <button type="button" class="button bg-green" onclick="loadDays()">Load Days</button>
+                </td>
                 </tr>
-            </thead>
-            <tbody>
-                <!-- Data dynamically injected here -->
-            </tbody>
-        </table>
+            </Table>
+        </form>
     </div>
+</div>
 
-    <!-- Modal for Add/Edit -->
-    @await Html.PartialAsync("_SharedModal", new wwfpp.Models.ModalViewModel { ModalId = "ModalID", DialogClass = "modal-lg", BodyId = "ModalBody", })
+<div id="loadingSpinner" style="display:none; text-align:center; margin-top:20px;">
+    <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+    <p class="mt-2">Loading timesheet...</p>
+</div>
+<div id="daysTable" style="display:none;">
+    <!-- AJAX-loaded table + message div will be injected here -->
+</div>
+        
+@section scripts {
 
-    @section scripts 
-    {
-        <script>
-            var perma = '@ViewBag.apern';
-            var perme = '@ViewBag.epern';
-            var ilaka = "/Admin/Modules"; 
-            var selectedIds = new Set();
-            $(document).ready(function () 
-            {
-                var table;
-                GetAllData(ilaka, perme, "module_id", [
-                    { data: "module_code", name: "module_code", autoWidth: false },
-                    { data: "module_name", name: "module_name", autoWidth: false },
-                    { data: "module_label", name: "module_label", autoWidth: false },
-                    { data: "module_folder", name: "module_folder", autoWidth: false },
-                    { data: "module_sort", name: "module_sort", autoWidth: false },
-                    { data: "module_status", name: "module_status", autoWidth: false }
-                ]);
+    <partial name="_ValidationScriptsPartial.cshtml" />
+    <script>
+        async function loadDays() {
+            const year = document.getElementById("year").value;
+            const month = document.getElementById("month").value;
+            const EmployeeID = document.getElementById("EmployeeList").value;
+            const spinner = document.getElementById("loadingSpinner");
+            const tableDiv = document.getElementById("daysTable");
+            //showMessageHeaderAlert();// first reset to default if anything was there
+            if (year === "") {
+                //showMessageHeaderAlert('Please select year.', '50px', 'error');
+                alert('Please select year.')
+                return; // stop here
+            }
+            if (month === "") {
+                //showMessageHeaderAlert('Please select month.', '50px', 'error');
+                alert('Please select month.')
+                return; // stop here
+            }
+            if (EmployeeID === "") {
+                //showMessageHeaderAlert('Please select employee.', '50px', 'error');
+                alert('Please select employee.')
+                return; // stop here
+            }
 
-                $("#btnAdd").on("click", function(e) { add(e); });
-                $('#btnDelete').on('click', function () { delData(ilaka+'Delete');});
-                $(document).on("click", "#tblData .button", function () {ViewData($(this).data("id"));});
-                $(document).off('click', '#btnC').on('click', '#btnC', function () {modalCloseCancel($(this));});
+            // --- Show spinner, hide table ---
+            spinner.style.display = "block";
+            tableDiv.style.display = "none"; // hide until ready
+            tableDiv.innerHTML = "";
 
+            try {
+                const response = await fetch(`/Request/TimesheetGetDays?year=${year}&month=${month}&empid=${EmployeeID}`);
+                const html = await response.text();
+
+                // Inject partial (grid + messages together)
+                tableDiv.innerHTML = html;
+
+                // Add fade-in effect
+                const table = tableDiv.querySelector("table");
+                if (table) {
+                    table.classList.add("fade-in");
+                }
+
+                // Wire up buttons AFTER injection
+                wireDaysEvents(tableDiv);
+
+
+                // Hide spinner, show table
+                spinner.style.display = "none";
+                tableDiv.style.display = "block";
+                
+                // Initialize summary after partial is injected
+                afterDaysLoaded();
+                recalcTotals();
+
+            } catch (error) {
+                spinner.style.display = "none";
+                tableDiv.style.display = "block";
+                tableDiv.innerHTML = "<div class='alert alert-danger'>Error loading timesheet.</div>";
+            }
+        }
+
+
+        function wireDaysEvents(root) {
+            const btnEdit = root.querySelector("#btnEdit");
+            const btnCancelEdit = root.querySelector("#btnCancelEdit");
+            const btnSave = root.querySelector("#btnSave");
+            const btnSend = root.querySelector("#btnSend");
+
+            const viewGrid = root.querySelector("#viewGrid");
+            const editGrid = root.querySelector("#editGrid");
+
+            if (btnEdit && viewGrid && editGrid) {
+                btnEdit.addEventListener("click", function () {
+                    viewGrid.style.display = "none";
+                    editGrid.style.display = "block";
+                });
+            }
+
+            if (btnCancelEdit && viewGrid && editGrid) {
+                btnCancelEdit.addEventListener("click", function () {
+                    editGrid.style.display = "none";
+                    viewGrid.style.display = "block";
+                });
+            }
+
+            if (btnSave) {
+                btnSave.addEventListener("click", async function () {
+                     if (!validateTimesheet(root)) return; // stop if invalid
+                    await postTimesheet(root, "/Request/SaveTimesheet", "Timesheet saved successfully!");
+                });
+            }
+            // When Send button from Timesheet View is clicked to be sent for approval
+            if (btnSend) {
+                btnSend.addEventListener("click", async function () {
+                    const timesheetEl = root.querySelector("#timesheetFullyFilled");
+                    const spinner = document.getElementById("loadingSpinner");
+                    const timesheetFullyFilledVal = timesheetEl.value; // get the string value
+                    let alertHtml = "";
+                    const container = document.getElementById("alertContainer");
+                    if (timesheetFullyFilledVal === "false")
+                    {
+                        alertHtml = `
+                            <div class="alert alert-danger d-flex align-items-center fade-in mt-3" role="alert">
+                                <i class="bi bi-x-circle-fill me-2"></i>
+                                <span>Your Timesheet is incomplete. Please fill all hours.</span>
+                            </div>
+                        `;
+                        
+                        if (container) {
+                            container.innerHTML = alertHtml;
+                            container.style.display = "block";
+                        }
+
+                        return false; // 🚫 Block submission
+
+
+                    }
+                    // await sendTimesheetForApproval(root, "/Request/TimesheetToBeSentForApproval", "Timesheet saved successfully!");
+                    try {
+                        alertHtml = `
+                            <div class="alert alert-warning d-flex align-items-center fade-in mt-3" role="alert">
+                                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                                <span>Sending Timesheet for approval.</span>
+                            </div>
+                        `;
+
+                        if (container) {
+                            container.innerHTML = alertHtml;
+                            container.style.display = "block";
+                        }
+
+                        const response = await sendTimesheetForApproval(root, "/Request/TimesheetToBeSentForApproval");
+
+                        const msg = response?.message || "Timesheet sent for approval!";
+                        alertHtml = `
+                            <div class="alert alert-success d-flex align-items-center fade-in mt-3" role="alert">
+                                <i class="bi bi-check-circle-fill me-2"></i>
+                                <span>Timesheet sent for approval.</span>
+                            </div>
+                        `;
+
+                        if (container) {
+                            container.innerHTML = alertHtml;
+                            container.style.display = "block";
+                        }
+                    } catch (error) {
+                        alert("Error sending timesheet: " + error.message, "danger");
+                    }
+
+                });
+            }
+
+
+        }
+
+        async function sendTimesheetForApproval(root, url, successMessage) {
+            const container = root.querySelector("#timesheetForm");
+            if (!container) return;
+
+            const formData = new FormData();
+
+            // Collect values manually
+            formData.append("year", document.getElementById("year").value);
+            formData.append("month", document.getElementById("month").value);
+            formData.append("empid", document.getElementById("EmployeeList").value);
+
+            // Example: collect all inputs inside the container
+            container.querySelectorAll("input, select, textarea").forEach(el => {
+                if (el.name) {
+                    formData.append(el.name, el.value);
+                }
             });
-        </script>
-    }
+
+            try {
+                const response = await fetch(url, { method: "POST", body: formData });
+                if (!response.ok) throw new Error("Server error");
+                root.querySelector("#editGrid").style.display = "none";
+                root.querySelector("#viewGrid").style.display = "block";
+                await loadDays();
+            } catch (err) {
+                alert("Error processing timesheet.");
+            }
+        }
+
+
+
+        async function postTimesheet(root, url, successMessage) {
+            const container = document.querySelector("#timesheetForm");
+            if (!container) return;
+
+            // Build FormData manually
+            const formData = new FormData();
+
+            // Append context values
+            formData.append("year", document.getElementById("year").value);
+            formData.append("month", document.getElementById("month").value);
+            formData.append("empid", document.getElementById("EmployeeList").value);
+
+            // Collect all inputs/selects/textareas inside the container
+            container.querySelectorAll("input, select, textarea").forEach(el => {
+                if (el.name) {
+                    if (el.type === "checkbox" || el.type === "radio") {
+                        if (el.checked) formData.append(el.name, el.value);
+                    } else {
+                        formData.append(el.name, el.value);
+                    }
+                }
+            });
+
+            try {
+                const response = await fetch(url, { method: "POST", body: formData });
+                if (!response.ok) throw new Error("Server error");
+                alert(successMessage);
+
+                // Toggle back to view grid
+                root.querySelector("#editGrid").style.display = "none";
+                root.querySelector("#viewGrid").style.display = "block";
+
+                // Optionally reload days to reflect saved values
+                await loadDays();
+            } catch (err) {
+                alert("Error processing timesheet: " + (err?.message || err));
+            }
+        }
+
+
+        function validateTimesheet(root) 
+        {
+            const maxNormal = parseInt(document.getElementById("maxNormalHours").value, 10);
+            const maxOvertime = parseInt(document.getElementById("maxOvertimeHours").value, 10);
+
+            let errors = [];
+
+            // 🔹 Check if all fields are empty or <= 0
+            const allInputs = root.querySelectorAll(".hour-normal, .hour-ot, .daily-normal, .daily-overtime");
+            let hasPositiveValue = false;
+
+            allInputs.forEach(input => {
+                const val = parseFloat(input.value);
+                if (!isNaN(val) && val > 0) {
+                    hasPositiveValue = true;
+                }
+            });
+
+            if (!hasPositiveValue) {
+                // Highlight all fields to show the issue
+                allInputs.forEach(input => input.classList.add("ts-error"));
+                const alertHtml = `
+                    <div class="alert error d-flex align-items-center fade-in mt-3" role="alert">
+                        <span>You must enter at least one positive hour value.</span>
+                    </div>
+                `;
+                document.getElementById("alertContainer").innerHTML = alertHtml;
+                return false; // 🚫 Block submission
+            }
+
+            // Clear previous highlights
+            root.querySelectorAll(".ts-error").forEach(el => el.classList.remove("ts-error"));
+
+            const formatIndexDay = (index) => {
+                const y = index.substring(0, 4);
+                const m = index.substring(4, 6);
+                const d = index.substring(6, 8);
+                const date = new Date(+y, +m - 1, +d);
+                return `${date.getDate()} - ${date.toLocaleDateString(undefined, { weekday: "short" })}`;
+            };
+
+            // 🔹 Validate per-fund normal hours
+            root.querySelectorAll(".hour-normal").forEach(input => {
+                const val = parseFloat(input.value);
+                if (!isNaN(val) && val > maxNormal) {
+                    input.classList.add("ts-error");
+                } else {
+                    input.classList.remove("ts-error");
+                }
+            });
+
+            // 🔹 Validate per-fund overtime hours
+            root.querySelectorAll(".hour-ot").forEach(input => {
+                const val = parseFloat(input.value);
+                if (!isNaN(val) && val > maxOvertime) {
+                    input.classList.add("ts-error");
+                } else {
+                    input.classList.remove("ts-error");
+                }
+            });
+
+           
+            root.querySelectorAll(".class-validate-js-normal-hours").forEach(input => {
+                const val = parseFloat(input.value);
+                const dayKey = input.dataset.day || "";
+                const label = formatIndexDay(dayKey);
+
+                if (!isNaN(val) && val > 0 &&  val != maxNormal) {
+                    input.classList.add("ts-error");
+                    errors.push(`Daily normal hours should meet and not exceed allowed hours [${label}] → Allowed hours: ${maxNormal}, Entered: ${val}`);
+                } else {
+                    input.classList.remove("ts-error");
+                }
+            });
+            
+   
+            // 🔹 Validate daily totals (Overtime)
+            root.querySelectorAll(".daily-overtime").forEach(input => {
+                const val = parseFloat(input.value);
+                const dayKey = input.dataset.day || "";
+                const label = formatIndexDay(dayKey);
+
+                if (isNaN(val)) return;
+
+                const allowedOTInput = document.getElementById(`AllowedOvertimeHoursInThisDay[${dayKey}]`);
+                let hasError = false;
+
+                if (allowedOTInput) {
+                    const allowedOT = parseFloat(allowedOTInput.value);
+                    if (allowedOT > 0 && val !== allowedOT) {
+                        input.classList.add("ts-error");
+                        errors.push(`Overtime mismatch [${label}] → Allowed: ${allowedOT}, Entered: ${val}`);
+                        hasError = true;
+                    }
+                }
+
+                if (!hasError && val > maxOvertime) {
+                    input.classList.add("ts-error");
+                    errors.push(`Overtime exceeded [${label}] → Max: ${maxOvertime}, Entered: ${val}`);
+                    hasError = true;
+                }
+
+                if (!hasError) {
+                    input.classList.remove("ts-error");
+                }
+            });
+
+
+
+            // 🔹 Validate per-fund totals against remaining hours
+            root.querySelectorAll(".fund-row").forEach(row => {
+                const remainingInput = row.querySelector(".fund-remaining");
+                const remaining = parseFloat(remainingInput?.value) || 0;
+                const fundName = remainingInput?.dataset.fundname || "Unknown Fund";
+
+                // Sum all NT inputs for this fund
+                let totalNT = 0;
+                row.querySelectorAll(".hour-normal").forEach(input => {
+                    totalNT += parseFloat(input.value) || 0;
+                });
+
+                if (totalNT > remaining) {
+                    errors.push(`Fund '${fundName}' exceeded remaining hours → Remaining: ${remaining}, Entered: ${totalNT}<br>Please adjust your hours.`);
+                    row.querySelectorAll(".hour-normal").forEach(input => input.classList.add("ts-error"));
+                }
+            });
+
+
+            // 🔹 Show errors
+            if (errors.length > 0) {
+                const alertHtml = errors.map(err => `
+                    <div class="alert alert-danger d-flex align-items-center fade-in mt-3" role="alert">
+                        <i class="bi bi-x-circle-fill me-2"></i>
+                        <span>${err}</span>
+                    </div>
+                `).join("");
+
+                const container = document.getElementById("alertContainer");
+                if (container) {
+                    container.innerHTML = alertHtml;
+                    container.style.display = "block";
+                }
+
+                return false; // 🚫 Block submission
+            } else {
+                const container = document.getElementById("alertContainer");
+                if (container) {
+                    container.innerHTML = "";
+                    container.style.display = "none";
+                }
+            }
+             return true;
+        }
+
+        // Summary calculation to show Total and balance on _dayPartial page
+        function updateSummary(root) {
+            const fundBalanceEl = root.querySelector("#fundBalance");
+            const totalEl = root.querySelector("#totalHours");
+            const balanceEl = root.querySelector("#balanceHours");
+
+            if (!fundBalanceEl || !totalEl || !balanceEl) return;
+
+            const fundBalance = parseFloat(fundBalanceEl.value) || 0;
+            let total = 0;
+
+            root.querySelectorAll("input[name^='Hours']").forEach(input => {
+                if (!input.disabled) {
+                    const val = parseFloat(input.value);
+                    if (!isNaN(val)) total += val;
+                }
+            });
+
+            root.querySelectorAll("input[name^='OvertimeHours']").forEach(input => {
+                if (!input.disabled) {
+                    const val = parseFloat(input.value);
+                    if (!isNaN(val)) total += val;
+                }
+            });
+
+            totalEl.textContent = `Total: ${formatNumber(total)}`;
+            balanceEl.textContent = `Balance: ${(formatNumber(fundBalance) - formatNumber(total))}`;
+
+            const summaryDiv = root.querySelector("#summaryDiv");
+            if (summaryDiv) {
+                const remaining = fundBalance - total;
+                summaryDiv.classList.toggle("bg-danger", remaining < 0);
+                summaryDiv.classList.toggle("text-white", remaining < 0);
+                summaryDiv.classList.toggle("bg-light", remaining >= 0);
+            }
+        }
+
+        function initSummary(root) {
+            const inputs = root.querySelectorAll("input[name^='Hours'], input[name^='OvertimeHours']");
+            inputs.forEach(input => {
+                if (!input._summaryHandler) {
+                    const handler = () => updateSummary(root);
+                    input.addEventListener("input", handler);
+                    input._summaryHandler = handler;
+                }
+            });
+            updateSummary(root);
+        }
+
+        function afterDaysLoaded() {
+            const container = document.getElementById("editGrid");
+            if (container) initSummary(container);
+        }
+
+        function safeNumber(v) {
+            if (typeof v === "string") v = v.trim().replace(",", ".");
+            const n = parseFloat(v);
+            return isNaN(n) ? 0 : n;
+        }
+
+        function recalcTotals() {
+          let grandNormal = 0, grandOvertime = 0;
+
+          // Loop each daily totals box
+          document.querySelectorAll("#editGrid .daily-normal").forEach(ntBox => {
+            const dayKey = ntBox.dataset.day;
+            let nt = 0, ot = 0;
+
+            // Sum all fund inputs for this day
+            document.querySelectorAll(`#editGrid .hour-normal[data-day="${dayKey}"]`)
+              .forEach(inp => nt += safeNumber(inp.value));
+            document.querySelectorAll(`#editGrid .hour-ot[data-day="${dayKey}"]`)
+              .forEach(inp => ot += safeNumber(inp.value));
+
+            // Fill daily totals row
+            ntBox.value = formatNumber(nt);
+            const otBox = document.querySelector(`#editGrid .daily-overtime[data-day="${dayKey}"]`);
+            if (otBox) otBox.value = formatNumber(ot);
+
+            grandNormal += nt;
+            grandOvertime += ot;
+          });
+
+        // 🔹 NEW: update per‑fund totals, totals to the right of grid
+        document.querySelectorAll("#editGrid .fund-row").forEach(row => {
+          let nt = 0, ot = 0;
+          row.querySelectorAll(".hour-normal").forEach(inp => nt += safeNumber(inp.value));
+          row.querySelectorAll(".hour-ot").forEach(inp => ot += safeNumber(inp.value));
+
+          const ntCell = row.querySelector(".normal-total");
+          const otCell = row.querySelector(".overtime-total");
+          if (ntCell) ntCell.textContent = formatNumber(nt);
+          if (otCell) otCell.textContent = formatNumber(ot);
+        });
+
+
+          // Update grand totals
+          const gNt = document.getElementById("grandTotalNormal");
+          const gOt = document.getElementById("grandTotalOvertime");
+          if (gNt) gNt.textContent = formatNumber(grandNormal);
+          if (gOt) gOt.textContent = formatNumber(grandOvertime);
+
+          // Update summary pill
+          const totalEl = document.getElementById("totalHours");
+          const balanceEl = document.getElementById("balanceHours");
+          const fundBalance = safeNumber((document.getElementById("fundBalance") || { value: "0" }).value);
+          const grandCombined = grandNormal + grandOvertime;
+          if (totalEl) totalEl.textContent = "Total: " + formatNumber(grandCombined);
+          if (balanceEl) balanceEl.textContent = "Balance: " + (formatNumber(fundBalance) - formatNumber(grandCombined));
+        }
+
+
+        // Re-run whenever a Normal or OT input changes
+        document.addEventListener("input", e => {
+          if (e.target.closest("#editGrid") && (e.target.classList.contains("hour-normal") || e.target.classList.contains("hour-ot"))) {
+            recalcTotals();
+          }
+        });
+
+        // Show edit grid and recalc
+        document.addEventListener("DOMContentLoaded", function () {
+            const btnEdit = document.getElementById("btnEdit");
+            if (btnEdit) {
+                btnEdit.addEventListener("click", function () {
+                    const viewGrid = document.getElementById("viewGrid");
+                    const editGrid = document.getElementById("editGrid");
+                    if (viewGrid) viewGrid.style.display = "none";
+                    if (editGrid) editGrid.style.display = "";
+                });
+            }
+
+        });
+
+
+        // Recalculate after showing the edit grid
+        $("#btnEdit").on("click", function () {
+            $("#viewGrid").hide();
+            $("#editGrid").show();
+        });
+
+
+
+        // Textboxes are only number or decimal inputs.
+        $(document).on("input", "input[type='text']", function () {
+            // Replace commas with dots, remove invalid characters
+            let val = $(this).val().replace(",", ".").replace(/[^0-9.]/g, "");
+            // Ensure only one decimal point
+            let parts = val.split(".");
+            if (parts.length > 2) {
+                val = parts[0] + "." + parts.slice(1).join("");
+            }
+            $(this).val(val);
+        });
+        // If it's an integer, show without decimals
+        function formatNumber(n) {
+          if (Number.isInteger(n)) {
+            return n.toString();
+          }
+          // Otherwise show the natural value (keeps .5, .25, etc.)
+          return n.toString();
+        }
+
+        function loadPrevApprovedTimesheets(year, month, empid) {
+            $.get("/Request/GetPreviousApprovedTimesheets",
+                  { year: year, month: month, empid: empid },
+                  function (data) {
+                      $("#prevApprovedContainer").html(data);
+                      $("#btnPreview").hide();          // hide Preview button
+                      $("#btnClosePreview").show();     // show Close button
+                  });
+        }
+
+        function closePrevApprovedTimesheets() {
+            $("#prevApprovedContainer").empty();       // remove preview grids
+            $("#btnClosePreview").hide();              // hide Close button
+            $("#btnPreview").show();                   // show Preview button again
+        }
+
+
+    </script>
+    
+    <style>
+        .fade-in 
+        {
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @@keyframes fadeIn 
+        {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        .calendar-table th,
+        .calendar-table td 
+        {
+            font-size: 0.75rem; /* smaller font */
+            padding: 2px 4px; /* tighter spacing */
+            min-width: 40px; /* narrower cells */
+            text-align: center;
+        }
+
+        #summaryDiv {
+            margin-left: auto; /* pushes it to the right in a flex container */
+            font-weight: bold;
+        }
+
+            /* Positive balance */
+            #summaryDiv.balance-ok {
+                background-color: #d4edda; /* light green */
+                color: #155724; /* dark green text */
+            }
+
+            /* Negative balance */
+            #summaryDiv.balance-negative {
+                background-color: #f8d7da; /* light red */
+                color: #721c24; /* dark red text */
+            }
+
+        .fund-pill {
+            background-color: #d4edda; /* light green */
+            color: #155724; /* darker green text for contrast */
+            font-size: 0.9rem; /* slightly smaller text */
+            font-weight: 600; /* keep it bold but not too heavy */
+            transition: background-color 0.3s ease;
+        }
+
+            .fund-pill:hover {
+                background-color: #c3e6cb; /* subtle hover effect */
+            }
+
+        .big-number-input-WD {
+            width: 30px; /* or any size you prefer */
+        }
+
+        .number-input-WH {
+            width: 30px; /* or any size you prefer */
+        }
+
+
+        .ts-error {
+            border-color: red !important;
+            background-color: #ffe5e5 !important; /* light red background */
+        }
+
+        .alert i {
+            font-size: 1.2rem; /* slightly larger icon */
+        }
+
+        .alert-success {
+            border-left: 5px solid #28a745; /* green accent bar */
+        }
+
+        .alert-danger {
+            border-left: 5px solid #dc3545; /* red accent bar */
+        }
+
+        .alert-warning {
+            border-left: 5px solid #ffc107; /* yellow accent bar */
+        }
+    </style>
 }

@@ -442,6 +442,9 @@ namespace wwfpp.Services
         * 
         ****************************************************************************************************/
         /***************************************************************************************************/
-
+        public tbl_setting_limit_hrs GetLimitHoursSetting()
+        {
+            return _context.tbl_setting_limit_hrs.FirstOrDefault();
+        }
     }
 }
