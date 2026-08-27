@@ -1,4 +1,5 @@
-﻿using DocumentFormat.OpenXml.Wordprocessing;
+﻿using ClosedXML.Excel;
+using DocumentFormat.OpenXml.Wordprocessing;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -3216,44 +3217,114 @@ namespace wwfpp.Controllers
 
             return PartialView("Request/_OvertimeReport", "");
         }
-        /*public async Task<IActionResult> OvertimeReportGenerate(string ReportType, string? Status, int? Employee, DateTime StartDate, DateTime EndDate)
+        public async Task<IActionResult> OvertimeReportGenerate(string ReportType, string? Status, int? Employee, DateTime startDate, DateTime endDate)
         {
-            // Paths
-            var uploadsFolder = Path.Combine(AppContext.BaseDirectory, "Reports", "Request");
-            string rdlcPath = Path.Combine(uploadsFolder, "EmployeeOvertime.rdlc");
+            // Get organization name
+            var orgName = _context.tbl_pp_options
+                .FirstOrDefault(x => x.option_name == "op_org_name")?.option_value ?? "";
 
-            // Init report
-            LocalReport localReport = new LocalReport(rdlcPath);
+            var employees = (from e in _context.tbl_employee
+                                join o in _context.vw_EmployeeOvertime
+                                    on e.emp_id equals o.EmpId
+                                where o.app_status == "A"
+                                    && o.ot_date >= startDate
+                                    && o.ot_date <= endDate
+                                    && e.emp_status == Status
+                                    && o.OvertimeStatus == "ReportType"
+                                select new
+                                {
+                                    e.emp_id,
+                                    FullName = e.firstname + " " + e.middlename + " " + e.lastname
+                                })
+                                .Distinct()
+                                .OrderBy(x => x.FullName)
+                                .ToList();
 
-            // Data
-            var data = _requestServices.GetEmployeeOvertime(ReportType, Status, Employee, StartDate, EndDate).ToList();
-            localReport.AddDataSource("DataSetOvertime", data);
-
-            // Parameters
-            var parameters = new Dictionary<string, string>
+            using (var workbook = new XLWorkbook())
             {
-                { "StartDate", Convert.ToString(StartDate) },
-                { "EndDate", Convert.ToString(EndDate) },
-                { "Status", ReportType }
-            };
+                var ws = workbook.Worksheets.Add("OvertimeReport");
 
-            // 👉 Render to Excel (default in your code)
-            ReportResult result = localReport.Execute(RenderType.ExcelOpenXml, 1, parameters);
-            // For PDF
-            //ReportResult result = localReport.Execute(RenderType.Pdf, 1, parameters);
-            //string mimeType = "application/pdf";
-            // For Word
-            //ReportResult result = localReport.Execute(RenderType.WordOpenXml, 1, parameters);
-            //string fileName = $"Overtime-Report-{DateTime.Now:MMddyyyy}.docx";
-            //string mimeType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+                int row = 1;
+                ws.Range(row, 1, row, 5).Merge();
+                ws.Cell(row++, 1).Value = "Organization: " + orgName;
+                ws.Range(row, 1, row, 5).Merge();
+                ws.Cell(row++, 1).Value = "Overtime Report [" + ReportType + "]";
+                ws.Range(row, 1, row, 5).Merge();
+                ws.Cell(row++, 1).Value = $"Date Range: {startDate:dd/MM/yyyy} - {endDate:dd/MM/yyyy}";
+                row++;
 
-            // File name + MIME type
-            string fileName = $"Overtime-Report-{DateTime.Now:MMddyyyy}.xlsx";
-            string mimeType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+                // Header row
+                ws.Cell(row, 1).Value = "Serial Number";
+                ws.Cell(row, 2).Value = "Day";
+                ws.Cell(row, 3).Value = "OT Date";
+                ws.Cell(row, 4).Value = "Submit Date";
+                ws.Cell(row, 5).Value = "Hours";
+                ws.Cell(row, 6).Value = "Requested By";
+                ws.Cell(row, 7).Value = "Reason/Description";
+                ws.Cell(row, 8).Value = "Status";
+                ws.Row(row).Style.Font.Bold = true;
+                row++;
 
-            // Return file to browser
-            return File(result.MainStream, mimeType, fileName);
-        }*/
+                int serial = 1;
+
+                foreach (var emp in employees)
+                {
+                    // Employee header row
+                    ws.Cell(row, 1).Value = emp.FullName;
+                    ws.Range(row, 1, row, 8).Merge().Style.Fill.BackgroundColor = XLColor.Yellow;
+                    row++;
+
+                    // Query overtime requests for this employee
+                    var requests = _context.tbl_employee_overtime_request
+                        .Where(r => r.emp_id == emp.emp_id
+                                    && r.app_status == "A"
+                                    && r.ot_date >= startDate
+                                    && r.ot_date <= endDate)
+                        .OrderByDescending(r => r.ot_req_id)
+                        .ToList();
+
+                    double totalHours = 0;
+
+                    foreach (var r in requests)
+                    {
+                        ws.Cell(row, 1).Value = serial++;
+                        ws.Cell(row, 2).Value = r.ot_date?.ToString("dddd"); // Day name
+                        ws.Cell(row, 3).Value = r.ot_date?.ToString("dd/MM/yyyy");
+                        ws.Cell(row, 4).Value = r.submit_date?.ToString("dd/MM/yyyy");
+                        ws.Cell(row, 5).Value = r.total_hours;
+                        ws.Cell(row, 6).Value = _employeeServices.GetEmployeeName(Convert.ToInt32(r.requested_by)); // helper method
+                        ws.Cell(row, 7).Value = r.ot_desc;
+                        ws.Cell(row, 8).Value = "Approved"; // since we filter app_status == "A"
+
+                        totalHours += r.total_hours ?? 0;
+                        row++;
+                    }
+
+                    // Totals row
+                    ws.Cell(row, 1).Value = "Total:";
+                    ws.Range(row, 1, row, 4).Merge();
+                    ws.Cell(row, 5).Value = totalHours;
+                    ws.Range(row, 6, row, 8).Merge();
+                    ws.Row(row).Style.Fill.BackgroundColor = XLColor.LightBlue;
+                    row++;
+                }
+
+                ws.Columns().AdjustToContents();
+
+                using (var stream = new System.IO.MemoryStream())
+                {
+                    workbook.SaveAs(stream);
+                    var content = Convert.ToBase64String(stream.ToArray());
+
+                    return Json(new
+                    {
+                        status = "success",
+                        fileName = $"employee_overtime_report_{DateTime.Now:yyyyMMdd}.xlsx",
+                        fileContent = content
+                    });
+                }
+            }
+        }
         #endregion
 
     }

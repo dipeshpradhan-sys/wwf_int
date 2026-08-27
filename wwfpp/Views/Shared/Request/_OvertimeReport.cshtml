@@ -115,54 +115,73 @@
             table.draw();
         });
 
-        $(document).off("click", "#BtnExport").on("click", "#BtnExport", function () {
+        $(document).off("click", "#BtnExport").on("click", "#BtnExport", function() {
             var ReportType = $("#StatusPaidApprovedFilter").val();
             var Status = $("#StatusFilter").val();
             var Employee = $("#EmployeeFilter").val();
-
             var StartDate = $("#date_from").val();
             var EndDate = $("#date_to").val();
 
-            if(!ReportType) {
+            // Validation
+            if (!ReportType) {
                 $('#message_header')
-                .html('<p id="message" class="error">Please select report type.</p>')
-                .css('height', '50px')
-                .show();
+                    .html('<p id="message" class="error">Please select report type.</p>')
+                    .css('height', '50px')
+                    .show();
                 return false;
             }
-            if(!Status) {
+            if (!Status) {
                 $('#message_header')
-                .html('<p id="message" class="error">Please select status.</p>')
-                .css('height', '50px')
-                .show();
+                    .html('<p id="message" class="error">Please select status.</p>')
+                    .css('height', '50px')
+                    .show();
                 return false;
             }
-            if(!StartDate) {
+            if (!StartDate) {
                 $('#message_header')
-                .html('<p id="message" class="error">Please enter start date.</p>')
-                .css('height', '50px')
-                .show();
+                    .html('<p id="message" class="error">Please enter start date.</p>')
+                    .css('height', '50px')
+                    .show();
                 return false;
             }
-            if(!EndDate) {
+            if (!EndDate) {
                 $('#message_header')
-                .html('<p id="message" class="error">Please enter end date.</p>')
-                .css('height', '50px')
-                .show();
+                    .html('<p id="message" class="error">Please enter end date.</p>')
+                    .css('height', '50px')
+                    .show();
                 return false;
             }
 
-            var url = "/Request/OvertimeReportGenerate"
-                + "?ReportType=" + encodeURIComponent(ReportType)
-                + "&Status=" + encodeURIComponent(Status)
-                + "&Employee=" + encodeURIComponent(Employee)
-                + "&StartDate=" + encodeURIComponent(StartDate)
-                + "&EndDate=" + encodeURIComponent(EndDate);
+            $.ajax({
+                url: '/Request/OvertimeReportGenerate',
+                type: 'POST',
+                data: {
+                    ReportType: ReportType,
+                    Status: Status,
+                    Employee: Employee,
+                    startDate: StartDate,
+                    endDate: EndDate,
+                    __RequestVerificationToken: $('input[name="__RequestVerificationToken"]').val()
+                },
+                success: function(res) {
+                    if (res.status === "success") {
+                        // Create download link dynamically
+                        var link = document.createElement('a');
+                        link.href = 'data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,' + res.fileContent;
+                        link.download = res.fileName;
+                        link.click();
 
-            window.location.href = url; // triggers browser download
-                    
-
+                        $('#message').removeClass().addClass('success').html(msg_data_exported_success).show();
+                    } else {
+                        $('#message').removeClass().addClass('error').html(err_in_process + res.error).show();
+                    }
+                },
+                error: function(xhr, status, error) {
+                    $('#message').removeClass().addClass('error').html(err_in_process + error).show();
+                }
             });
+        });
+
 
     </script>
 }
