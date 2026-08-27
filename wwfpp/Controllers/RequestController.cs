@@ -16,6 +16,7 @@ using wwfpp.Models.Employee;
 using wwfpp.Models.General;
 using wwfpp.Models.Request;
 using wwfpp.Services;
+using wwfpp.wwwroot.js;
 using static GblUtilities;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 using static System.Runtime.InteropServices.JavaScript.JSType;
@@ -1022,6 +1023,1133 @@ namespace wwfpp.Controllers
                 BalanceHours = balance,
                 BalanceDays = Math.Round(balance / workingHoursPerDay, 2)
             };
+        }
+        #endregion
+
+        #region EMPLOYEE Future Leave LIST,ADD,EDIT,SAVE, MASS DELETE
+        [HttpGet]
+        public IActionResult LeaveFuture(string StatusFilter)
+        {
+            string PageId = "10202";
+            #region FOR PERMISSION
+            var perm = _accountServices.GetMenuPermission(PageId);
+            if (perm.vpern == "false") { return RedirectToAction("PermissionDenied", "Home"); }
+            ViewBag.apern = perm.apern;
+            ViewBag.epern = perm.epern;
+            ViewBag.dpern = perm.dpern;
+            #endregion FOR END PERMISSION;
+            string? FiscalYearActive = HttpContext.Session.GetString("FiscalYear");
+            ViewBag.EmployeeStatusFilter = GblUtilities.StatusActivePassive("AD", "A");
+
+
+            var FiscalYearFuture = _context.tbl_fiscal_year.Where(c => c.fiscal_year.CompareTo(FiscalYearActive) > 0).OrderBy(c => c.fiscal_year).ToList();
+            ViewBag.FiscalYearList = new SelectList(FiscalYearFuture, "fiscal_year", "fiscal_year", FiscalYearActive);
+
+
+
+            ViewBag.StatusPAFilter = GblUtilities.ApprovalStatus();
+            ViewBag.ViewButtons = _accountServices.getAddEditDeleteAccess("Request/LeaveFuture", "ADD|DEL", PageId, 1);
+
+            return PartialView("Request/_LeaveFuture");
+        }
+        [HttpPost]
+        public async Task<IActionResult> LeaveFutureList([FromForm] MultipleCostumFilterRequest request)
+        {
+            var (pageSize, skip, draw, sortColumn, sortColumnDir, searchValue) = DataTableHelper.GetParameters(Request);
+
+            string FiscalYearListFilter = request.FilterValue1;
+            string EmployeeStatusFilter = request.FilterValue2;
+
+            var query = _context.vw_employee_leave_hash.Where(e => e.emp_status == EmployeeStatusFilter);
+            if (!string.IsNullOrEmpty(FiscalYearListFilter))
+            {
+                query = query.Where(e => e.fiscal_year == FiscalYearListFilter);
+            }
+            if (!string.IsNullOrEmpty(searchValue))
+            {
+                query = query.Where(a => a.employee_name != null && a.employee_name.Contains(searchValue));
+            }
+            if (!string.IsNullOrEmpty(sortColumn) && !string.IsNullOrEmpty(sortColumnDir))
+            {
+                query = query.OrderBy($"{sortColumn} {sortColumnDir}");
+            }
+            else
+            {
+                query = query.OrderByDescending(e => e.emp_leave_id);
+            }
+            var data = await query.ToListAsync();
+
+            int totalRecord = data.Count();
+            if (pageSize == -1) pageSize = totalRecord;
+
+            var cData = data.Skip(skip).Take(pageSize)
+                .Select(s => new EmployeeFutureLeaveViewModel
+                {
+                    id = s.emp_leave_id,
+                    emp_leave_id = s.emp_leave_id,
+                    emp_id = s.emp_id,
+                    EmployeeName = s.employee_name,
+                    LeaveType = s.leave_type_desc,
+                    SubmitDate = s.submit_date,
+                    LeaveFromDate = s.leave_from_date,
+                    LeaveToDate = s.leave_to_date,
+                    LeaveInHours = s.leave_in_hrs,
+                    Status = s.app_status,
+                    Remarks = s.app_remarks,
+                    FiscalYear = s.fiscal_year
+                })
+                .ToList();
+
+            return Json(new { draw, recordsFiltered = totalRecord, recordsTotal = totalRecord, data = cData });
+        }
+        public async Task<IActionResult> LeaveFutureAddEdit(int? id, string mode, EmployeeFutureLeaveViewModel vm)
+        {
+            string PageId = "10202";
+            #region FOR PERMISSION
+            var perm = _accountServices.GetMenuPermission(PageId);
+            if (perm.vpern == "false") { return RedirectToAction("PermissionDenied", "Home"); }
+            ViewBag.apern = perm.apern;
+            ViewBag.epern = perm.epern;
+            ViewBag.dpern = perm.dpern;
+            #endregion FOR END PERMISSION
+            ViewBag.Status = GblUtilities.StatusActivePassive("AD");
+            ViewBag.mode = mode;
+            ViewBag.DATE_FORMAT = _appSettings.DATE_FORMAT;
+            var LeaveType = _context.tbl_leave_heading.OrderBy(c => c.description).ToList();
+            ViewBag.LeaveTypeList = new SelectList(LeaveType, "leave_type_id", "description");
+            // Fiscal year dropdown
+            string? FiscalYearActive = HttpContext.Session.GetString("FiscalYear");
+            var FiscalYearFuture = _context.tbl_fiscal_year.Where(c => c.fiscal_year.CompareTo(FiscalYearActive) > 0).OrderBy(c => c.fiscal_year).ToList();
+            ViewBag.FiscalYearFutureList = new SelectList(FiscalYearFuture, "fiscal_year", "fiscal_year", FiscalYearActive);
+            ViewBag.EmployeeList = _employeeServices.GetEmployeeActiveOnly();
+            var SettingNormalHours = _requestServices.GetLimitHoursSetting();
+            int? normalWorkingHours = SettingNormalHours?.normal_working_hrs;
+            ViewBag.NormalWorkingHours = normalWorkingHours;
+
+            EmployeeFutureLeaveViewModel model;
+            if (id <= 0 && mode == "add")
+            {
+                model = new EmployeeFutureLeaveViewModel();
+
+            }
+
+            else
+            {
+                // Edit
+                var entity = _context.tbl_employee_leave_hash.FirstOrDefault(h => h.emp_leave_id == id);
+                if (entity == null) return NotFound();
+
+                model = new EmployeeFutureLeaveViewModel
+                {
+                    id = entity.emp_leave_id,
+                    emp_id = entity.emp_id,
+                    FutureFiscalYear = entity.fiscal_year,
+                    LeaveTypeId = entity.leave_type_id,
+                    LeaveFromDate = entity.leave_from_date,
+                    LeaveToDate = entity.leave_to_date,
+                    SubmitDate = entity.submit_date,
+                    LeaveInHours = entity.leave_in_hrs,
+                    Remarks = entity.app_remarks,
+                    Status = entity.app_status,
+                    AppBy = entity.app_by,
+                    AppDate = entity.app_date
+                };
+                // Calculate leave in days safely
+                if (normalWorkingHours.HasValue && normalWorkingHours.Value > 0 && entity.leave_in_hrs.HasValue)
+                {
+                    model.LeaveInDays = entity.leave_in_hrs.Value / normalWorkingHours.Value;
+                }
+                ViewBag.Employee = _employeeServices.GetEmployeeName((int)model.emp_id);
+                model.emp_status = _employeeServices.GetEmployeeStatus((int)model.emp_id);
+            }
+
+            return PartialView("Request/_LeaveFutureAddEdit", model);
+        }
+        [HttpPost]
+        public async Task<IActionResult> LeaveFutureSave(EmployeeFutureLeaveViewModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                return Json(new { status = "error", message = Lang.msg_error_invalid });
+            }
+
+            // Balance Validation
+            //var StartEndDates = _requestServices.GetFiscalStartEndDate(model.FutureFiscalYear!);
+            //DateTime dateFromStr = StartEndDates.StartDate;
+            //DateTime dateToStr = StartEndDates.EndDate;
+            DateTime? dateFromStr = Convert.ToDateTime(_settingsServices.GetFiscalYearValue(model.FutureFiscalYear!, "date_from"));
+            DateTime? dateToStr = Convert.ToDateTime(_settingsServices.GetFiscalYearValue(model.FutureFiscalYear!, "date_to"));
+
+            bool isDayOff = _context.tbl_employee_dayoff.Any(d => d.emp_id == model.emp_id && d.dayoff_date >= model.LeaveFromDate && d.dayoff_date <= model.LeaveToDate);
+            if (isDayOff)
+            {
+                return Json(new { status = "error", message = Lang.msg_emp_leave_on_dayoff });
+            }
+            bool isHoliday = _context.tbl_setting_holidays.Any(h => h.holiday_date >= model.LeaveFromDate && h.holiday_date <= model.LeaveToDate);
+            if (isHoliday)
+            {
+                return Json(new { status = "error", message = Lang.msg_emp_leave_on_holiday });
+            }
+
+            var startDate = _leaveServices.GetFirstLeavePaidEndDate(Convert.ToInt32(model.emp_id), model.FutureFiscalYear!.ToString(), Convert.ToDateTime(dateFromStr), 1);
+            int balance = await _context.tbl_leave_heading.Where(c => c.leave_type_id == 1).Select(c => (int?)c.max_leave_hours).FirstOrDefaultAsync() ?? 0;
+
+            if (model.LeaveInHours > balance)
+            {
+                return Json(new { status = "error", message = Lang.msg_leave_hour_exceed });
+            }
+            // End Balance Validation
+            // Add New Leave
+            DateTime SubmitDate = DateTime.Now.Date;
+            if (model.id <= 0) // ADD
+            {
+
+                // --- Overlap validation (chkLeaveTakenDay equivalent) ---
+                bool overlapExists = _context.tbl_employee_leave_hash.Any(l =>
+                l.emp_id == model.emp_id &&
+                l.app_status != "Declined" &&
+                l.app_status != "Cancelled" &&
+                    (
+                        (model.LeaveFromDate >= l.leave_from_date && model.LeaveFromDate <= l.leave_to_date) ||
+                        (model.LeaveFromDate >= l.leave_from_date && model.LeaveToDate <= l.leave_to_date) ||
+                        (l.leave_from_date >= model.LeaveFromDate && l.leave_from_date <= model.LeaveToDate) ||
+                        (l.leave_to_date >= model.LeaveFromDate && l.leave_to_date <= model.LeaveToDate)
+                    )
+                );
+
+                if (overlapExists)
+                {
+                    return Json(new { status = "error", message = Lang.msg_leave_already_exists });
+                }
+
+                var approver = await _approverResolver.ResolveApproverAsync(Convert.ToInt32(model.emp_id));
+                var toEmpID = approver.toEmpId ?? 0;
+                var toID = approver.toId ?? 0;
+                var nextId = await _context.tbl_employee_leave_hash
+                    .Select(c => (int?)c.emp_leave_id)
+                    .MaxAsync() ?? 0;
+                var Efs = new tbl_employee_leave_hash
+                {
+                    emp_leave_id = nextId + 1,
+                    leave_type_id = model.LeaveTypeId,
+                    fiscal_year = model.FutureFiscalYear,
+                    submit_date = SubmitDate,
+                    leave_from_date = model.LeaveFromDate,
+                    leave_to_date = model.LeaveToDate,
+                    leave_desc = model.Remarks,
+                    app_status = "Pending",
+                    app_by = toEmpID,
+                    emp_id = model.emp_id,
+                    leave_in_hrs = model.LeaveInHours,
+                };
+                _context.tbl_employee_leave_hash.Add(Efs);
+                _context.SaveChanges();
+
+                int newEmpLeaveId = Efs.emp_leave_id;
+
+                //Send Email To Manager for Approval or decline
+
+                string EmployeeName = _employeeServices.GetEmployeeName(Convert.ToInt32(model.emp_id));
+                string str_to = _employeeServices.GetEmployeeNameEmail(toEmpID);
+                var orgName = await _context.tbl_pp_options
+                    .Where(e => e.option_name == "op_org_name")
+                    .Select(e => e.option_value)
+                    .FirstOrDefaultAsync();
+                var LeaveTypeName = await _context.tbl_leave_heading
+                     .Where(e => e.leave_type_id == model.LeaveTypeId)
+                     .Select(e => e.description)
+                     .FirstOrDefaultAsync();
+
+                string approveEmailLink = $"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={model.emp_id}&app_id={newEmpLeaveId}&toid={toID}&toemp_id={toEmpID}&st=a&approval_from=email&approve_for=leavefuture'>Approve</a> | ";
+                string declineEmailLink = $"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={model.emp_id}&app_id={newEmpLeaveId}&toid={toID}&toemp_id={toEmpID}&st=d&approval_from=email&approve_for=leavefuture'>Decline</a>";
+
+                string subject = $"Leave submitted by {EmployeeName}";
+                string strMessage = $"<b>Leave Type: </b>{LeaveTypeName}<br/><b>Submit Date: </b>{SubmitDate:MM/dd/yyyy}<br/><b>Leave From Date: </b>{model.LeaveFromDate:MM/dd/yyyy}<br/><b>Leave To Date: </b>{model.LeaveToDate:MM/dd/yyyy}<br/><b>Leave hours: </b>{model.LeaveInHours}<br/><b>Description: </b><br/>{model.Remarks}<br><br>Please click Approve or Decline link provided below as appropriate.<br/><br/>{approveEmailLink} {declineEmailLink}";
+                string body = $"Dear Sir/Madam,<br/><br/>Please find my leave request below.<br/><br/>{strMessage}<br/><br/>Regards<br/>{EmployeeName}<br/><br/>";
+
+                // To Manager
+                _emailService.SendEmail(null, str_to, subject, body, null, null, null, null, null);
+
+                // To Administrative Emails
+                var emails = await _administrationEmailService.GetAdministrationEmailsAsync();
+
+                string hraEmail = emails["hra"].Email; // HR ADMINISTRATOR
+                string rcaEmail = emails["rca"].Email; // RECEPTIONISTs EMAIL
+                _emailService.SendEmail(null, hraEmail, subject, body, null, rcaEmail, null, null, null);
+
+                return Json(new { status = "success", message = Lang.msg_added_success });
+            }
+
+            //Edit Existing Leave
+            else
+            {
+
+
+                // --- Overlap validation (exclude current record) ---
+                bool overlapExists = _context.tbl_employee_leave_hash.Any(l =>
+                    l.emp_id == model.emp_id &&
+                    l.app_status != "Declined" &&
+                    l.app_status != "Cancelled" &&
+                    l.emp_leave_id != model.id && // exclude current record
+                    (
+                        (model.LeaveFromDate >= l.leave_from_date && model.LeaveFromDate <= l.leave_to_date) ||
+                        (model.LeaveToDate >= l.leave_from_date && model.LeaveToDate <= l.leave_to_date) ||
+                        (l.leave_from_date >= model.LeaveFromDate && l.leave_from_date <= model.LeaveToDate) ||
+                        (l.leave_to_date >= model.LeaveFromDate && l.leave_to_date <= model.LeaveToDate)
+                    )
+                );
+
+                if (overlapExists)
+                {
+                    return Json(new { status = "error", message = Lang.msg_leave_already_exists });
+
+                }
+
+                // Load existing record
+                var leave = await _context.tbl_employee_leave_hash
+                    .FirstOrDefaultAsync(l => l.emp_leave_id == model.id);
+
+                if (leave == null)
+                {
+                    return Json(new { status = "notfound" });
+                }
+
+                var approver = await _approverResolver.ResolveApproverAsync(Convert.ToInt32(model.emp_id));
+                var toEmpID = approver.toEmpId ?? 0;
+                var toID = approver.toId ?? 0;
+
+                // Update fields
+                leave.leave_type_id = model.LeaveTypeId;
+                leave.leave_from_date = model.LeaveFromDate;
+                leave.leave_to_date = model.LeaveToDate;
+                leave.leave_desc = model.Remarks;
+                leave.app_status = "Pending";
+                leave.app_by = toEmpID;
+                leave.app_date = null; // equivalent to "NULL"
+                leave.leave_in_hrs = model.LeaveInHours;
+                leave.fiscal_year = model.FutureFiscalYear;
+
+                await _context.SaveChangesAsync();
+
+                // Send Email
+                string EmployeeName = _employeeServices.GetEmployeeName(Convert.ToInt32(model.emp_id));
+                string str_to = _employeeServices.GetEmployeeNameEmail(toEmpID);
+                var orgName = await _context.tbl_pp_options
+                    .Where(e => e.option_name == "op_org_name")
+                    .Select(e => e.option_value)
+                    .FirstOrDefaultAsync();
+                var LeaveTypeName = await _context.tbl_leave_heading
+                     .Where(e => e.leave_type_id == model.LeaveTypeId)
+                     .Select(e => e.description)
+                     .FirstOrDefaultAsync();
+
+                string approveEmailLink = $"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={model.emp_id}&app_id={model.id}&toid={toID}&toemp_id={toEmpID}&st=a&approval_from=email&approve_for=leavefuture'>Approve</a> | ";
+                string declineEmailLink = $"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={model.emp_id}&app_id={model.id}&toid={toID}&toemp_id={toEmpID}&st=d&approval_from=email&approve_for=leavefuture'>Decline</a>";
+
+                string subject = $"Change in leave submitted by {EmployeeName}";
+                string strMessage = $"<b>Leave Type: </b>{LeaveTypeName}<br/><b>Submit Date: </b>{SubmitDate:MM/dd/yyyy}<br/><b>Leave From Date: </b>{model.LeaveFromDate:MM/dd/yyyy}<br/><b>Leave To Date: </b>{model.LeaveToDate:MM/dd/yyyy}<br/><b>Leave hours: </b>{model.LeaveInHours}<br/><b>Description: </b><br/>{model.Remarks}<br><br>Please click Approve or Decline link provided below as appropriate.<br/><br/>{approveEmailLink} {declineEmailLink}";
+                string body = $"Dear Sir/Madam,<br/><br/>Please find my changed leave request below.<br/><br/>{strMessage}<br/><br/>Regards<br/>{EmployeeName}<br/><br/>";
+
+                // To Manager
+                _emailService.SendEmail(null, str_to, subject, body, null, null, null, null, null);
+
+                // To Administrative Emails
+                var emails = await _administrationEmailService.GetAdministrationEmailsAsync();
+
+                string hraEmail = emails["hra"].Email; // HR ADMINISTRATOR
+                string rcaEmail = emails["rca"].Email; // RECEPTIONISTs EMAIL
+                _emailService.SendEmail(null, hraEmail, subject, body, null, rcaEmail, null, null, null);
+
+                return Json(new { status = "success", message = Lang.msg_update_success });
+
+            }
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> FutureLeaveDelete([FromBody] DeleteRequest request)
+        {
+            if (request?.SelectedIds == null || !request.SelectedIds.Any())
+            {
+                return BadRequest(new { status = false, message = Lang.msg_no_record_selected });
+            }
+
+
+            // Fetch fund source records for selected IDs
+            var recordsToDelete = await _context.tbl_employee_leave_hash
+                .Where(r => request.SelectedIds.Contains(r.emp_leave_id.ToString()))
+                .ToListAsync();
+
+            if (!recordsToDelete.Any())
+            {
+                return Json(new { status = "error", message = Lang.msg_no_record_found });
+            }
+
+            // Find Leave besides Pending
+            var EmployeeLeaveNotPending = await (
+                from t in _context.tbl_employee_leave_hash
+                where request.SelectedIds.Contains(t.emp_leave_id.ToString()) && t.app_status != "Pending"
+                select t.emp_leave_id
+            ).ToListAsync();
+
+            // Separate deletable vs undeletable
+            var deletableRecords = recordsToDelete
+                .Where(r => !EmployeeLeaveNotPending.Contains(r.emp_leave_id))
+                .ToList();
+
+            var undeletableCount = recordsToDelete.Count - deletableRecords.Count;
+
+            // Perform deletion only on safe records
+            if (deletableRecords.Any())
+            {
+                _context.tbl_employee_leave_hash.RemoveRange(deletableRecords);
+                await _context.SaveChangesAsync();
+            }
+
+            return Ok(new
+            {
+                status = "success",
+                deletedCount = deletableRecords.Count,
+                message = Lang.msg_delete_success.Replace("[<DELETED-ROWS>]", deletableRecords.Count.ToString())
+            });
+
+        }
+        #endregion
+
+        #region TRAVEL REQUEST LIST,ADD,EDIT,SAVE, MASS DELETE
+        [HttpGet]
+        public IActionResult Travel(string StatusFilter)
+        {
+            string PageId = "10204";
+            #region FOR PERMISSION
+            var perm = _accountServices.GetMenuPermission(PageId);
+            if (perm.vpern == "false") { return RedirectToAction("PermissionDenied", "Home"); }
+            ViewBag.apern = perm.apern;
+            ViewBag.epern = perm.epern;
+            ViewBag.dpern = perm.dpern;
+            #endregion FOR END PERMISSION
+
+            var Records = (
+                from a in _context.tbl_employee_travel_main
+                orderby a.emp_travel_id descending
+                select new EmployeeTravelMainViewModel
+                {
+                    EmpTravelId = a.emp_travel_id,
+                    emp_id = a.emp_id ?? 0
+                }).ToList();
+
+            ViewBag.EmployeeStatusFilter = GblUtilities.StatusActivePassive("AD", "A");
+            ViewBag.FiscalYearList = _settingsServices.GetFiscalYears(HttpContext.Session.GetString("fiscal_year"));
+            ViewBag.StatusPAFilter = GblUtilities.ApprovalStatus();
+            ViewBag.ViewButtons = _accountServices.getAddEditDeleteAccess("Request/Travel", "ADD|DEL", PageId, 1);
+            return PartialView("Request/_Travel", Records);
+        }
+        [HttpPost]
+        public async Task<IActionResult> TravelList([FromForm] MultipleCostumFilterRequest request)
+        {
+            var (pageSize, skip, draw, sortColumn, sortColumnDir, searchValue) = DataTableHelper.GetParameters(Request);
+            string FiscalYearFilter = request.FilterValue1;
+            string EmployeeStatusFilter = request.FilterValue2 == "A" ? "Active" : "Inactive";
+            string TravelStatusFilter = request.FilterValue3;
+
+            DateTime? dateFromStr = Convert.ToDateTime(_settingsServices.GetFiscalYearValue(FiscalYearFilter, "date_from"));
+            DateTime? dateToStr = Convert.ToDateTime(_settingsServices.GetFiscalYearValue(FiscalYearFilter, "date_to"));
+
+            //var query = (from tbl_employee_travel_main in _context.tbl_employee_travel_main select tbl_employee_travel_main);
+            var query =
+                from o in _context.tbl_employee_travel_main
+                join e in _context.vw_Employee on o.emp_id equals e.emp_id into empJoin
+                from e in empJoin.DefaultIfEmpty()
+                where o.date_from >= dateFromStr && o.date_from <= dateToStr && e.emp_status == EmployeeStatusFilter
+                select new
+                {
+                    emp_travel_id = o.emp_travel_id,
+                    id = o.emp_travel_id,
+                    //EmpTravelId = o.emp_travel_id,
+                    employeename = e.employeename,
+                    travel_type = o.travel_type,
+                    destinations = o.destinations,
+                    date_from = o.date_from,
+                    date_to = o.date_to.Value,
+                    i_app_status = o.i_app_status,
+                    app_status = o.app_status,
+                    emp_id = o.emp_id,
+
+                    // Show_cancel = "Y" if Approved and no settlement record exists
+                    showBtnCan = (o.app_status == "Approved"
+                       && !_context.tbl_employee_travel_settlement_main
+                           .Any(s => s.emp_travel_id == o.emp_travel_id
+                                  && s.emp_id == o.emp_id))
+                      ? "Y"
+                      : "N"
+                };
+
+            if (!string.IsNullOrEmpty(TravelStatusFilter))
+            {
+                if (TravelStatusFilter == "Pending")
+                    query = query.Where(x => x.app_status == "Pending");
+                else if (TravelStatusFilter == "Approved")
+                    query = query.Where(x => x.app_status == "Approved");
+                else if (TravelStatusFilter == "Cancelled")
+                    query = query.Where(x => x.app_status == "Cancelled");
+
+            }
+
+            if (!string.IsNullOrEmpty(sortColumn) && !string.IsNullOrEmpty(sortColumnDir))
+            {
+                query = query.OrderBy(sortColumn + " " + sortColumnDir);
+            }
+            if (!string.IsNullOrEmpty(searchValue))
+            {
+                query = query.Where(a => a.employeename != null && a.employeename.Contains(searchValue));
+            }
+
+            var data = query.ToList();
+            int totalRecord = data.Count();
+            if (pageSize == -1)
+                pageSize = totalRecord;
+            var cData = data.Skip(skip).Take(pageSize).ToList();
+
+            var jsonData = new
+            {
+                draw = draw,
+                recordsFiltered = totalRecord,
+                recordsTotal = totalRecord,
+                data = cData
+            };
+
+            return new JsonResult(jsonData);
+
+        }
+        public IActionResult TravelAddEdit(int? id, string mode, int emp_id)
+        {
+            string PageId = "10204";
+            #region FOR PERMISSION
+            var perm = _accountServices.GetMenuPermission(PageId);
+            if (perm.vpern == "false") { return RedirectToAction("PermissionDenied", "Home"); }
+            ViewBag.apern = perm.apern;
+            ViewBag.epern = perm.epern;
+            ViewBag.dpern = perm.dpern;
+            #endregion FOR END PERMISSION
+            ViewBag.TravelType = RequestServices.getTravelType();
+            ViewBag.FundSource = _employeeServices.GetFundSourceActiveOnly();
+            ViewBag.mode = mode;
+            ViewBag.DATE_FORMAT = _appSettings.DATE_FORMAT;
+            EmployeeTravelMainViewModel model;
+            int? empName = emp_id;
+
+            // Use ec.contract_document_id here, not model
+            var fundSources = _context.tbl_fund_source
+                .Where(f => f.fund_status == "A") // example: only active ones
+                .OrderBy(f => f.fund_source)
+                .ToList();
+
+            // Get travel particulars from DB
+            var particulars = _context.tbl_travel_particulars
+                .OrderBy(p => p.par_id)
+                .ToList();
+            if (mode == "add")
+            {
+                model = new EmployeeTravelMainViewModel();
+
+                // Pre-populate expenses with default rows
+                model.Expenses = particulars.Select(p => new ExpenseViewModel
+                {
+                    par_id = p.par_id,
+                    Particular = p.particular ?? ""
+                }).ToList();
+
+                // Pre-populate fund sources with empty slots
+                model.TravelFundSources = new List<TravelFundSourceViewModel>
+                {
+                    new TravelFundSourceViewModel(),
+                    new TravelFundSourceViewModel(),
+                    new TravelFundSourceViewModel(),
+                    new TravelFundSourceViewModel()
+                };
+                var employees = _context.vw_Employee.ToList();
+                ViewBag.EmployeeList = new SelectList(employees, "emp_id", "employeename");
+                return PartialView("Request/_TravelAddEdit", model);
+            }
+            else if (mode == "edit")
+            {
+                var EmployeeTravelMail = _context.tbl_employee_travel_main.FirstOrDefault(h => h.emp_travel_id == id);
+                if (EmployeeTravelMail == null) return NotFound();
+
+                var subExpenses = _context.tbl_employee_travel_sub
+                    .Where(s => s.emp_travel_id == id)
+                    .ToList();
+
+                var TravelFundSource = _context.tbl_employee_travel_codes
+                    .Where(c => c.emp_travel_id == id)
+                    .OrderBy(c => c.sn)
+                    .ToList();
+
+
+                model = new EmployeeTravelMainViewModel
+                {
+                    emp_id = EmployeeTravelMail.emp_id ?? 0,
+                    EmpTravelId = EmployeeTravelMail.emp_travel_id,
+                    TravelType = EmployeeTravelMail.travel_type,
+                    TripPurpose = EmployeeTravelMail.trip_purpose,
+                    Destinations = EmployeeTravelMail.destinations,
+                    DateFrom = EmployeeTravelMail.date_from,
+                    DateTo = EmployeeTravelMail.date_to,
+                    Denomination = EmployeeTravelMail.denomination,
+                    Remarks = EmployeeTravelMail.remarks
+                };
+                // Merge particulars with saved values
+                model.Expenses = particulars.Select(p =>
+                {
+                    var existing = subExpenses.FirstOrDefault(s => s.par_id == p.par_id);
+                    var Nos = existing?.nos ?? 0;
+                    var rate = existing?.rate ?? 0;      // decimal
+
+                    return new ExpenseViewModel
+                    {
+                        par_id = p.par_id,
+                        Particular = p.particular ?? "",
+                        Detail = existing?.detail ?? "",
+                        Unit = existing?.unit ?? "",
+                        Currency = existing?.cur_id ?? 0,   // directly use cur_id (tinyint → byte)
+                        Nos = existing?.nos ?? 0,
+                        Rate = existing?.rate ?? 0,
+                        Amount = (decimal)(existing?.nos ?? 0f) * (existing?.rate ?? 0)
+                    };
+                }).ToList();
+
+                // Calculate totals
+                model.TotalNRS = model.Expenses.Where(e => e.Currency == 1).Sum(e => e.Amount ?? 0);
+                model.TotalIC = model.Expenses.Where(e => e.Currency == 2).Sum(e => e.Amount ?? 0);
+                model.TotalUSD = model.Expenses.Where(e => e.Currency == 3).Sum(e => e.Amount ?? 0);
+                model.TotalEuro = model.Expenses.Where(e => e.Currency == 4).Sum(e => e.Amount ?? 0);
+                model.TotalPound = model.Expenses.Where(e => e.Currency == 5).Sum(e => e.Amount ?? 0);
+                model.TotalCHF = model.Expenses.Where(e => e.Currency == 6).Sum(e => e.Amount ?? 0);
+
+                ViewBag.Employee = _employeeServices.GetEmployeeName((int)EmployeeTravelMail.emp_id);
+                model.emp_status = _employeeServices.GetEmployeeStatus((int)EmployeeTravelMail.emp_id);
+
+                // Pre-populate fund sources with empty slots
+                model.TravelFundSources = TravelFundSource.Select(c => new TravelFundSourceViewModel
+                {
+                    FundId = c.fund_id,
+                }).ToList();
+
+                // If you always want 4 slots, pad with empties
+                while (model.TravelFundSources.Count < 4)
+                {
+                    model.TravelFundSources.Add(new TravelFundSourceViewModel());
+                }
+
+                return PartialView("Request/_TravelAddEdit", model);
+
+            }
+            return PartialView("Request/_TravelAddEdit", "");
+        }
+        private string MapCurrency(byte? curId)
+        {
+            if (!curId.HasValue) return "";
+
+            return curId.Value switch
+            {
+                1 => "NRS",
+                2 => "IC",
+                3 => "USD",
+                4 => "Euro",
+                5 => "Pound",
+                6 => "CHF",
+                _ => ""
+            };
+        }
+        [HttpPost]
+        public async Task<IActionResult> TravelSave(EmployeeTravelMainViewModel model, int EmpTravelId, string mode)
+        {
+            var status = "";
+            string EmployeeName = _employeeServices.GetEmployeeName(model.emp_id);
+
+            #region TO GET APPROVAL AND I APPROVAL ID
+            //get line director info 
+            var approver = await _approverResolver.ResolveApproverLineManagerAsync(model.emp_id);
+            int lineDirectorId = approver.toEmpId ?? 0;
+            string lineDirectorEmail = _employeeServices.GetEmployeeNameEmail(lineDirectorId);
+            int toId = approver.toId ?? 0;
+
+            //get supervisor info 
+            var supervisorIdVal = await _requestServices.GetManagerInfoAsync(Convert.ToInt32(model.emp_id));
+            int? supervisorId = supervisorIdVal.ManagerId;
+            string supervisorEmail = _employeeServices.GetEmployeeNameEmail(Convert.ToInt32(supervisorId));
+
+            var Adminemails = await _administrationEmailService.GetAdministrationEmailsAsync();
+            int? craId = Adminemails["cra"].Id;
+            int? acrId = Adminemails["acr"].Id;
+            int? dooId = Adminemails["doo"].Id;
+
+            var travelType = model.TravelType ?? string.Empty;
+            var ToInfo = await _requestServices.GetTravelValidManagerInfoAsync(model.emp_id, travelType, supervisorId, lineDirectorId, craId, acrId, dooId, string.Empty, lineDirectorEmail, supervisorEmail);
+            #endregion
+
+            if (EmpTravelId <= 0 && mode == "add")
+            {
+                // --- Overlap validation (chkLeaveTakenDay equivalent) ---
+                bool overlapExists = _context.tbl_employee_travel_main.Any(l =>
+                l.emp_id == model.emp_id &&
+                l.app_status != "Declined" &&
+                l.app_status != "Cancelled" &&
+                    (
+                        (model.DateFrom >= l.date_from && model.DateFrom <= l.date_to) ||
+                        (model.DateTo >= l.date_from && model.DateTo <= l.date_to) ||
+                        (l.date_from >= model.DateFrom && l.date_from <= model.DateTo) ||
+                        (l.date_to >= model.DateFrom && l.date_to <= model.DateTo)
+                    )
+                );
+                if (overlapExists)
+                {
+                    return Json(new { status = "success", message = Lang.msg_record_already_exist });
+                }
+                else
+                {
+                    var maxId = _context.tbl_employee_travel_main.Max(e => (int?)e.emp_travel_id) ?? 0;
+                    var newId = maxId + 1;
+                    DateTime submit_date = DateTime.Now;
+                    var main = new tbl_employee_travel_main
+                    {
+                        emp_travel_id = newId,
+                        emp_id = model.emp_id,
+                        trip_purpose = model.TripPurpose,
+                        destinations = model.Destinations,
+                        date_from = model.DateFrom,
+                        date_to = model.DateTo,
+                        submit_date = submit_date,
+                        denomination = model.Denomination,
+                        remarks = model.Remarks,
+                        travel_type = model.TravelType,
+                        app_status = "Pending",
+                        app_date = DateTime.Now,
+                        i_app_by = ToInfo.IntermediateApproverId,
+                        app_by = ToInfo.ApproverId,
+                        i_app_by_post = ToInfo.IntermediateApproverPost,
+                        app_by_post = ToInfo.ApproverPost,
+                        i_app_status = (model.emp_id == craId ? "" : "Pending")
+                    };
+                    _context.tbl_employee_travel_main.Add(main);
+                    await _context.SaveChangesAsync();
+                    int newEmpTravelID = main.emp_travel_id;
+                    // Insert Expenses
+                    foreach (var exp in model.Expenses)
+                    {
+                        if (exp.Currency > 0)
+                        {
+                            var sub = new tbl_employee_travel_sub
+                            {
+                                emp_travel_id = newEmpTravelID,
+                                par_id = Convert.ToByte(exp.par_id),
+                                detail = exp.Detail,
+                                unit = exp.Unit,
+                                cur_id = exp.Currency,
+                                nos = (float)(exp.Nos ?? 0d),
+                                rate = Convert.ToDecimal(exp.Rate),
+                                submit_date = DateTime.Now,
+                                update_date = DateTime.Now
+                            };
+                            _context.tbl_employee_travel_sub.Add(sub);
+                            await _context.SaveChangesAsync();
+                        }
+                    }
+
+                    // Insert Fund Sources
+                    byte sn = 1;
+                    foreach (var fund in model.TravelFundSources)
+                    {
+                        var code = new tbl_employee_travel_codes
+                        {
+                            emp_travel_id = newEmpTravelID,
+                            sn = sn++,
+                            fund_id = fund.FundId
+                        };
+                        _context.tbl_employee_travel_codes.Add(code);
+                        await _context.SaveChangesAsync();
+                        status = "success";
+                    }
+                    //SENDING EMAIL SECTION
+                    var EmailContent = await _requestServices.GetTravelEmailHtmlContent(Convert.ToInt32(newEmpTravelID));
+                    string bodyApproveRecommend = "approve";
+                    string eml_app_link_outside = "";
+                    string eml_dec_link_outside = "";
+                    if (ToInfo.Stage == "ad")
+                    {
+                        // Build email
+                        //$"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={model.emp_id}&app_id={model.id}&toid={toID}&toemp_id={toEmpID}&st=a&approval_from=email&approve_for=leave'>Approve</a> | ";
+                        eml_app_link_outside = $"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={model.emp_id}&app_id={newEmpTravelID}&toid={toId}&toemp_id={ToInfo.ApproverId}&st=a&approval_from=email&approve_for=travel'>Approve</a> | ";
+                        eml_dec_link_outside = $"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={model.emp_id}&app_id={newEmpTravelID}&toid={toId}&toemp_id={ToInfo.ApproverId}&st=d&approval_from=email&approve_for=travel'>Decline</a>";
+                    }
+                    else
+                    {
+                        // Build email
+                        //$"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={model.emp_id}&app_id={model.id}&toid={toID}&toemp_id={toEmpID}&st=a&approval_from=email&approve_for=leave'>Approve</a> | ";
+                        eml_app_link_outside = $"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={model.emp_id}&app_id={newEmpTravelID}&toid={toId}&toemp_id={ToInfo.ApproverId}&st=rr&approval_from=email&approve_for=travel'>Recommend</a> | ";
+                        eml_dec_link_outside = $"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={model.emp_id}&app_id={newEmpTravelID}&toid={toId}&toemp_id={ToInfo.ApproverId}&st=nr&approval_from=email&approve_for=travel'>Decline</a>";
+                        bodyApproveRecommend = "recommend";
+                    }
+
+                    string subject = $"Travel submitted by {EmployeeName}";
+                    string body = $"Dear Sir/Madam,<br/><br/>Please find my travel request below.<br/><br/>{EmailContent}<br/><br/>Regards<br/>{EmployeeName}<br/><br/>" +
+                    $"Please click {bodyApproveRecommend} or Decline link provided below as appropriate.<br/><br/>" +
+                    eml_app_link_outside + eml_dec_link_outside;
+                    _emailService.SendEmail(null, ToInfo.ApproverEmail, subject, body, null, null, null, null, null);
+
+                    return Json(new { status = "success", message = Lang.msg_added_success, id = newEmpTravelID });
+                }
+            }
+            else if (EmpTravelId > 0 && mode == "edit")
+            {
+                // --- Overlap validation (exclude current record) ---
+                bool overlapExists = _context.tbl_employee_travel_main.Any(l =>
+                    l.emp_id == model.emp_id &&
+                    l.app_status != "Declined" &&
+                    l.app_status != "Cancelled" &&
+                    l.emp_travel_id != model.EmpTravelId && // exclude current record
+                    (
+                        (model.DateFrom >= l.date_from && model.DateFrom <= l.date_to) ||
+                        (model.DateTo >= l.date_from && model.DateTo <= l.date_to) ||
+                        (l.date_from >= model.DateFrom && l.date_from <= model.DateTo) ||
+                        (l.date_to >= model.DateFrom && l.date_to <= model.DateTo)
+                    )
+                );
+
+                if (overlapExists)
+                {
+                    return Json(new { status = "travelexist" });
+                }
+                else
+                {
+                    // Update main record
+                    var main = await _context.tbl_employee_travel_main
+                        .FirstOrDefaultAsync(m => m.emp_travel_id == EmpTravelId);
+                    if (main == null) return NotFound();
+
+                    main.trip_purpose = model.TripPurpose;
+                    main.destinations = model.Destinations;
+                    main.date_from = model.DateFrom;
+                    main.date_to = model.DateTo;
+                    main.denomination = model.Denomination;
+                    main.remarks = model.Remarks;
+                    main.travel_type = model.TravelType;
+                    main.app_status = "Pending";
+                    main.app_date = DateTime.Now;
+                    main.i_app_by = ToInfo.IntermediateApproverId;
+                    main.app_by = ToInfo.ApproverId;
+                    main.i_app_by_post = ToInfo.IntermediateApproverPost;
+                    main.app_by_post = ToInfo.ApproverPost;
+                    main.i_app_status = "Pending";
+
+                    _context.tbl_employee_travel_main.Update(main);
+                    await _context.SaveChangesAsync();
+
+                    // Remove tbl_employee_travel_sub
+                    var oldExpenses = _context.tbl_employee_travel_sub
+                        .Where(e => e.emp_travel_id == EmpTravelId);
+                    _context.tbl_employee_travel_sub.RemoveRange(oldExpenses);
+                    await _context.SaveChangesAsync();
+
+                    // Update tbl_employee_travel_sub
+                    foreach (var exp in model.Expenses)
+                    {
+                        var sub = new tbl_employee_travel_sub
+                        {
+                            emp_travel_id = EmpTravelId,
+                            par_id = Convert.ToByte(exp.par_id),
+                            detail = exp.Detail,
+                            unit = exp.Unit,
+                            //cur_id = Convert.ToByte(MapCurrency(exp.Currency)), // map string → byte
+                            cur_id = exp.Currency,
+                            nos = (float?)(exp.Nos ?? 0.0),                   // double
+                            rate = exp.Rate,                    // decimal
+                            submit_date = DateTime.Now,
+                            update_date = DateTime.Now
+                        };
+                        _context.tbl_employee_travel_sub.Add(sub);
+                    }
+                    await _context.SaveChangesAsync();
+
+                    // Remove existing tbl_employee_travel_codes
+                    var oldCodes = _context.tbl_employee_travel_codes
+                        .Where(c => c.emp_travel_id == EmpTravelId);
+                    _context.tbl_employee_travel_codes.RemoveRange(oldCodes);
+                    await _context.SaveChangesAsync();
+
+                    // Update tbl_employee_travel_codes
+                    byte sn = 1;
+                    foreach (var fund in model.TravelFundSources)
+                    {
+                        if (fund.FundId > 0)
+                        {
+                            var code = new tbl_employee_travel_codes
+                            {
+                                emp_travel_id = EmpTravelId,
+                                sn = sn++,
+                                fund_id = fund.FundId
+                            };
+                            _context.tbl_employee_travel_codes.Add(code);
+                        }
+                    }
+                    await _context.SaveChangesAsync();
+                    status = "successupdate";
+                    //SENDING EMAIL SECTION
+
+                    var EmailContent = await _requestServices.GetTravelEmailHtmlContent(Convert.ToInt32(EmpTravelId));
+                    string bodyApproveRecommend = "approve";
+                    string eml_app_link_outside = "";
+                    string eml_dec_link_outside = "";
+                    if (ToInfo.Stage == "ad")
+                    {
+                        // Build email
+                        //$"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={model.emp_id}&app_id={model.id}&toid={toID}&toemp_id={toEmpID}&st=a&approval_from=email&approve_for=leave'>Approve</a> | ";
+                        eml_app_link_outside = $"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={model.emp_id}&app_id={EmpTravelId}&toid={toId}&toemp_id={ToInfo.ApproverId}&st=a&approval_from=email&approve_for=travel'>Approve</a> | ";
+                        eml_dec_link_outside = $"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={model.emp_id}&app_id={EmpTravelId}&toid={toId}&toemp_id={ToInfo.ApproverId}&st=d&approval_from=email&approve_for=travel'>Decline</a>";
+                    }
+                    else
+                    {
+                        // Build email
+                        //$"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={model.emp_id}&app_id={model.id}&toid={toID}&toemp_id={toEmpID}&st=a&approval_from=email&approve_for=leave'>Approve</a> | ";
+                        eml_app_link_outside = $"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={model.emp_id}&app_id={EmpTravelId}&toid={toId}&toemp_id={ToInfo.ApproverId}&st=rr&approval_from=email&approve_for=travel'>Recommend</a> | ";
+                        eml_dec_link_outside = $"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={model.emp_id}&app_id={EmpTravelId}&toid={toId}&toemp_id={ToInfo.ApproverId}&st=nr&approval_from=email&approve_for=travel'>Decline</a>";
+                        bodyApproveRecommend = "recommend";
+                    }
+
+                    string subject = $"Change in travel submitted by {EmployeeName}";
+                    string body = $"Dear Sir/Madam,<br/><br/>Please find my <u>changed</u> travel request below.<br/><br/>{EmailContent}<br/><br/>Regards<br/>{EmployeeName}<br/><br/>" +
+                    $"Please click {bodyApproveRecommend} or Decline link provided below as appropriate.<br/><br/>" +
+                    eml_app_link_outside + eml_dec_link_outside;
+                    _emailService.SendEmail(null, ToInfo.ApproverEmail, subject, body, null, null, null, null, null);
+                    return Json(new { status = "success", message = Lang.msg_update_success, id = EmpTravelId });
+                }
+            }
+            return Json(new { status = status });
+        }
+        [HttpPost]
+        public async Task<IActionResult> TravelDelete([FromBody] DeleteRequest request)
+        {
+            if (request?.SelectedIds == null || !request.SelectedIds.Any())
+            {
+                return Json(new { status = "error", message = Lang.msg_no_record_selected });
+            }
+
+            // Fetch travel records for selected IDs
+            var recordsToDelete = _context.tbl_employee_travel_main.Where(r => request.SelectedIds.Contains(r.emp_travel_id.ToString())).ToList();
+            if (!recordsToDelete.Any())
+            {
+                return Json(new { status = "error", message = Lang.msg_no_record_found });
+            }
+
+            // Find records that are truly deletable (app_status = Pending AND i_app_status is null/empty/Pending)
+            var employeeTravelPending = await (from t in _context.tbl_employee_travel_main
+                                               where request.SelectedIds.Contains(t.emp_travel_id.ToString()) && t.app_status == "Pending" && (t.i_app_status == null || t.i_app_status == "" || t.i_app_status.ToUpper() == "PENDING")
+                                               select t).ToListAsync();
+
+            // Separate deletable vs undeletable
+            var deletableRecords = employeeTravelPending;
+            var undeletableCount = request.SelectedIds.Count - deletableRecords.Count;
+            // Perform deletion only on safe records
+            if (deletableRecords.Any())
+            {
+                var travelIds = deletableRecords.Select(r => r.emp_travel_id).ToList();
+
+                // Delete child records first
+                var codesToDelete = _context.tbl_employee_travel_codes.Where(c => travelIds.Contains(c.emp_travel_id));
+                _context.tbl_employee_travel_codes.RemoveRange(codesToDelete);
+
+                var subsToDelete = _context.tbl_employee_travel_sub.Where(s => travelIds.Contains(s.emp_travel_id));
+                _context.tbl_employee_travel_sub.RemoveRange(subsToDelete);
+
+                _context.tbl_employee_travel_main.RemoveRange(deletableRecords);
+                await _context.SaveChangesAsync();
+            }
+            return Json(new { status = "error", message = Lang.msg_deleted_some.Replace("[<DELETED-ROWS>]", deletableRecords.Count.ToString()).Replace("[<UN-DEL-ROWS>]", undeletableCount.ToString()) });
+
+        }
+        public async Task<IActionResult> TravelCancel(int? id, EmployeeTravelMainViewModel vm)
+        {
+            string PageId = "10204";
+            #region FOR PERMISSION
+            var perm = _accountServices.GetMenuPermission(PageId);
+            if (perm.vpern == "false") { return RedirectToAction("PermissionDenied", "Home"); }
+            ViewBag.apern = perm.apern;
+            ViewBag.epern = perm.epern;
+            ViewBag.dpern = perm.dpern;
+            #endregion FOR END PERMISSION
+            ViewBag.DATE_FORMAT = _appSettings.DATE_FORMAT;
+            var EmployeeFS = (from travel in _context.tbl_employee_travel_main
+                              join emp in _context.vw_Employee
+                                  on travel.emp_id equals emp.emp_id
+                              where travel.emp_travel_id == id
+                              select new
+                              {
+                                  Travel = travel,
+                                  EmployeeInformations = emp
+                              })
+                              .FirstOrDefault();
+
+            if (EmployeeFS == null) return NotFound();
+            EmployeeTravelMainViewModel model;
+            model = new EmployeeTravelMainViewModel
+            {
+                id = EmployeeFS.Travel.emp_travel_id,
+                emp_id = EmployeeFS.Travel.emp_id ?? 0,
+                TravelType = EmployeeFS.Travel.travel_type,
+                TripPurpose = EmployeeFS.Travel.trip_purpose,
+                Destinations = EmployeeFS.Travel.destinations,
+                DateFrom = EmployeeFS.Travel.date_from,
+                DateTo = EmployeeFS.Travel.date_to,
+                i_app_status = EmployeeFS.Travel.i_app_status,
+                i_app_by_name = (EmployeeFS.Travel.i_app_by is not null and > 0) ? _employeeServices.GetEmployeeName((int)EmployeeFS.Travel.i_app_by) : "",
+                i_app_date = EmployeeFS.Travel.i_app_date,
+                rec_remarks = EmployeeFS.Travel.rec_remarks,
+                app_status = EmployeeFS.Travel.app_status,
+                app_by_name = (EmployeeFS.Travel.app_by is not null and > 0) ? _employeeServices.GetEmployeeName((int)EmployeeFS.Travel.app_by) : "",
+                app_remarks = EmployeeFS.Travel.app_remarks,
+                can_by = EmployeeFS.Travel.can_by,
+                can_desc = EmployeeFS.Travel.can_desc
+
+            };
+
+            model.emp_status = EmployeeFS.EmployeeInformations.emp_status;
+            ViewBag.EmployeeNameAndStatus = EmployeeFS.EmployeeInformations.employeenameWithCode + " (" + EmployeeFS.EmployeeInformations.emp_status + ")";
+
+            return PartialView("Request/_TravelCancel", model);
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> TravelCancelSave(int? id, EmployeeTravelMainViewModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                return Json(new { status = "invalid" });
+            }
+
+            string? mode = Request.Form["mode"];
+            DateTime SubmitDate = DateTime.Now.Date;
+            string? UpdateMessage = Lang.msg_added_success;
+            if (model.id > 0 && mode == "cancel")
+            {
+                // Fetch the travel record
+                var travel = await _context.tbl_employee_travel_main
+                .FirstOrDefaultAsync(t => t.emp_travel_id == id && t.emp_id == model.emp_id);
+
+                if (travel == null)
+                {
+                    return Json(new { status = "error", message = Lang.msg_no_record_found });
+                }
+
+                string? str_from = _employeeServices.GetEmployeeNameEmail(Convert.ToInt32(travel.emp_id));
+
+
+                var approverResult = await _approverResolver.ResolveApproverLineManagerAsync(Convert.ToInt32(travel.emp_id));
+                int? line_dir_emp_id = approverResult.toEmpId;
+                string line_dir_email = _employeeServices.GetEmployeeNameEmail(Convert.ToInt32(line_dir_emp_id));
+
+                int? app_by = null;
+                string? str_to = "";
+
+                var emails = await _administrationEmailService.GetAdministrationEmailsAsync();
+
+                int? lng_do_emp_id = emails["doo"].Id;
+                int? lng_cr_emp_id_alt = emails["acr"].Id;
+                int? lng_cr_emp_id = emails["cra"].Id;
+
+                int? cr_present_status = _requestServices.GetCRAbsentStatus((int)lng_cr_emp_id);
+                if (cr_present_status > 0)
+                    lng_cr_emp_id_alt = 0;
+
+                string str_admin_email_do = emails["doo"].Email;
+                string str_admin_email_acr = emails["acr"].Email;
+                string? str_admin_email_cr = emails["cra"].Email;
+
+                if (model.emp_id == lng_cr_emp_id)
+                {
+                    app_by = Convert.ToInt32(lng_do_emp_id);
+                    str_to = str_admin_email_do;
+                }
+                else
+                {
+                    if (travel.travel_type?.ToUpper() == "NATIONAL")
+                    {
+                        app_by = Convert.ToInt32(line_dir_emp_id);
+                        str_to = line_dir_email;
+                    }
+                    else
+                    {
+                        if (lng_cr_emp_id_alt > 0)
+                        {
+                            app_by = lng_cr_emp_id_alt;
+                            str_to = str_admin_email_acr;
+                        }
+                        else
+                        {
+                            app_by = lng_cr_emp_id;
+                            str_to = str_admin_email_cr;
+                        }
+                    }
+                }
+
+                int? toemp_id = app_by;
+                travel.can_by = app_by;
+                travel.can_desc = model.can_desc;
+                travel.can_submit_date = DateTime.Now;
+                int? toId = await _approverResolver.ResolveEmployeeIdInUserTblAsync(Convert.ToInt32(toemp_id));
+
+                _context.tbl_employee_travel_main.Update(travel);
+                await _context.SaveChangesAsync();
+
+                var EmailContent = await _travelApprovalService.GetTravelEmailHtmlContent(Convert.ToInt32(travel.emp_travel_id));
+                string? subject = Lang.EMAIL_EMPLOYEE_TRAVEL_CAN_SAVE_SUBJECT.Replace("<[EMPLOYEE-NAME-ONLY]>", str_from);
+                string? body = Lang.EMAIL_EMPLOYEE_TRAVEL_CAN_SAVE_MESSAGE.Replace("<[STR-MESSAGE]>", EmailContent).Replace("<[EMPLOYEE-NAME-ONLY]>", str_from);
+
+                string? eml_app_link_outside = $"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={model.emp_id}&app_id={travel.emp_travel_id}&toid={toId}&toemp_id={toemp_id}&st=a&approval_from=email&approve_for=travelcancel'>Approve</a> | ";
+                string? eml_dec_link_outside = $"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={model.emp_id}&app_id={travel.emp_travel_id}&toid={toId}&toemp_id={toemp_id}&st=d&approval_from=email&approve_for=travelcancel'>Decline</a>";
+
+                body = body + "<br/>" +
+                $"Please click Approve or Decline link provided below as appropriate.<br/><br/>" +
+                eml_app_link_outside + eml_dec_link_outside;
+
+                if (!string.IsNullOrEmpty(str_to))
+                {
+                    _emailService.SendEmail(null, str_to, subject, body, null, null, null, null, null);
+                }
+            }
+            return Json(new { status = "success", message = Lang.CANCEL_REQUEST_SAVED_AND_EMAIL_SENT });
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> TravelDiscardSave(int? id, EmployeeTravelMainViewModel model)
+        {
+
+            var travel = await _context.tbl_employee_travel_main
+                .FirstOrDefaultAsync(t => t.emp_travel_id == id);
+
+            if (travel == null)
+            {
+                return Json(new { status = "error", Message = Lang.msg_no_record_found });
+            }
+
+            string appStatus = travel.app_status ?? string.Empty;
+            int? canBy = travel.can_by ?? null;
+
+            if (appStatus.Equals("APPROVED", StringComparison.OrdinalIgnoreCase) && canBy.HasValue)
+            {
+                travel.can_submit_date = null;
+                travel.can_desc = null;
+                travel.can_by = null;
+                travel.can_date = null;
+                travel.can_remarks = string.Empty;
+
+                _context.tbl_employee_travel_main.Update(travel);
+                await _context.SaveChangesAsync();
+
+                return Json(new { status = "success", message = Lang.msg_cancel_discared_success });
+            }
+            else
+            {
+                return Json(new { status = "error", message = Lang.msg_cancel_discard_fail });
+            }
         }
         #endregion
 

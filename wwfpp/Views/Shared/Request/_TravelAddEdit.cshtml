@@ -1,59 +1,212 @@
-﻿@model wwfpp.Models.Admin.ModulesViewModel
+﻿@using wwfpp.Services
+@inject SettingsServices SettingsServices
+@model wwfpp.Models.Request.EmployeeTravelMainViewModel
 @{
-    string mode = ViewBag.mode;
+    string? mode = ViewBag.mode;
+    string? DATE_FORMAT = ViewBag.DATE_FORMAT;
+    string? date_from = Model.DateFrom.ToString();
+    string? s_date_from = SettingsServices.DateformatToDt(date_from ?? string.Empty);
+    string? date_to = Model.DateTo.ToString();
+    string? s_date_to = SettingsServices.DateformatToDt(date_to ?? string.Empty);
+
 }
+<script language="javascript">
+    function calculate_travel_add(parm_cnt) {
+        var nos = parseFloat(document.getElementById("nos" + parm_cnt).value) || 0;
+        var rate = parseFloat(document.getElementById("rate" + parm_cnt).value) || 0;
+        var currency = document.getElementById("Currency" + parm_cnt).value;
+
+        // Calculate row subtotal
+        var subtotal = nos * rate;
+        document.getElementById("Amount" + parm_cnt).value = subtotal.toFixed(2);
+
+        // Recalculate totals across all rows
+        var gtNRS = 0, gtIC = 0, gtUSD = 0, gtEuro = 0, gtPound = 0, gtCHF = 0;
+        var rowCount = @Model.Expenses.Count;
+
+        for (var i = 1; i <= rowCount; i++) {
+            var amountEl = document.getElementById("Amount" + i);
+            var currencyEl = document.getElementById("Currency" + i);
+
+            if (!amountEl || !currencyEl) continue; // skip if element missing
+
+            var subVal = parseFloat(amountEl.value) || 0;
+            var cur = currencyEl.value;
+
+            if (cur === "1") gtNRS += subVal;
+            if (cur === "2") gtIC += subVal;
+            if (cur === "3") gtUSD += subVal;
+            if (cur === "4") gtEuro += subVal;
+            if (cur === "5") gtPound += subVal;
+            if (cur === "6") gtCHF += subVal;
+        }
+    document.getElementById("TotalNRS").value   = gtNRS.toFixed(2);
+    document.getElementById("TotalIC").value    = gtIC.toFixed(2);
+    document.getElementById("TotalUSD").value   = gtUSD.toFixed(2);
+    document.getElementById("TotalEuro").value  = gtEuro.toFixed(2);
+    document.getElementById("TotalPound").value = gtPound.toFixed(2);
+    document.getElementById("TotalCHF").value   = gtCHF.toFixed(2);
+
+    }
+</script>
 <!-- (A) HTML DIALOG BOX -->
 <partial name="_ConstantValues" view-data='new ViewDataDictionary(ViewData) { { "NoteKey", "RequiredField" } }' />
-    @Html.HiddenFor(m => m.module_id) <!-- Needed for Edit -->
+@Html.AntiForgeryToken()
+@Html.Hidden("mode", "")
+@Html.HiddenFor(m => m.EmpTravelId) <!-- Needed for Edit -->
+
+
+
     <div class="form-group row p-1">
+        <!-- Employee List -->
+        
+            @if (mode == "add")
+            {
+                <label class="col-lg-12 col-form-label-lg">Employee <span class="text-danger">*</span></label>
+                <div class="col-lg-12">
+                    @Html.DropDownListFor(m => m.emp_id, (SelectList)ViewBag.EmployeeList, "-- Select Employee --", new { @class = "form-control-sm" })
+                </div>
+            }
+            else
+            {
+                string empStatus = Model.emp_status ?? "";
+                <label class="col-lg-12 col-form-label-lg">Employee:<span class="text-danger">*</span> @ViewBag.Employee [@empStatus] @Html.HiddenFor(m => m.emp_id)</label>
+                <div class="col-lg-12">
+                    &nbsp;
+                </div>
+
+            }
+        
+
 
         <label class="col-lg-12 col-form-label-lg">Code<span class="text-danger">*</span></label>
         <div class="col-lg-12">
-        <input type="text" class="form-control" asp-for="module_code" name="module_code" id="module_code" autocomplete="module_code" placeholder="" maxlength="50" onKeyPress="javascript:goNext(event.keyCode,'module_name');" />
+        @Html.DropDownListFor(m => m.TravelType, (SelectList)ViewBag.TravelType, new { @class = "form-select", style = "width:300px;", onKeyPress = "goNext(event.keyCode,'TripPurpose')" })
         </div>
     
-        <label class="col-lg-12 col-form-label-lg">Name<span class="text-danger">*</span></label>
+        <label class="col-lg-12 col-form-label-lg">Trip Purpose<span class="text-danger">*</span></label>
         <div class="col-lg-12">
-        <input type="text" class="form-control" asp-for="module_name" name="module_name" id="module_name" autocomplete="module_name" placeholder="" maxlength="250" onKeyPress="javascript:goNext(event.keyCode,'module_label');" />
+        <input type="text" class="form-control" asp-for="TripPurpose" name="TripPurpose" id="TripPurpose" autocomplete="Trip Purpose" placeholder="" maxlength="250" onKeyPress="javascript:goNext(event.keyCode,'Destinations');" />
         </div>
         
-        <label class="col-lg-12 col-form-label-lg">Label<span class="text-danger">*</span></label>
+        <label class="col-lg-12 col-form-label-lg">Destination<span class="text-danger">*</span></label>
         <div class="col-lg-12">
-        <input type="text" class="form-control" asp-for="module_label" name="module_label" id="module_label" autocomplete="module_label" placeholder="" maxlength="250"  onKeyPress="javascript:goNext(event.keyCode,'module_folder');" />
+        <input type="text" class="form-control" asp-for="Destinations" name="Destinations" id="Destinations" autocomplete="Destinations" placeholder="" maxlength="250" onKeyPress="javascript:goNext(event.keyCode,'DateFrom');" />
         </div>
         
-        <label class="col-lg-12 col-form-label-lg">Folder<span class="text-danger">*</span></label>
-        <div class="col-lg-12">
-        <input type="text" class="form-control" asp-for="module_folder" name="module_folder" id="module_folder" autocomplete="module_folder" placeholder="" maxlength="250" onKeyPress="javascript:goNext(event.keyCode,'module_sort');" />
-        </div>        
+        <label class="col-lg-12 col-form-label-lg">Date From<span class="text-danger">*</span></label>
+        <div class="row">
+        <div class="col-lg-4">@Html.TextBox("DateFrom", s_date_from, new { @class = "form-control", maxlength = "10", onblur = "convert_date(DateFrom,'modal-message')", onKeyPress = "goNext(event.keyCode,'DateTo')" })</div>
+        <div class="col-lg-8"><Input Type="Button" name="btndate" Value="Date..." OnClick="show_calendar('frm.DateFrom')" class="button bg-sky"></div>
+        </div>
         
-        <label class="col-lg-12 col-form-label-lg">Sorting<span class="text-danger">*</span></label>
-        <div class="col-lg-12">
-        <input type="text" class="form-control" asp-for="module_sort" name="module_sort" id="module_sort" autocomplete="module_sort" placeholder="" maxlength="2" onblur="javascript:OnlyNumeric('module_sort','modal_message')" onKeyPress="javascript:goNext(event.keyCode,'module_status');" />
+        <label class="col-lg-12 col-form-label-lg">Date To<span class="text-danger">*</span></label>
+        <div class="row">
+        <div class="col-lg-4">@Html.TextBox("DateTo", s_date_to, new { @class = "form-control", maxlength = "10", onblur = "convert_date(DateTo,'modal-message')", onKeyPress = "goNext(event.keyCode,'ethnicity')" })</div>
+        <div class="col-lg-8"><Input Type="Button" name="btndate" Value="Date..." OnClick="show_calendar('frm.DateTo')" class="button bg-sky"></div>
         </div>
-
-        <label class="col-lg-12 col-form-label-lg">Status<span class="text-danger">*</span></label>
-        <div class="col-lg-12">
-        <select name="module_status" id="module_status" asp-for="module_status" class="form-control" onKeyPress="javascript:goNext(event.keyCode,'btnSave');">
-                <option value="">--Select--</option>
-                <option value="A">Active</option>
-                <option value="P">Passive</option>
-            </select>
-        </div>
-
     </div>
 
-@if (mode == "add" && ViewBag.apern == "true")
-{
-    <script>renderModalButtons("modal-button-list", "Save");</script>
+<h5>Expenses</h5>
+<table class="table table-bordered">
+    <thead>
+        <tr style="background-color:#CCCCCC">
+            <th>Particulars</th>
+            <th>Details</th>
+            <th>Unit</th>
+            <th>Currency</th>
+            <th>Nos.</th>
+            <th>Rate</th>
+            <th>Amount</th>
+        </tr>
+    </thead>
+    <tbody>
+        @for (int i = 0; i < Model.Expenses.Count; i++)
+        {
+            <tr>
+                @Html.HiddenFor(m => Model.Expenses[i].par_id)
+                <td>@Model.Expenses[i].Particular</td>
+                <td>@Html.TextBoxFor(m => m.Expenses[i].Detail, new { @class = "form-control" })</td>
+                <td>@Html.TextBoxFor(m => m.Expenses[i].Unit, new { @class = "form-control" })</td>
+                <td>
+                    @Html.DropDownListFor(m => m.Expenses[i].Currency,
+                        new SelectList(new[]
+                        {
+                            new { Value = "", Text = "--" },
+                            new { Value = "1", Text = "NRS" },
+                            new { Value = "2", Text = "IC" },
+                            new { Value = "3", Text = "USD" },
+                            new { Value = "4", Text = "Euro" },
+                            new { Value = "5", Text = "Pound" },
+                            new { Value = "6", Text = "CHF" }
+                        }, "Value", "Text", Model.Expenses[i].Currency),
+                        new { @class = "form-select form-select-sm", id = $"Currency{i + 1}", onchange = $"calculate_travel_add({i + 1})" })
+
+                </td>
+                <td>@Html.TextBoxFor(m => m.Expenses[i].Nos, new { @class = "form-control", type = "number", id = $"nos{i + 1}", onkeyup = $"calculate_travel_add({i + 1})" })</td>
+                <td>@Html.TextBoxFor(m => m.Expenses[i].Rate, new { @class = "form-control", type = "number", step = "0.01", id = $"rate{i + 1}", onkeyup = $"calculate_travel_add({i + 1})" })</td>
+                <td>
+                    @Html.TextBoxFor(m => m.Expenses[i].Amount,
+                             new { @class = "form-control text-end", @readonly = "readonly", id = $"Amount{i + 1}" })
+
+                </td>
+            </tr>
+        }
+        <tr>
+            <td height="30" class="normal right"><b>Total:&nbsp;</b></td>
+            <td class="normal center" colspan="6">
+                NRs : @Html.TextBoxFor(m => m.TotalNRS, new { @readonly = "readonly", @class = "textbox", id = "TotalNRS", style = "width:50px;" })
+                IC  : @Html.TextBoxFor(m => m.TotalIC, new { @readonly = "readonly", @class = "textbox", id = "TotalIC", style = "width:50px;" })
+                USD : @Html.TextBoxFor(m => m.TotalUSD, new { @readonly = "readonly", @class = "textbox", id = "TotalUSD", style = "width:50px;" })
+                Euro: @Html.TextBoxFor(m => m.TotalEuro, new { @readonly = "readonly", @class = "textbox", id = "TotalEuro", style = "width:50px;" })
+                Pound:@Html.TextBoxFor(m => m.TotalPound, new { @readonly = "readonly", @class = "textbox", id = "TotalPound", style = "width:50px;" })
+                CHF : @Html.TextBoxFor(m => m.TotalCHF, new { @readonly = "readonly", @class = "textbox", id = "TotalCHF", style = "width:50px;" })
+
+
+            </td>
+        </tr>
+    </tbody>
+</table>
+<!-- Expenses -->
+<div class="row mb-3">
+    <div class="col-sm-4">
+        <label class="form-label" style="background-color:#CCCCCC;width:250px;height:30px">&nbsp;Funding Source</label>
+        @for (int i = 0; i < Model.TravelFundSources.Count; i++)
+        {
+            @Html.DropDownListFor(
+                m => m.TravelFundSources[i].FundId,
+                (SelectList)ViewBag.FundSource,
+                "-- Select Fund Source --",
+                new { @class = "form-select travel-fund-source", style = "width:100%;" }
+            )
+        }
+    </div>
+
+    <div class="col-sm-4">
+        <label class="form-label" style="background-color:#CCCCCC;width:250px;height:30px">&nbsp;Currency Denomination</label>
+        @Html.TextAreaFor(m => m.Denomination, new { @class = "form-control", rows = 6 })
+    </div>
+
+    <div class="col-sm-4">
+        <label class="form-label" style="background-color:#CCCCCC;width:250px;height:30px">&nbsp;Remarks</label>
+        @Html.TextAreaFor(m => m.Remarks, new { @class = "form-control", rows = 6 })
+    </div>
+</div>
+@if (mode == "add" && ViewBag.apern == "true") 
+{ 
+    <script>
+       document.getElementById("modal-button-list").innerHTML =
+       '<button type="button" name ="btnSave" id="btnSave" class="button btn-primary">Save</button>'+
+       '<button type="button" name ="btnC" id="btnC" class="button btn-secondary">Close</button>';
+    </script>
 }
-else if (mode == "edit" && ViewBag.epern == "true")
-{
-    <script>renderModalButtons("modal-button-list", "Edit");</script>
-}
-else
-{
-    <script>renderModalCloseButton("modal-button-list")</script>
+    else if (mode == "edit" && ViewBag.epern == "true") 
+{ 
+    <script>
+        document.getElementById("modal-button-list").innerHTML =
+        '<button type="button" name ="btnSave" id="btnSave" class="button btn-primary">Edit</button>'+
+        '<button type="button" name ="btnC" id="btnC" class="button btn-secondary">Close</button>';
+    </script>
 }
     <script>
     // Toggle between Edit and Update
@@ -61,15 +214,15 @@ else
         var btn = $(this);
         if (btn.text() == "Edit") {$("#ModalID .modal-title").text("Update");btn.text("Update");$("#btnC").text("Cancel");return;}  
         if (btn.text() === "Update" || btn.text() === "Save") {
-
-            if ( checkInput( 'txt', 'module_code', 'Code is required.', 'modal-message') == false ) {return false;}
-            if ( checkInput( 'txt', 'module_name', 'Name is required.', 'modal-message') == false ) {return false;}
-            if ( checkInput( 'txt', 'module_label', 'Label is required.', 'modal-message') == false ) {return false;}
-            if ( checkInput( 'txt', 'module_folder', 'Folder is required.', 'modal-message') == false ) {return false;}
-            if ( checkInput( 'txt', 'module_sort', 'Sorting is required.', 'modal-message') == false ) {return false;}
-            if ( checkInput( 'cmb', 'module_status', 'Status is required.', 'modal-message') == false ) {return false;}
-
-            submitSaveUpdate('@Url.Content("~/Admin/Modules")');
+            if ( $("#mode").val() === "add")
+            {
+                if ( checkInput( 'cmb', 'emp_id', 'Select Employee.', 'modal-message') == false ) {return false;}
+            }
+            if ( checkInput( 'text', 'TripPurpose', 'Enter Trip Purpose.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'text', 'Destinations', 'Enter Destination.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'text', 'DateFrom', 'Enter Date From.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'text', 'DateTo', 'Enter Date To.', 'modal-message') == false ) {return false;}
+            submitSaveUpdate("/Request/Travel");
         }
     });
     </script>

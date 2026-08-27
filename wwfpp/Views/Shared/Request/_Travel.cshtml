@@ -1,46 +1,48 @@
 ﻿@using Microsoft.AspNetCore.Http;
 @inject IHttpContextAccessor HttpContextAccessor;
-@model List<wwfpp.Models.Admin.ModulesViewModel>
+@model List<wwfpp.Models.Request.EmployeeTravelMainViewModel>
 @{
     Layout = "~/Views/Shared/_Layout.cshtml";
-    var PageTitle = "Travel";
+    var PageTitle = "Employee Travel List";
     var Page_Tips = "";  //Tool tip message on right side
     var msg_please_wait = "";
-    var Page_Mode = PageTitle; 
+    var Page_Mode = PageTitle;
     var Pern = ViewBag.vpern;
     ViewData["Title"] = "| " + PageTitle;
     var Help_Tips = GblUtilities.HelpTips(Page_Tips);
     /*success|fail|error'*/
     string ShowMsg = GblUtilities.MsgDisplay(Context.Request.Query["msg"].ToString());
-
+    string CurrentFiscalYear = Context.Session.GetString("FiscalYear");
+    int? curEmployeeID = Convert.ToInt32(Context.Session.GetString("emp_id"));
 }
 @Html.AntiForgeryToken()
+@Html.Hidden("mode", "")
+@Html.Hidden("ilaka", "/Request/Travel")
 <h2 class="titlebig"><span name="header" id="header">@Page_Mode</span> @Html.Raw(Help_Tips)</h2>
-<input type="hidden" id="mode" name="mode" value="" />
-<input type="hidden" id="Id" name="Id" value="" />
 
 <div id="message_header"><p id="loading" class="loading displaynone">@msg_please_wait</p></div>
 <div id="message_header">@Html.Raw(ShowMsg)</div>
 
-<!-- Controls row under the header -->
-@if (ViewBag.apern == "true" || ViewBag.dpern == "true")
-{
-    <div class="p-0 bg-white rounded mb-3">
-        <div class="row align-items-center">
-            <!-- Right side: Buttons -->
-            <div class="col-auto ms-auto">
-                @if (ViewBag.apern == "true")
-                {
-                    <button type="button" id="btnAdd" class="button bg-green">Add New</button>
-                }
-                @if (ViewBag.dpern == "true" && Model != null)
-                {
-                    <button type="button" id="btnDelete" class="button bg-red">Delete</button>
-                }
-            </div>
+<div class="d-flex align-items-center">
+    <label class="me-2">Fiscal Year:</label>
+    <select id="FiscalYearList" class="form-control-sm" asp-items="ViewBag.FiscalYearList">
+        <option value="">-- Fiscal year --</option>
+    </select>
+
+    <label class="me-2">Employee status:</label>
+    @Html.DropDownList("EmployeeStatusFilter", (SelectList)ViewBag.EmployeeStatusFilter,new { @class = "form-select me-4", style = "width:150px;" })
+
+    <label class="me-2">Travel Status:</label>
+    @Html.DropDownList("LeaveStatusFilter", (SelectList)ViewBag.StatusPAFilter,
+        new { @class = "form-select me-4", style = "width:150px;" })
+</div>
+<div class="p-0 bg-white rounded mb-3">
+    <div class="row align-items-center">
+        <div class="col-auto ms-auto">
+            @Html.Raw(ViewBag.ViewButtons)
         </div>
     </div>
-}
+</div>
 <!-- DataTable -->
 @if (Model == null)
 {
@@ -53,13 +55,14 @@ else
             <thead>
                 <tr style="height: 40px; align-items: center;color:white;" class="bg-secondary bg-opacity-27">
                     <th width="1%"><input type="checkbox" id="selectAll"></th>
-                    <th width="10%">Code</th>
-                    <th width="25%">Name</th>
-                    <th width="20%">Label</th>
-                    <th width="14%">Folder</th>
-                    <th width="10%">Sorting</th>
+                    <th>Employee name</th>
+                    <th width="15%">Travel Type</th>
+                    <th width="25%">Destination/s</th>
+                    <th width="15%">Start Date</th>
+                    <th width="15%">End Date</th>
                     <th width="10%">Status</th>
-                    <th width="10%">Action</th>
+                    <th width="19%">Action</th>
+                    <th></th>
                 </tr>
             </thead>
             <tbody>
@@ -76,25 +79,69 @@ else
         <script>
             var perma = '@ViewBag.apern';
             var perme = '@ViewBag.epern';
-            var ilaka = "/Admin/Modules"; 
+            var ilaka = "/Request/Travel"; 
             var selectedIds = new Set();
+            var table;
             $(document).ready(function () 
             {
-                var table;
-                GetAllData(ilaka, perme, "module_id", [
-                    { data: "module_code", name: "module_code", autoWidth: false },
-                    { data: "module_name", name: "module_name", autoWidth: false },
-                    { data: "module_label", name: "module_label", autoWidth: false },
-                    { data: "module_folder", name: "module_folder", autoWidth: false },
-                    { data: "module_sort", name: "module_sort", autoWidth: false },
-                    { data: "module_status", name: "module_status", autoWidth: false }
-                ]);
+                
+                GetAllData(ilaka, "emp_travel_id", [
+                    { data: "employeename", name: "employeename", autoWidth: false },
+                    { data: "travel_type", name: "travel_type", autoWidth: false },
+                    { data: "destinations", name: "destinations", autoWidth: false },
+                    { data: "date_from", name: "date_from", autoWidth:  false,render: function (data, type, row) {if (type === 'display' || type === 'filter') {return moment(data).format(my_format);}return data;}},
+                    { data: "date_to", name: "date_to", autoWidth:  false,render: function (data, type, row) {if (type === 'display' || type === 'filter') {return moment(data).format(my_format);}return data;}},
+                    { data: "app_status", name: "app_status", autoWidth: false },
+                    { data: "showBtnCan", name: "showBtnCan", autoWidth: false,orderable: false,
+                        render: function(data, type, row) {
+                            var comboFiscalYear = $("#FiscalYearList").val();
+                            var currentFiscalYear = '@CurrentFiscalYear';
+                            var curEmployeeID = '@curEmployeeID';
 
-                $("#btnAdd").on("click", function(e) { add(e); });
-                $('#btnDelete').on('click', function () { delData(ilaka+'Delete');});
+                            if (data === "Y" && currentFiscalYear == comboFiscalYear && row.emp_id == curEmployeeID) {
+                                return '<button type="button" name="btnCancel" id="btnCancel" class="btnCancel" data-id="' + row.emp_travel_id + '">' +
+                                    '<img src="/images/delete.png" title="Cancel" width="16" height="16">' +
+                                    '</button>';
+                            } else {
+                                return "";
+                            }
+                        }
+
+                    }
+                    ],
+                    {
+                    FilterValue1: "FiscalYearList",
+                    FilterValue2: "EmployeeStatusFilter",
+                    FilterValue3: "LeaveStatusFilter",
+                    }
+                );
+            });
+                $("#EmployeeStatusFilter").off("change").on("change", function () {
+                    table.draw();
+                });
+                $("#FiscalYearList").off("change").on("change", function () {
+                    const fiscalYear = $('#FiscalYearList').val();
+                    if (!fiscalYear) {return;}
+                    table.draw();
+                });
+
+                $('#tblData_filter').hide();
                 $(document).on("click", "#tblData .button", function () {ViewData($(this).data("id"));});
                 $(document).off('click', '#btnC').on('click', '#btnC', function () {modalCloseCancel($(this));});
 
+            $("#tblData").on("click", ".btnCancel", function () {
+                var id = $(this).data("id");
+                $.ajax({
+                    url: '/Request/TravelCancel',
+                    type: 'GET',
+                    data: { id: id },
+                    success: function (result) {
+                        $("#ModalBody").html(result);
+                        $("#ModalID .modal-title").text("Employee Travel [Cancel]");
+                        var modal = new bootstrap.Modal(document.getElementById("ModalID"));
+                        modal.show();
+                    }
+                });
             });
         </script>
     }

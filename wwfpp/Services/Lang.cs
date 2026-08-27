@@ -246,4 +246,13 @@ public static class Lang
     */
     public static string EMAIL_EMPLOYEE_CAN_DISCARD_SUBJECT = "Leave cancellation request discarded by <[EMPLOYEE-NAME-ONLY]>";
     public static string EMAIL_EMPLOYEE_CAN_DISCARD_MESSAGE = "Dear Sir/Madam,<br/><br/>Please discard my previously submitted following Leave cancellation request below.<br/><br/><[STR-MESSAGE]><br/><br/>Regards<br/><[EMPLOYEE-NAME-ONLY]><br/><br/>";
+
+    /*--------------------------------------------------------------------------------'
+    * Email Notification about TRAVEL CANCEL & DISCARD
+    *--------------------------------------------------------------------------------'
+    */
+    public static string CANCEL_REQUEST_SAVED_AND_EMAIL_SENT = "Cancel request saved and email sent.";
+    public static string EMAIL_EMPLOYEE_TRAVEL_CAN_SAVE_SUBJECT = "Travel cancellation request submitted by <[EMPLOYEE-NAME-ONLY]>";
+    public static string EMAIL_EMPLOYEE_TRAVEL_CAN_SAVE_MESSAGE = "Dear Sir/Madam,<br/><br/>Please find my travel cancellation request below.<br/><br/><[STR-MESSAGE]><br/><br/>Regards<br/><[EMPLOYEE-NAME-ONLY]><br/><br/>";
+    public static string NOT_FOUND = "Record not found.";
 }
