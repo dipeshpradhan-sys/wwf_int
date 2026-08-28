@@ -360,7 +360,7 @@ namespace wwfpp.Controllers
             string EmployeeStatusFilter = (request.FilterValue2 == "A" ? "Active" : "Inactive");
             string LeaveStatusFilter = request.FilterValue3 ?? "Pending";
 
-            if (string.IsNullOrEmpty(FiscalYearListFilter)) FiscalYearListFilter = HttpContext.Session.GetString("FiscalYear") ?? "";
+            if (string.IsNullOrEmpty(FiscalYearListFilter)) FiscalYearListFilter = HttpContext.Session.GetString("fiscal_year") ?? "";
 
             var data = await _context.GetEmployeeLeave.FromSqlRaw("EXEC GetEmployeeLeave @fiscal_year = {0}, @emp_status = {1}, @leaveStatus = {2}", FiscalYearListFilter, EmployeeStatusFilter, LeaveStatusFilter).ToListAsync();
             var query = data.AsQueryable();
@@ -388,7 +388,7 @@ namespace wwfpp.Controllers
         public JsonResult CalculateLeaveHours(int empId, int leaveTypeId, DateTime fromDate, DateTime toDate)
         {
             var normalWorkingHours = _requestServices.GetLimitHoursSetting()?.normal_working_hrs ?? 8;
-            var fiscalYear = HttpContext.Session.GetString("FiscalYear");
+            var fiscalYear = HttpContext.Session.GetString("fiscal_year");
 
             var holidays = _context.tbl_setting_holidays.Where(h => h.fiscal_year == fiscalYear).Select(h => h.holiday_date).ToList();
             var dayOffs = _context.tbl_employee_dayoff.Where(d => d.fiscal_year == fiscalYear && d.emp_id == empId).Select(d => d.dayoff_date).ToList();
@@ -815,8 +815,8 @@ namespace wwfpp.Controllers
         }
         public async Task<IActionResult> LeaveSummary(int empId, string fiscalYear)
         {
-            string? sessionDateFrom = HttpContext.Session.GetString("DateFrom");
-            DateTime endFiscalDate = DateTime.Parse(HttpContext.Session.GetString("DateTo")!);
+            string? sessionDateFrom = HttpContext.Session.GetString("date_from");
+            DateTime endFiscalDate = DateTime.Parse(HttpContext.Session.GetString("date_to")!);
 
             var newStartFiscalDate = _leaveServices.GetFirstLeavePaidEndDate(empId, fiscalYear, Convert.ToDateTime(sessionDateFrom!), 1);
             DateTime startDate = DateTime.Parse(Convert.ToString(newStartFiscalDate));
@@ -1039,7 +1039,7 @@ namespace wwfpp.Controllers
             ViewBag.epern = perm.epern;
             ViewBag.dpern = perm.dpern;
             #endregion FOR END PERMISSION;
-            string? FiscalYearActive = HttpContext.Session.GetString("FiscalYear");
+            string? FiscalYearActive = HttpContext.Session.GetString("fiscal_year");
             ViewBag.EmployeeStatusFilter = GblUtilities.StatusActivePassive("AD", "A");
 
 
@@ -1119,7 +1119,7 @@ namespace wwfpp.Controllers
             var LeaveType = _context.tbl_leave_heading.OrderBy(c => c.description).ToList();
             ViewBag.LeaveTypeList = new SelectList(LeaveType, "leave_type_id", "description");
             // Fiscal year dropdown
-            string? FiscalYearActive = HttpContext.Session.GetString("FiscalYear");
+            string? FiscalYearActive = HttpContext.Session.GetString("fiscal_year");
             var FiscalYearFuture = _context.tbl_fiscal_year.Where(c => c.fiscal_year.CompareTo(FiscalYearActive) > 0).OrderBy(c => c.fiscal_year).ToList();
             ViewBag.FiscalYearFutureList = new SelectList(FiscalYearFuture, "fiscal_year", "fiscal_year", FiscalYearActive);
             ViewBag.EmployeeList = _employeeServices.GetEmployeeActiveOnly();
@@ -2329,14 +2329,14 @@ namespace wwfpp.Controllers
             ViewBag.TimesheetFullyFilled = TimesheetFullyFilled;
             //-- Check for Timesheet hour entries. Ends here
 
-            string? dateFromStr = HttpContext.Session.GetString("DateFrom");
+            string? dateFromStr = HttpContext.Session.GetString("date_from");
             DateTime? FiscalStartDate = null;
 
             if (!string.IsNullOrEmpty(dateFromStr))
             {
                 FiscalStartDate = DateTime.Parse(dateFromStr);
             }
-            string? dateToStr = HttpContext.Session.GetString("DateTo");
+            string? dateToStr = HttpContext.Session.GetString("date_to");
             DateTime? FiscalEndDate = null;
 
             if (!string.IsNullOrEmpty(dateToStr))
@@ -2566,7 +2566,7 @@ namespace wwfpp.Controllers
             try
             {
                 int timeSheetCounter = await _requestServices.GetTimeSheetCounter(empid, year, month);
-                var fiscalYearActive = HttpContext.Session.GetString("FiscalYear");
+                var fiscalYearActive = HttpContext.Session.GetString("fiscal_year");
 
                 var newEntries = new List<tbl_employee_timesheet_sub>();
 
@@ -2664,7 +2664,7 @@ namespace wwfpp.Controllers
         {
 
             int maxtimeSheetCounter = await _requestServices.GetCurrentMaxCounterAsync(empid, year, month);
-            var fiscalYearActive = HttpContext.Session.GetString("FiscalYear");
+            var fiscalYearActive = HttpContext.Session.GetString("fiscal_year");
 
 
             var sql = _context.tbl_employee_timesheet_app
