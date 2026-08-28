@@ -1,75 +1,161 @@
-﻿@model wwfpp.Models.Admin.ModulesViewModel
+﻿@model wwfpp.Models.EmployeeOvertimeAddEditViewModel
 @{
     string mode = ViewBag.mode;
 }
-<!-- (A) HTML DIALOG BOX -->
-<partial name="_ConstantValues" view-data='new ViewDataDictionary(ViewData) { { "NoteKey", "RequiredField" } }' />
-    @Html.HiddenFor(m => m.module_id) <!-- Needed for Edit -->
-    <div class="form-group row p-1">
+<script language="javascript">
+    $(document).ready(function () {
 
-        <label class="col-lg-12 col-form-label-lg">Code<span class="text-danger">*</span></label>
-        <div class="col-lg-12">
-        <input type="text" class="form-control" asp-for="module_code" name="module_code" id="module_code" autocomplete="module_code" placeholder="" maxlength="50" onKeyPress="javascript:goNext(event.keyCode,'module_name');" />
-        </div>
-    
-        <label class="col-lg-12 col-form-label-lg">Name<span class="text-danger">*</span></label>
-        <div class="col-lg-12">
-        <input type="text" class="form-control" asp-for="module_name" name="module_name" id="module_name" autocomplete="module_name" placeholder="" maxlength="250" onKeyPress="javascript:goNext(event.keyCode,'module_label');" />
-        </div>
-        
-        <label class="col-lg-12 col-form-label-lg">Label<span class="text-danger">*</span></label>
-        <div class="col-lg-12">
-        <input type="text" class="form-control" asp-for="module_label" name="module_label" id="module_label" autocomplete="module_label" placeholder="" maxlength="250"  onKeyPress="javascript:goNext(event.keyCode,'module_folder');" />
-        </div>
-        
-        <label class="col-lg-12 col-form-label-lg">Folder<span class="text-danger">*</span></label>
-        <div class="col-lg-12">
-        <input type="text" class="form-control" asp-for="module_folder" name="module_folder" id="module_folder" autocomplete="module_folder" placeholder="" maxlength="250" onKeyPress="javascript:goNext(event.keyCode,'module_sort');" />
-        </div>        
-        
-        <label class="col-lg-12 col-form-label-lg">Sorting<span class="text-danger">*</span></label>
-        <div class="col-lg-12">
-        <input type="text" class="form-control" asp-for="module_sort" name="module_sort" id="module_sort" autocomplete="module_sort" placeholder="" maxlength="2" onblur="javascript:OnlyNumeric('module_sort','modal_message')" onKeyPress="javascript:goNext(event.keyCode,'module_status');" />
-        </div>
+        $('#OtDate').datepicker({
+                format: 'mm/dd/yyyy',
+                autoclose: true,
+                todayHighlight: true,
+                todayBtn: "linked",   // ensures clicking Today sets the date
+                clearBtn: true
+            });
 
-        <label class="col-lg-12 col-form-label-lg">Status<span class="text-danger">*</span></label>
-        <div class="col-lg-12">
-        <select name="module_status" id="module_status" asp-for="module_status" class="form-control" onKeyPress="javascript:goNext(event.keyCode,'btnSave');">
-                <option value="">--Select--</option>
-                <option value="A">Active</option>
-                <option value="P">Passive</option>
-            </select>
+    });
+</script>
+    @Html.AntiForgeryToken()
+    @Html.Hidden("mode", "")
+    @Html.HiddenFor(m => m.id)
+    <input type="hidden" id="hid_overtime_row_count" value="@(Model?.Sessions?.Count ?? 0)" />
+    <!-- Employee List -->
+    <div class="mb-3 row">
+        @if (mode == "add")
+        {
+            <label class="col-sm-2 col-form-label text-end">Employee <span class="text-danger">*</span></label>
+            <div class="col-sm-4">
+                @Html.DropDownListFor(m => m.emp_id, (SelectList)ViewBag.EmployeeList, "-- Select Employee --", new { @class = "form-control-sm" })
+            </div>
+        }
+        else
+        {
+            string empStatus = Model.emp_status ?? "";
+            <label class="col-lg-12 col-form-label-lg">Employee:<span class="text-danger">*</span> @ViewBag.Employee [@empStatus] @Html.HiddenFor(m => m.emp_id)</label>
+            <div class="col-lg-12">
+                &nbsp;
+            </div>
+        
+        }
+    </div>
+    <!-- Date -->
+    <div class="mb-3 row">
+        <label class="col-sm-2 col-form-label text-end">Date <span class="text-danger">*</span></label>
+        <div class="col-sm-4">
+            @Html.TextBoxFor(m => m.OtDate, "{0:MM/dd/yyyy}",
+                     new { @class = "form-control form-control-sm", @id = "OtDate", autocomplete = "off" })
         </div>
-
+    </div>
+    <!-- Time Sessions -->
+    <div class="mb-3 row">
+        <label class="col-sm-2 col-form-label text-end">Time <span class="text-danger">*</span></label>
+        <div class="col-sm-10" id="sessionRows">
+            @if (Model != null && Model?.Sessions != null)
+                {
+                    @for (int i = 0; i < (Model.Sessions?.Count ?? 0); i++)
+                    {
+                        <div class="row mb-2 align-items-center" id="sessionRow_@i">
+                            <div class="col-2">
+                                @Html.DropDownListFor(m => m.Sessions[i].StartHour,
+                                    new SelectList(Enumerable.Range(0, 24).Select(h => new { Value = h, Text = h.ToString("D2") }),
+                                    "Value", "Text", Model.Sessions[i].StartHour),
+                                    new { @class = "form-control-sm", @id = $"start_hour{i}", onchange = $"calculateOvertime({i})" })
+                            </div>
+                            <div class="col-2">
+                                @Html.DropDownListFor(m => m.Sessions[i].StartMinute,
+                                    new SelectList(new[] { 0, 15, 30, 45 }.Select(mn => new { Value = mn, Text = mn.ToString("D2") }),
+                                    "Value", "Text", Model.Sessions[i].StartMinute),
+                                    new { @class = "form-control-sm", @id = $"start_minute{i}", onchange = $"calculateOvertime({i})" })
+                            </div>
+                            <div class="col-2">
+                                @Html.DropDownListFor(m => m.Sessions[i].EndHour,
+                                    new SelectList(Enumerable.Range(0, 24).Select(h => new { Value = h, Text = h.ToString("D2") }),
+                                    "Value", "Text", Model.Sessions[i].EndHour),
+                                    new { @class = "form-control-sm", @id = $"end_hour{i}", onchange = $"calculateOvertime({i})" })
+                            </div>
+                            <div class="col-2">
+                                @Html.DropDownListFor(m => m.Sessions[i].EndMinute,
+                                    new SelectList(new[] { 0, 15, 30, 45 }.Select(mn => new { Value = mn, Text = mn.ToString("D2") }),
+                                    "Value", "Text", Model.Sessions[i].EndMinute),
+                                    new { @class = "form-control-sm", @id = $"end_minute{i}", onchange = $"calculateOvertime({i})" })
+                            </div>
+                            <div class="col-4 d-flex">
+                                @Html.TextBoxFor(m => m.Sessions[i].Hours,new { @class = "form-control-sm me-1 w-25", @readonly = "readonly", @id = $"ot_hours{i}" })
+                                <button type="button" class="btn btn-sm btn-secondary me-1" onclick="clearOvertimeSession(@i)">Clear</button>
+                                @if (Model.Sessions[i].CanRemove)
+                                {
+                                    <button type="button" class="btn btn-sm btn-danger" onclick="removeOvertimeRow(@i)">Remove</button>
+                                }
+                            </div>
+                        </div>
+                    }
+                }
+                <!-- Add Row button always at bottom -->
+            <div class="mt-2">
+                <button type="button" class="btn btn-sm btn-dark" onclick="addOvertimeRow()">Add New Row</button>
+            </div>
+        </div>
     </div>
 
+    <!-- Total Hours -->
+    <div class="mb-3 row">
+        <label class="col-sm-2 col-form-label text-end">Total Hours</label>
+        <div class="col-sm-4">
+            @Html.TextBoxFor(m => m.TotalHours, new { @class = "form-control", @readonly = "readonly", @id = "total_hours" })
+        </div>
+    </div>
+
+    <!-- Reason/Description -->
+    <div class="mb-3 row">
+        <label class="col-sm-2 col-form-label text-end">Reason/Description <span class="text-danger">*</span></label>
+        <div class="col-sm-8">
+            @Html.TextBoxFor(m => m.OtDesc, new { @class = "form-control", maxlength = "255" })
+        </div>
+    </div>
+
+    <!-- Requested By -->
+    <div class="mb-3 row">
+        <label class="col-sm-2 col-form-label text-end">Requested By <span class="text-danger">*</span></label>
+        <div class="col-sm-4">
+        @Html.DropDownListFor(m => m.RequestedBy, (SelectList)ViewBag.EmployeeRequestByList, "-- Select Employee --", new { @class = "form-control-sm" })
+        </div>
+    </div>
 @if (mode == "add" && ViewBag.apern == "true")
 {
-    <script>renderModalButtons("modal-button-list", "Save");</script>
+    <text>
+        <script>
+                document.getElementById("modal-button-list").innerHTML =
+                '<button type="button" name ="btnSave" id="btnSave" class="button btn-primary">Save</button>'+
+                '<button type="button" name ="btnC" id="btnC" class="button btn-secondary">Close</button>';
+        </script>
+    </text>
 }
 else if (mode == "edit" && ViewBag.epern == "true")
 {
-    <script>renderModalButtons("modal-button-list", "Edit");</script>
-}
-else
-{
-    <script>renderModalCloseButton("modal-button-list")</script>
-}
     <script>
+        document.getElementById("modal-button-list").innerHTML =
+        '<button type="button" name ="btnSave" id="btnSave" class="button btn-primary">Edit</button>'+
+        '<button type="button" name ="btnC" id="btnC" class="button btn-secondary">Close</button>';
+    </script>
+}
+<script>
+
     // Toggle between Edit and Update
     $(document).off("click", "#btnSave").on("click", "#btnSave", function () {
         var btn = $(this);
-        if (btn.text() == "Edit") {$("#ModalID .modal-title").text("Update");btn.text("Update");$("#btnC").text("Cancel");return;}  
+        if (btn.text() == "Edit") {$("#ModalID .modal-title").text("Update");btn.text("Update");$("#btnC").text("Cancel");return;}
         if (btn.text() === "Update" || btn.text() === "Save") {
+            if ( $("#mode").val() === "add")
+            {
+                if ( checkInput( 'cmb', 'emp_id', 'Employee is required.', 'modal-message') == false ) {return false;}
+            }
+            if ( checkInput( 'txt', 'OtDate', 'Date is required.', 'modal-message') == false ) {return false;}
+            if ( checkInput( 'cmb', 'RequestedBy', 'Requested by is required.', 'modal-message') == false ) {return false;}
+            
+            if ( checkInput( 'txt', 'OtDesc', 'Reason/Description is required.', 'modal-message') == false ) {return false;}
 
-            if ( checkInput( 'txt', 'module_code', 'Code is required.', 'modal-message') == false ) {return false;}
-            if ( checkInput( 'txt', 'module_name', 'Name is required.', 'modal-message') == false ) {return false;}
-            if ( checkInput( 'txt', 'module_label', 'Label is required.', 'modal-message') == false ) {return false;}
-            if ( checkInput( 'txt', 'module_folder', 'Folder is required.', 'modal-message') == false ) {return false;}
-            if ( checkInput( 'txt', 'module_sort', 'Sorting is required.', 'modal-message') == false ) {return false;}
-            if ( checkInput( 'cmb', 'module_status', 'Status is required.', 'modal-message') == false ) {return false;}
-
-            submitSaveUpdate('@Url.Content("~/Admin/Modules")');
+            submitSaveUpdate("/Request/Overtime");
         }
     });
-    </script>
+</script>
+

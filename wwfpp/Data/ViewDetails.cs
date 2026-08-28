@@ -191,17 +191,19 @@ namespace wwfpp.Data
     {
         [Key]
         public string OtReqId { get; set; }
-        public int EmpId { get; set; }
-        public string EmployeenameWithCode { get; set; }
-        public string EmployeeStatus { get; set; }
-        public string DayName { get; set; }
-        public DateTime OvertimeDate { get; set; }
-        public DateTime SubmitDate { get; set; }
-        public double TotalHours { get; set; }
-        public string RequestBy { get; set; }
-        public string Description { get; set; }
-        public string OvertimeStatus { get; set; }
-        public string OvertimePaidedStatus { get; set; }
+        public int? EmpId { get; set; }
+        public string? EmployeenameWithCode { get; set; }
+        public string? EmployeeStatus { get; set; }
+        public string? DayName { get; set; }
+        public DateTime? OvertimeDate { get; set; }
+        public DateTime? SubmitDate { get; set; }
+        public double? TotalHours { get; set; }
+        public string? RequestBy { get; set; }
+        public string? Description { get; set; }
+        public string? OvertimeStatus { get; set; }
+        public string? OvertimePaidedStatus { get; set; }
+        public string? app_status { get; set; }
+        public DateTime? paid_date { get; set; }
     }
 
 
