@@ -51,6 +51,7 @@
     </PackageReference>
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.8" />
     <PackageReference Include="QuestPDF" Version="2026.7.1" />
+    <PackageReference Include="ReportViewerCore.NETCore" Version="15.1.33" />
     <PackageReference Include="System.Drawing.Common" Version="10.0.8" />
     <PackageReference Include="System.Linq.Dynamic.Core" Version="1.7.2" />
   </ItemGroup>
@@ -72,6 +73,15 @@
 
   <ItemGroup>
     <EditorConfigFiles Remove="D:\MyWorks\web\_NET\current\wwf-pp-new\wwfpp\wwfpp\.editorconfig" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Reports\Employee\EmpTimesheet.rdlc">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Reports\Request\EmployeeOvertime.rdlc">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>

@@ -31,59 +31,78 @@ namespace wwfpp.EmailServices
                 Credentials = new NetworkCredential(settings.FromEmail, settings.PassPhrase)
             };
         }
-        public async Task<string> SendEmailAsync(string to, string subject, string body, string attachmentPath = null,
-        string cc = null, string bcc = null, string fromName = null, string fromEmail = null)
+
+        public async Task<string> SendEmailAsync(string to,string subject,string body,string attachmentPath = null,string cc = null,string bcc = null,string fromName = null,string fromEmail = null)
         {
             var _fromName = string.IsNullOrWhiteSpace(fromName) ? sFromName : fromName;
             var _fromEmail = string.IsNullOrWhiteSpace(fromEmail) ? sFromEmail : fromEmail;
             var _subject = string.IsNullOrWhiteSpace(subject) ? Lang.lbl_empty_subject : subject;
 
-            MailMessage mail = new MailMessage();
-            mail.IsBodyHtml = true;
+            string result;
 
-            mail.From = new MailAddress(_fromEmail, _fromName);
-
-            mail.To.Add(to.Trim());
-
-            // Multiple CCs supported with ; or ,
-            if (!string.IsNullOrWhiteSpace(cc))
+            using (var mail = new MailMessage())
             {
-                foreach (var ccAddr in cc.Split(new[] { ';', ',' }, StringSplitOptions.RemoveEmptyEntries))
-                {
-                    mail.CC.Add(ccAddr.Trim());
-                }
-            }
+                mail.IsBodyHtml = true;
+                mail.From = new MailAddress(_fromEmail, _fromName);
+                mail.To.Add(to.Trim());
 
-            // Multiple BCCs supported with ; or ,
-            if (!string.IsNullOrWhiteSpace(bcc))
-            {
-                foreach (var bccAddr in bcc.Split(new[] { ';', ',' }, StringSplitOptions.RemoveEmptyEntries))
+                if (!string.IsNullOrWhiteSpace(cc))
                 {
-                    mail.Bcc.Add(bccAddr.Trim());
+                    foreach (var ccAddr in cc.Split(new[] { ';', ',' }, StringSplitOptions.RemoveEmptyEntries))
+                        mail.CC.Add(ccAddr.Trim());
                 }
-            }
 
-            // Multiple Attachements supported with ;
+                if (!string.IsNullOrWhiteSpace(bcc))
+                {
+                    foreach (var bccAddr in bcc.Split(new[] { ';', ',' }, StringSplitOptions.RemoveEmptyEntries))
+                        mail.Bcc.Add(bccAddr.Trim());
+                }
+
+                if (!string.IsNullOrWhiteSpace(attachmentPath))
+                {
+                    foreach (var atth in attachmentPath.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries))
+                    {
+                        // Attach file – MailMessage will dispose attachments when disposed
+                        mail.Attachments.Add(new Attachment(atth));
+                    }
+                }
+
+                mail.Subject = _subject.Trim();
+                mail.Body = body.Trim() + Lang.EMAIL_ATTN_DO_NO_REPLY;
+
+                try
+                {
+                    await _smtpClient.SendMailAsync(mail).ConfigureAwait(false);
+                    result = "true";
+                }
+                catch (Exception ex)
+                {
+                    result = $"Failed to send email: {ex.Message}";
+                }
+            } // MailMessage disposed here, attachments released
+
+            // ✅ Delete attachments AFTER disposal
             if (!string.IsNullOrWhiteSpace(attachmentPath))
             {
                 foreach (var atth in attachmentPath.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries))
                 {
-                    mail.Attachments.Add(new Attachment(atth));
+                    if (File.Exists(atth))
+                    {
+                        try
+                        {
+                            File.Delete(atth);
+                        }
+                        catch (IOException ioEx)
+                        {
+                            result = $"Email sent but failed to delete file: {ioEx.Message}";
+                        }
+                    }
                 }
             }
-            mail.Subject = _subject.Trim();
-            mail.Body = body.Trim() + Lang.EMAIL_ATTN_DO_NO_REPLY;
-            try
-            {
-                await _smtpClient.SendMailAsync(mail).ConfigureAwait(false);
-                return "true"; // success
-            }
-            catch (Exception ex)
-            {
-                // log ex.Message if needed
-                return $"Failed to send email: {ex.Message}"; // failure
-            }
+
+            return result;
         }
+
 
     }
 }

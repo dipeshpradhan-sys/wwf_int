@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.Reporting.NETCore;
 using System.Globalization;
 using System.Linq.Dynamic.Core;
 using System.Net.Mail;
@@ -2732,58 +2733,78 @@ namespace wwfpp.Controllers
             string subject = $"{orgName} {addOptText} Timesheet of {EmployeeName}";
             string body = $"Dear Sir/Madam,<br/><br/>Attached file is {addOptText} Timesheet of employee {EmployeeName} of the period {monthName}, {year} fiscal year. Please click Approve or Decline link provided below as appropriate.<br/><br/> {approveEmailLink} {declineEmailLink}";
 
-            /*
+
             string EmployeeTimesheetFileName = await CreateEmployeeTimesheet(year, month, empid, maxtimeSheetCounter);
             string filePath = Path.Combine(Directory.GetCurrentDirectory(), "Temp", "Timesheet");
             if (!Directory.Exists(filePath))
                 Directory.CreateDirectory(filePath);
             string EmployeeTimesheet = filePath + "/" + EmployeeTimesheetFileName;
-            */
-            string EmployeeTimesheet = "";
+
             _emailService.SendEmail(null, toEmail, subject, body, EmployeeTimesheet, null, null, null, null);
-            //System.IO.File.Delete(EmployeeTimesheet);
 
             return Json(new { success = true, message = "Timesheet has been sent for approval." });
 
         }
 
-        /*
         public async Task<string> CreateEmployeeTimesheet(int year, int month, int empid, int timeSheetCounter)
         {
             string empName = _employeeServices.GetEmployeeName(empid);
             string monthName = CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(month);
 
-            var uploadsFolder = Path.Combine(AppContext.BaseDirectory, "Reports", "Employee");
-            var filePath = Path.Combine(AppContext.BaseDirectory, "Temp", "Timesheet");
+            // Go up three levels from bin\Debug\net10.0 to project root
+            var projectRoot = Directory.GetParent(AppContext.BaseDirectory).Parent.Parent.Parent.FullName;
+
+            var uploadsFolder = Path.Combine(projectRoot, "Reports", "Employee");
+            var filePath = Path.Combine(projectRoot, "Temp", "Timesheet");
 
             Directory.CreateDirectory(uploadsFolder);
             Directory.CreateDirectory(filePath);
 
             string rdlcPath = Path.Combine(uploadsFolder, "EmpTimesheet.rdlc");
 
-            LocalReport localReport = new LocalReport(rdlcPath);
+            LocalReport localReport = new LocalReport();
+            using (var fs = new FileStream(rdlcPath, FileMode.Open, FileAccess.Read))
+            {
+                localReport.LoadReportDefinition(fs);
+            }
 
+            // Add data source
             var data = _requestServices.GetEmployeeTimesheet(year, month, empid, timeSheetCounter).ToList();
-            localReport.AddDataSource("DataSet1", data);
+            localReport.DataSources.Add(new ReportDataSource("DataSet1", data));
 
-            // Parameters are a dictionary
-            var parameters = new Dictionary<string, string>
-                {
-                    { "Employee", empName },
-                    { "Month", monthName },
-                    { "Year", year.ToString() }
-                };
+            // Parameters
+            var parameters = new ReportParameterCollection
+            {
+                new ReportParameter("Employee", empName),
+                new ReportParameter("Month", monthName),
+                new ReportParameter("Year", year.ToString())
+            };
+            localReport.SetParameters(parameters);
 
-            // Render to Excel
-            ReportResult result = localReport.Execute(RenderType.ExcelOpenXml, 1, parameters);
+            // Render to Excel (OpenXML)
+            string mimeType, encoding, extension;
+            string[] streams;
+            Warning[] warnings;
+
+            byte[] bytes = localReport.Render(
+                "EXCELOPENXML", // Output format
+                null,           // DeviceInfo string
+                out mimeType,
+                out encoding,
+                out extension,
+                out streams,
+                out warnings
+            );
 
             string fileName = $"EmployeeTimesheet{DateTime.Now:MMddyyyy}.xlsx";
             string fullPath = Path.Combine(filePath, fileName);
-            System.IO.File.WriteAllBytes(fullPath, result.MainStream);
+            System.IO.File.WriteAllBytes(fullPath, bytes);
 
             return fileName;
         }
-        */
+
+
+
 
         public async Task<IActionResult> GetPreviousApprovedTimesheets(int year, int month, int empid)
         {
