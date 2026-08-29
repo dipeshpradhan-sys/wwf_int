@@ -89,6 +89,8 @@ var msg_are_you_sure_to_clear = "Are you sure you want to clear ?";
 var msg_are_you_sure_to_perform_this_action = "Are you sure you want to perform this action ?\n\nClick OK button to perform this action or Cancel button to cancel process.";
 var msg_are_you_sure_to_upload_selected_file = "Are you sure you want to upload selected file ?\n\nClick OK button to upload file or Cancel button to cancel process.";
 
+
+
 /*----------------------------------------------------------------------------------------------------------*
  * USER ADMINISTRATION >>
  *----------------------------------------------------------------------------------------------------------*/
@@ -169,8 +171,8 @@ var msg_leave_accrual_cleared_scuccessfully = "Leave accrual cleared successfull
 '*--------------------------------------------------------------------------------*/
 var msg_gratuity_accrual_cleared_successfully = "Gratuity accrual cleared successfully";
 
-
 var msg_date_required = "Date is required.";
+var msg_no_employee_approver = "No approver is assigned for this employee. Please contact your administrator.";
 
 
 

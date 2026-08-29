@@ -1,0 +1,46 @@
+﻿@model IEnumerable<OvertimeDashboardVM>
+<div class="form-group p-2">
+    <table id="tblLeaveToMe" class="display compact nowrap" style="width:100%">
+        <thead>
+            <tr>
+                <th>Overtime Date</th>
+                <th>Submit Date</th>
+                <th>Total Hours</th>
+                <th>Action</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (Model != null && Model.Any())
+            {
+                @foreach (var item in Model)
+                {
+                    <tr>
+                        <td>@item.OtDate.ToString("MM/dd/yyyy")</td>
+                        <td>@item.SubmitDate.ToString("MM/dd/yyyy")</td>
+                        <td>@item.TotalHours</td>
+                        <td>
+                            <a href="#" class="send-reminder-dashboard"
+                               data-app-id ="@item.OtReqId"
+                               data-emp-id="@item.EmpId"
+                               data-to-emp-id="@item.ToEmpId"
+                               data-reminder-for = "overtime" 
+                                >
+                                [Send Reminder]
+                            </a>
+                        </td>
+
+
+                    </tr>
+                }
+            }
+            else
+            {
+                <tr>
+                    <td colspan="4" class="text-center text-muted">No data available</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+</div>

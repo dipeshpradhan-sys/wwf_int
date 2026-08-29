@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc.Authorization;
 using Microsoft.AspNetCore.Mvc.Razor;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
+using wwf_pp.Services;
 using wwfpp.Data;
 using wwfpp.EmailServices;
 using wwfpp.Helpers;
@@ -139,6 +140,7 @@ builder.Services.AddScoped<ApproverResolverService>();
 builder.Services.AddScoped<EmployeeOvertimeServices>();
 builder.Services.AddScoped<AdministrationEmailService>();
 builder.Services.AddScoped<TravelApprovalService>();
+builder.Services.AddScoped<DashboardService>();
 
 #endregion
 

@@ -1,7 +1,444 @@
 ﻿@{
-    ViewData["Title"] = " | Dashboard";
+    ViewData["Title"] = "Home Page";
+    var menuPermission = ViewData["menuPermission"];
+    var returnUrl = Context.Request.Path + Context.Request.QueryString;
+    var approvalFrom = Context.Request.Query["approval_from"].ToString();
+    var approveFor = Context.Request.Query["approve_for"].ToString();
+    var toemp_id = Context.Request.Query["toemp_id"].ToString();
+    int? EmployeeID = Convert.ToInt32(Context.Session.GetString("emp_id"));
+    if (EmployeeID == null)
+    {
+        // Build full login URL with returnUrl attached
+        var loginUrl = $"/Account/Login?returnUrl={System.Net.WebUtility.UrlEncode(returnUrl)}";
+        Context.Response.Redirect(loginUrl);
+    }
+    //This is to NOT LET Other User if knew the email link , simply use that Link and use in when they login in . Prevents that from comparing ID
+    if (EmployeeID != null && approvalFrom == "email" && approveFor != "" && (Convert.ToInt32(EmployeeID) != Convert.ToInt32(toemp_id)))
+    {
+        var loginUrl = $"/Account/Login?returnUrl={System.Net.WebUtility.UrlEncode(returnUrl)}";
+        Context.Response.Redirect(loginUrl);
+    }
 }
+@if (menuPermission == "No")
+{
+    <div id="MainIndex" class="text-center">
+        <h1 class="text-danger">No permission is provided. Please contact your system administrator for assistance.</h1>
+    </div>
+}
+else if (EmployeeID == 0) // Admin So no Dashboard
+{
+    <div id="MainIndex" class="text-center">
+        <h1 class="display-4">Welcome to WWF. Please navigate through left menus.</h1>
+    </div>
+}
+else
+{
+    <div id="MainIndex" class="text-center">
+        @if (ViewData["ApprovalMode"] != null && (bool)ViewData["ApprovalMode"])
+        {
+            <h1 class="display-4">Approval/Decline from External Links/Email</h1>
+            <!-- Hidden fields for Approval Mode -->
+            <input type="hidden" id="EmpId" value="@ViewData["EmpId"]" />
+            <input type="hidden" id="EmpMonth" value="@ViewData["EmpMonth"]" />
+            <input type="hidden" id="EmpYear" value="@ViewData["EmpYear"]" />
+            <input type="hidden" id="ToId" value="@ViewData["ToId"]" />
+            <input type="hidden" id="ToEmpId" value="@ViewData["ToEmpId"]" />
+            <input type="hidden" id="St" value="@ViewData["St"]" />
+            <input type="hidden" id="StrCounter" value="@ViewData["StrCounter"]" />
+            <input type="hidden" id="AppId" value="@ViewData["AppId"]" />
+            <input type="hidden" id="ApproveFor" value="@ViewData["ApproveFor"]" />
+        }
+        else
+        {
+            <!-- Dashboard -->
+            <div class="toast-container position-fixed top-0 start-50 translate-middle-x mt-5 p-3">
+                <div id="timesheetToast" class="toast" role="alert" aria-live="polite" aria-atomic="true">
+                    <div class="toast-body"></div>
+                </div>
+            </div>
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-</div>
+            <!-- Existing overlay for dashboard processing -->
+            <div id="overlay"
+                 style="display:none; position:fixed; top:0; left:0; width:100%; height:100%;
+                background:rgba(0,0,0,0.3); z-index:1050;">
+                <div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%);
+                    color:white; font-size:1.2rem;">
+                    <div class="spinner-border text-light" role="status"></div>
+                    <span class="ms-2">Processing...</span>
+                </div>
+            </div>
+
+            <h1 class="display-4">Welcome to your Dashboard</h1>
+            <div>
+                <!-- Dashboard columns -->
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group p-2 timesheet-container">
+                            <h5 class="timesheet-header">My TIMESHEET request sent to approval authority</h5>
+                            <div id="timesheetSupervisor"></div>
+                        </div>
+                        <div class="form-group p-2">
+                            <h5 class="timesheet-header">My LEAVE request sent to approval authority</h5>
+                            <div id="leaveSupervisor"></div>
+                        </div>
+                        <div class="form-group p-2">
+                            <h5 class="timesheet-header">My Travel request sent to approval authority</h5>
+                            <div id="travelSupervisor"></div>
+                        </div>
+                        <div class="form-group p-2">
+                            <h5 class="timesheet-header">My Overtime request sent to approval authority</h5>
+                            <div id="overtimeSupervisor"></div>
+                        </div>
+                        <div class="form-group p-2">
+                            <h5 class="timesheet-header">My Future Leave request sent to approval authority</h5>
+                            <div id="futureLeaveSupervisor"></div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="form-group p-2 timesheet-container">
+                            <h5 class="timesheet-header">Pending TIMESHEET request sent to me</h5>
+                            <div id="timesheetMe"></div>
+                        </div>
+                        <div class="form-group p-2">
+                            <h5 class="timesheet-header">Pending Leave request sent to me</h5>
+                            <div id="leaveMe"></div>
+                        </div>
+                        <div class="form-group p-2">
+                            <h5 class="timesheet-header">Pending Travel request sent to me</h5>
+                            <div id="travelMe"></div>
+                        </div>
+                        <div class="form-group p-2">
+                            <h5 class="timesheet-header">Pending Overtime request sent to me</h5>
+                            <div id="overtimeMe"></div>
+                        </div>
+                        <div class="form-group p-2">
+                            <h5 class="timesheet-header">Future Leave (Me)</h5>
+                            <div id="futureLeaveMe"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- 🔹 New overlay for Submit actions -->
+        <div id="submitOverlay"
+             style="display:none; position:fixed; top:0; left:0; width:100%; height:100%;
+            background:rgba(0,0,0,0.4); z-index:2000;">
+            <div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%);
+                color:white; font-size:1.2rem;">
+                <div class="spinner-border text-light" role="status"></div>
+                <span class="ms-2">Submitting...</span>
+            </div>
+        </div>
+    </div>
+    @await Html.PartialAsync("_SharedModal", new wwfpp.Models.ModalViewModel
+    {
+        ModalId = "ModalID",
+        DialogClass = "modal-lg",
+        Title = "Add / Edit User",
+        BodyId = "ModalBody",
+        SaveButtonId = "BtnModalSave",
+        SaveButtonText = "Save",
+        CancelButtonText = "Cancel",
+        ShowEditButton = "true"
+    })
+    @section Scripts {
+        <script>
+                // 🔹 Common Helpers (defined globally so all code can use them)
+                function resetModal() {
+                    const modal = $("#ModalID");
+                    modal.find("#ModalBody").empty();
+                    modal.find(".modal-title").text("Add / Edit User");
+                    modal.find("#BtnModalSave").text("Save");
+
+                    const modalInstance = bootstrap.Modal.getInstance(modal[0]);
+                    if (modalInstance) modalInstance.dispose();
+                }
+
+                function closeModal(id, delay = 2000) {
+                    setTimeout(() => {
+                        const modalEl = document.getElementById(id);
+                        const modal = bootstrap.Modal.getInstance(modalEl);
+                        if (modal) modal.hide();
+                    }, delay);
+                }
+
+                function showAlert(message, type = "danger") {
+                    $("#divAlertText").html(`<span class="text-${type} fw-bold">${message}</span>`);
+                    $("#divAlertMain").addClass("show");
+                }
+
+                function showToast(message, bgClass = "bg-primary") {
+                    const toastEl = document.getElementById("timesheetToast");
+                    if (!toastEl) return; // only exists in Dashboard
+                    const toastBody = toastEl.querySelector(".toast-body");
+                    const toast = new bootstrap.Toast(toastEl);
+
+                    toastBody.className = "toast-body " + bgClass + " text-white";
+                    toastBody.textContent = message;
+                    toast.show();
+                }
+
+                // 🔹 Make loadWithSpinner global so it can be reused
+                function loadWithSpinner(selector, url) {
+                    $(selector).html("<div class='spinner'></div>");
+                    $(selector).load(url, function (response, status) {
+                        if (status === "error") $(selector).html("Failed to load data.");
+                    });
+                }
+                // *****************************************************************************
+                // 🔹 Approval or Decline Mode initializer Auto Pop when clicked from Email Link
+            // *****************************************************************************
+                $(document).ready(function () {
+                    const empId = $("#EmpId").val();
+                    const appId = $("#AppId").val();
+                    if (empId && appId) {
+                        const month = $("#EmpMonth").val();
+                        const year = $("#EmpYear").val();
+                        const toID = $("#ToId").val();
+                        const toEmpID = $("#ToEmpId").val();
+                        const st = $("#St").val();
+                        const counter = $("#StrCounter").val();
+                        const approveFor = $("#ApproveFor").val();
+                        let approveDecline;
+                        switch (approveFor) {
+                            case "timesheet":
+                                approveDecline = "Timesheet";
+                                break;
+                            case "leave":
+                                approveDecline = "Leave";
+                                break;
+                            case "travel":
+                                approveDecline = "Travel";
+                                break;
+                            case "overtime":
+                                approveDecline = "Overtime";
+                                break;
+                            case "leavefuture":
+                                approveDecline = "Future Leave";
+                                break;
+                            default:
+                                approveDecline = "Others";
+                                break;
+                        }
+
+                            approveDecline += " " + (
+                                st === "a"  ? "Approval" :
+                                st === "d"  ? "Decline"  :
+                                st === "ca" ? "Cancel Approval" :
+                                st === "cd" ? "Cancel Decline" :
+                                ""
+                            );
+
+                        $.get("/EmailApproval/EmailApproval",
+                            { empId, appId, month, year, toID, toEmpID, st, counter, approveFor },
+                            function (data) {
+                                $("#ModalBody").html(data);
+                                $("#ModalID .modal-title").text(approveDecline);
+                                $("#BtnModalSave").text("Submit");
+
+                                const modal = new bootstrap.Modal(document.getElementById("ModalID"), {
+                                    backdrop: 'static',
+                                    keyboard: true
+                                });
+                                modal.show();
+                            });
+                    }
+
+                    // Reset modal on close
+                    $(document).on("hidden.bs.modal", "#ModalID", resetModal);
+
+                    // 🔹 Dashboard initializer
+                    loadWithSpinner("#timesheetSupervisor", "/Dashboard/TimesheetToSupervisor");
+                    loadWithSpinner("#timesheetMe", "/Dashboard/TimesheetToMe");
+                    loadWithSpinner("#leaveMe", "/Dashboard/LeaveToMe");
+                    loadWithSpinner("#leaveSupervisor", "/Dashboard/LeaveToSupervisior");
+                    loadWithSpinner("#travelSupervisor", "/Dashboard/TravelToSupervisior");
+                    loadWithSpinner("#travelMe", "/Dashboard/TravelToMe?parm_whos_list=PTM");
+                    loadWithSpinner("#overtimeMe", "/Dashboard/OvertimeToMe");
+                    loadWithSpinner("#overtimeSupervisor", "/Dashboard/OvertimeToSupervisior");
+                    loadWithSpinner("#futureLeaveMe", "/Dashboard/FutureLeaveToMe");
+                    loadWithSpinner("#futureLeaveSupervisor", "/Dashboard/FutureLeaveToSupervisior");
+
+                    // Send timesheet to supervisor from Dashboard
+                    $(document).on("click", ".send-timesheet", async function (e) {
+                        e.preventDefault();
+                        const overlay = document.getElementById("overlay");
+                        const { empId, year, month } = this.dataset;
+                        const url = `/Request/TimesheetToBeSentForApproval?empId=${empId}&year=${year}&month=${month}`;
+
+                        try {
+                            overlay.style.display = "block";
+                            showToast("Sending Timesheet for approval...", "bg-success");
+
+                            const response = await fetch(url);
+                            const data = await response.json();
+
+                            showToast(data?.message || "Timesheet sent for approval!", "bg-success");
+                        } catch (error) {
+                            showToast("Error sending timesheet: " + (error?.message || error), "bg-danger");
+                        } finally {
+                            overlay.style.display = "none";
+                        }
+                    });
+
+                    // Timesheet sent to me for approval/decline from Dashboard
+                    $(document).on("click", ".send-to-me-action", function (e) {
+                        e.preventDefault();
+                        const empId    = $(this).data("emp-id");
+                        const appId    = $(this).data("app-id");
+                        const month    = $(this).data("month");
+                        const year     = $(this).data("year");
+                        const toID     = $(this).data("to-id");
+                        const toEmpID  = $(this).data("to-emp-id");
+                        const st       = $(this).data("st");
+                        const counter  = $(this).data("counter");
+                        const approveFor = $(this).data("sent-to-me-type");
+                        const approveForDisplay = (
+                                            approveFor === "leavefuture" ? "Future Leave":approveFor
+                                );
+                        const approveDecline = approveForDisplay + " " +
+                            (st === "a" ? "Approval" :
+                             st === "d" ? "Decline" :
+                             st === "nr" ? "Recommendation Decline" :
+                             st === "rr" ? "Recommend" : "Unknown");
+
+                        if (empId && appId) {
+                            $.get("/EmailApproval/EmailApproval",
+                                { empId, appId, month, year, toID, toEmpID, st, counter, approveFor },
+                                function (data) {
+                                    $("#ModalBody").html(data);
+                                    $("#ModalID .modal-title").text(approveDecline);
+                                    $("#BtnModalSave").text("Submit");
+
+                                    const modal = new bootstrap.Modal(document.getElementById("ModalID"), {
+                                        backdrop: 'static',
+                                        keyboard: true
+                                    });
+                                    modal.show();
+                                });
+                        }
+                    });
+
+
+
+
+                    // Send Reminder from Dashboard
+                    $(document).on("click", ".send-reminder-dashboard", async function (e) {
+                        e.preventDefault();
+                        const overlay = document.getElementById("overlay");
+
+                        const empId       = $(this).data("emp-id");
+                        const appId       = $(this).data("app-id");
+                        const toID        = $(this).data("to-id");
+                        const toEmpID     = $(this).data("to-emp-id");
+                        const reminderFor = $(this).data("reminder-for");
+                        const reminderForPerformance = $(this).data("reminder-performance");
+
+                        try {
+                            // Show overlay + initial toast
+                            overlay.style.display = "block";
+                            showToast("Sending " + reminderFor + " reminder...", "bg-info");
+
+                            // Call controller
+                            const response = await fetch("/EmailApproval/SendEmailReminder", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                                body: $.param({ empID: empId, appID: appId, toID: toID, toEmpID: toEmpID, reminderFor: reminderFor, reminderForPerformance:reminderForPerformance })
+                            });
+
+                            const data = await response.json();
+
+                            // Show dynamic message returned by server
+                            showToast(data?.message || (reminderFor + " reminder sent!"), "bg-success");
+                        } catch (error) {
+                            showToast("Error sending " + reminderFor + " reminder: " + (error?.message || error), "bg-danger");
+                        } finally {
+                            overlay.style.display = "none";
+                        }
+                    });
+
+
+                });
+
+                // 🔹 Global save handler (outside ready so helpers are visible)
+                $(document).on("click", "#btnSave", function () {
+                    const btn = $(this);
+                    if (btn.text() === "Save") {
+                        // ✅ Serialize all inputs inside the modal div
+                        const formData = $("#ModalForm :input").serialize();
+
+                        // Grab anti-forgery token explicitly
+                        const token = $('input[name="__RequestVerificationToken"]').val();
+
+                        // Show submit overlay before request
+                        $("#submitOverlay").fadeIn();
+
+                        $.ajax({
+                            url: "/EmailApproval/EmailApprovalSave",
+                            type: "POST",
+                            data: formData,
+                            headers: {
+                                "RequestVerificationToken": token   // ✅ include token in headers
+                            },
+                            success: function (data) {
+                                const messages = {
+                                    success: status => `Data saved successfully.`,
+                                    alreadyapproved: status => `This ${status} was already approved.`,
+                                    alreadydeclined: status => `This ${status} was already declined.`,
+                                    alreadycancelled: status => `This ${status} was already cancelled.`,
+                                    alreadyrecommended: status => `This ${status} was already recommended.`,
+                                    alreadyrecommendationdeclined: status => `This ${status} was already declined.`,
+                                    notenoughhoursforweek: status => `Overtime exceeds weekly/daily limit.`,
+                                    approved: status => `${status.charAt(0).toUpperCase() + status.slice(1)} approved.`,
+                                    declined: status => `${status.charAt(0).toUpperCase() + status.slice(1)} declined.`,
+                                    notfound: status => `${status} record does not exist.`,
+                                    error: status => `Something went wrong. Submit denied.`
+                                };
+
+                                const msg = data.message || (messages[data.status] || messages.error)(data.status);
+                                const type = data.status === "success" ? "success" : "error";
+
+                                showAlert(msg, type);
+
+                                if (["approved", "declined", "recommended"].includes(data.status)) {
+                                    switch (data.approveFor?.toLowerCase()) {
+                                        case "timesheet":
+                                            loadWithSpinner("#timesheetMe", "/Dashboard/TimesheetToMe");
+                                            loadWithSpinner("#timesheetSupervisor", "/Dashboard/TimesheetToSupervisor");
+                                            break;
+                                        case "leave":
+                                            loadWithSpinner("#leaveMe", "/Dashboard/LeaveToMe");
+                                            loadWithSpinner("#leaveSupervisor", "/Dashboard/LeaveToSupervisor");
+                                            break;
+                                        case "travel":
+                                            loadWithSpinner("#travelMe", "/Dashboard/TravelToMe");
+                                            break;
+                                        case "overtime":
+                                            loadWithSpinner("#overtimeMe", "/Dashboard/OvertimeToMe");
+                                            break;
+                                        case "leavefuture":
+                                            loadWithSpinner("#futureLeaveMe", "/Dashboard/FutureLeaveToMe");
+                                            break;
+                                    }
+                                }
+
+                                closeModal("ModalID");
+                            },
+                            error: function (xhr) {
+                                alert("Error saving Approval or Decline: " + xhr.responseText);
+                            },
+                            complete: function () {
+                                // Hide overlay after request completes
+                                $("#submitOverlay").fadeOut();
+                            }
+                        });
+                    }
+                });             
+
+        </script>
+    }
+
+
+}

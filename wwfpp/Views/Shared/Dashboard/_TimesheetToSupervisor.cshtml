@@ -1,0 +1,42 @@
+﻿@model IEnumerable<TimesheetAppVM>
+<div class="form-group p-2">
+    <table id="tblTimesheetSupervisor" class="display compact nowrap" style="width:100%">
+        <thead>
+            <tr>
+                <th>Month</th>
+                <th>Submit Date</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (Model != null && Model.Any())
+            {
+                @foreach (var item in Model)
+                {
+                    <tr>
+                        <td>@(new DateTime(Convert.ToInt32(item.EmpYear), Convert.ToInt32(item.EmpMonth), 1).ToString("MMMM"))</td>
+                        <td>@item.SubmitDate</td>
+                        <td>
+                            @item.AppByName
+                            <a href="#" class="send-timesheet"
+                               data-emp-id="@item.EmpId"
+                               data-year="@item.EmpYear"
+                               data-month="@item.EmpMonth">
+                                [Send Reminder]
+                            </a>
+                        </td>
+
+
+                    </tr>
+                }
+            }
+            else
+            {
+                <tr>
+                    <td colspan="4" class="text-center text-muted">No data available</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+</div>

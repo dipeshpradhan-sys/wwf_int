@@ -1,0 +1,49 @@
+﻿@model IEnumerable<LeaveAppVM>
+<div class="form-group p-2">
+    <table id="tblLeaveToMe" class="display compact nowrap" style="width:100%">
+        <thead>
+            <tr>
+                <th>Leave Type</th>
+                <th>Fiscal Year</th>
+                <th>Start Date</th>
+                <th>Hours (Days)</th>
+                <th>Action</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (Model != null && Model.Any())
+            {
+                @foreach (var item in Model)
+                {
+                    <tr>
+                        <td>@item.LeaveType</td>
+                        <td>@item.FiscalYear</td>
+                        <td>@item.StartDate?.ToString("MM/dd/yyyy")</td>
+                        <td>@item.LeaveInHours</td>
+                        <td>
+                            <a href="#" class="send-reminder-dashboard"
+                               data-app-id ="@item.AppId"
+                               data-emp-id="@item.EmpId"
+                               data-to-emp-id="@item.ToEmpId"
+                               data-to-id="@item.ToId"
+                               data-reminder-for = "leavefuture" 
+                                >
+                                [Send Reminder]
+                            </a>
+                        </td>
+
+
+                    </tr>
+                }
+            }
+            else
+            {
+                <tr>
+                    <td colspan="4" class="text-center text-muted">No data available</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+</div>

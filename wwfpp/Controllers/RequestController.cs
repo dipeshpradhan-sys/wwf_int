@@ -2174,12 +2174,37 @@ namespace wwfpp.Controllers
 
             ViewBag.CalYears = _settingsServices.GetYears(DateTime.Now.Year);
             ViewBag.CalMonth = _settingsServices.GetMonths(DateTime.Now.Month);
-
             return PartialView("Request/_Timesheet");
         }
         [HttpGet]
+        public async Task<JsonResult> CheckEmployeeApprover(int empid)
+        {
+            var approver = await _approverResolver.ResolveApproverAsync(empid);
+            var toEmpID = approver.toEmpId ?? 0;
+            var toID = approver.toId ?? 0;
+
+            bool hasApprover = (toEmpID > 0 || toID > 0);
+
+            return Json(new { hasApprover });
+        }
+
+        [HttpGet]
         public async Task<IActionResult> TimesheetGetDays(int year, int month, int empid)
         {
+            var approver = await _approverResolver.ResolveApproverAsync(empid);
+            var toEmpID = approver.toEmpId ?? 0;
+            var toID = approver.toId ?? 0;
+
+            //  No approver → return partial with message only
+            if (toEmpID <= 0 && toID <= 0)
+            {
+                return PartialView("Request/_TimesheetAddEdit",
+                    new wwfpp.Models.Request.TimesheetViewModel
+                    {
+                        HasApprover = false
+                    });
+            }
+
             string PageId = "10203";
             #region FOR PERMISSION
             var perm = _accountServices.GetMenuPermission(PageId);

@@ -1,0 +1,91 @@
+﻿@model wwfpp.Models.TravelDashboardOverviewVM
+
+<table class="display compact nowrap" style="width:100%">
+    <thead>
+        <tr>
+            <th>Travel Type</th>
+            <th>Destinations</th>
+            <th>Submit Date</th>
+            <th>From Date</th>
+            <th>To Date</th>
+            <th>Status / Action</th>
+        </tr>
+    </thead>
+    <tbody>
+        @* My Pending Travel (MPT) *@
+        @if (Model.MyPendingTravel != null && Model.MyPendingTravel.Any())
+        {
+            foreach (var item in Model.MyPendingTravel)
+            {
+                <tr>
+                    <td>@item.TravelType</td>
+                    <td>@item.Destinations</td>
+                    <td>@item.SubmitDate?.ToString("MM/dd/yyyy")</td>
+                    <td>@item.StartDate?.ToString("MM/dd/yyyy")</td>
+                    <td>@item.EndDate?.ToString("MM/dd/yyyy")</td>
+                    <td>
+                        <a href="#" class="send-reminder-dashboard"
+                           data-app-id="@item.AppId"
+                           data-emp-id="@item.EmpId"
+                           data-to-emp-id="@item.ToEmpId"
+                           data-to-id="@item.ToId"
+                           data-reminder-for="@item.ReminderFor"
+                           data-reminder-performance="Pending">
+                            [Send Reminder] > @item.PendingBy
+                        </a>
+                    </td>
+                </tr>
+            }
+        }
+
+        @* Travel Cancellation Sent (TCS) *@
+        @if (Model.TravelCancellationSent != null && Model.TravelCancellationSent.Any())
+        {
+            foreach (var item in Model.TravelCancellationSent)
+            {
+                <tr>
+                    <td>@item.TravelType</td>
+                    <td>@item.Destinations</td>
+                    <td>@item.SubmitDate?.ToString("MM/dd/yyyy")</td>
+                    <td>@item.StartDate?.ToString("MM/dd/yyyy")</td>
+                    <td>@item.EndDate?.ToString("MM/dd/yyyy")</td>
+                    <td>
+                        <a href="#" class="send-reminder-dashboard"
+                           data-app-id="@item.AppId"
+                           data-emp-id="@item.EmpId"
+                           data-to-emp-id="@item.ToEmpId"
+                           data-to-id="@item.ToId"
+                           data-reminder-for="@item.ReminderFor"
+                           data-reminder-performance="Cancelling">
+                            [Send Reminder] > @item.PendingBy
+                        </a>
+                    </td>
+                </tr>
+            }
+        }
+
+        @* Recent Travel (RPT) *@
+        @if (Model.RecentTravel != null && Model.RecentTravel.Any())
+        {
+            foreach (var item in Model.RecentTravel)
+            {
+                <tr>
+                    <td>@item.TravelType</td>
+                    <td>@item.Destinations</td>
+                    <td>@item.SubmitDate?.ToString("MM/dd/yyyy")</td>
+                    <td>@item.StartDate?.ToString("MM/dd/yyyy")</td>
+                    <td>@item.EndDate?.ToString("MM/dd/yyyy")</td>
+                    <td><span class="badge @item.CssClass">@item.ActionLink</span></td>
+                </tr>
+            }
+        }
+
+        @* If no data at all *@
+        @if ((Model.MyPendingTravel == null || !Model.MyPendingTravel.Any()) &&
+        (Model.TravelCancellationSent == null || !Model.TravelCancellationSent.Any()) &&
+        (Model.RecentTravel == null || !Model.RecentTravel.Any()))
+        {
+            <tr><td colspan="6" class="text-center text-muted">No travel records available</td></tr>
+        }
+    </tbody>
+</table>
