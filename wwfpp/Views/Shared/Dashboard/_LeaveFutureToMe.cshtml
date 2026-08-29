@@ -1,0 +1,48 @@
+﻿@model IEnumerable<LeaveFutureDashboardGroup>
+
+<div class="form-group p-2">
+    <table id="tblLeaveToMe" class="display compact nowrap" style="width:100%">
+        <thead>
+            <tr>
+                <th>Leave Type</th>
+                <th>Fiscal Year</th>
+                <th>Start Date</th>
+                <th>Hours (Days)</th>
+                <th>Action / Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (Model != null && Model.Any())
+            {
+                @foreach (var group in Model) // Model = IEnumerable<LeaveDashboardGroup>
+                {
+                    <!-- Employee header row -->
+                    <tr class="dashboard-employeename-pending">
+                        <td colspan="5">@group.EmployeeName</td>
+                    </tr>
+
+                    <!-- Leave rows -->
+                    @foreach (var item in group.Leaves)
+                    {
+                        <tr class="@item.StatusClass">
+                            <td>@item.LeaveType</td>
+                            <td>@item.FiscalYear</td>
+                            <td>@item.StartDate</td>
+                            <td>@item.HoursDays</td>
+                            <td>
+                                @Html.Raw(item.ActionLinks)
+                            </td>
+                        </tr>
+                    }
+                }
+            }
+            else
+            {
+                <tr>
+                    <td colspan="5" class="text-center text-muted">No data available</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+

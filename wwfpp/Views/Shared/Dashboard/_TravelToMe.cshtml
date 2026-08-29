@@ -1,0 +1,50 @@
+﻿@model IEnumerable<TravelDashboardGroup>
+
+<div class="form-group p-2">
+    <table id="tblTravelToMe" class="display compact nowrap" style="width:100%">
+        <thead>
+            <tr>
+                <th>Travel Type</th>
+                <th>Destination</th>
+                <th>Date</th>
+                <th>Action / Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (Model != null && Model.Any())
+            {
+                @foreach (var group in Model)
+                {
+                    <!-- Employee header row -->
+                    <tr class="dashboard-employeename-pending">
+                        <td colspan="4">@group.EmployeeName</td>
+                    </tr>
+
+                    <!-- Travel rows -->
+                    @foreach (var travel in group.Travels)
+                    {
+                        <tr>
+                            <td>@travel.TravelType</td>
+                            <td>@travel.Destinations</td>
+                            <td>
+                                Start: @travel.DateFrom.ToString("dd/MM/yyyy") <br />
+                                End: @travel.DateTo.ToString("dd/MM/yyyy") <br />
+                                Submitted: @travel.SubmitDate.ToString("dd/MM/yyyy")
+                            </td>
+                            <td>
+                                @Html.Raw(travel.ActionLinks)
+                            </td>
+                        </tr>
+                    }
+                }
+            }
+            else
+            {
+                <tr>
+                    <td colspan="4" class="text-center text-muted">No data available</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+

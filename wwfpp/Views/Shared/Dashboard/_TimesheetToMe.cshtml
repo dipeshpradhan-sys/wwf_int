@@ -1,0 +1,62 @@
+﻿@model IEnumerable<TimesheetAppVM>
+<div class="form-group p-2">
+    <table id="tblTimesheetSupervisor" class="display compact nowrap" style="width:100%">
+        <thead>
+            <tr>
+                <th>Employee Name</th>
+                <th>Month</th>
+                <th>Submit Date</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (Model != null && Model.Any())
+            {
+                @foreach (var item in Model)
+                {
+                    <tr>
+                        <td>@item.AppByName</td>
+                        <td>@(new DateTime(Convert.ToInt32(item.EmpYear), Convert.ToInt32(item.EmpMonth), 1).ToString("MMMM"))</td>
+                        <td>@item.SubmitDate</td>
+                        <td>
+                            <a href="#" class="send-to-me-action"
+                               data-emp-id="@item.EmpId"
+                               data-year="@item.EmpYear"
+                               data-month="@item.EmpMonth"
+                               data-app-id = "@item.AppId"
+                               data-St="a"
+                               data-to-emp-id="@item.ToEmpId"
+                               data-to-id="@item.ToId"
+                               data-counter="@item.Counter"
+                               data-sent-to-me-type="timesheet">
+                                Approve
+                            </a>
+                            |
+                            <a href="#" class="send-to-me-action"
+                               data-emp-id="@item.EmpId"
+                               data-year="@item.EmpYear"
+                               data-month="@item.EmpMonth"
+                               data-app-id="@item.AppId"
+                               data-St="d"
+                               data-to-emp-id="@item.ToEmpId"
+                               data-to-id="@item.ToId"
+                               data-counter="@item.Counter"
+                               data-sent-to-me-type="timesheet">
+                                Decline
+                            </a>
+
+                        </td>
+                    </tr>
+                }
+            }
+            else
+            {
+                <tr>
+                    <td colspan="4" class="text-center text-muted">No data available</td>
+                </tr>
+            }
+
+        </tbody>
+    </table>
+
+</div>

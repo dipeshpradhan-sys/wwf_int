@@ -1,0 +1,38 @@
+﻿@model wwfpp.Models.Request.TimesheetViewModel
+
+@if (Model.PrevApprovedTimesheetCount > 0)
+{
+    <div id="prevApprovedSection" class="mt-3">
+        @foreach (var kvp in Model.PrevApprovedTimesheets.OrderByDescending(x => x.Key))
+        {
+            <h5>Approved Timesheet (Counter: @kvp.Key)</h5>
+            <table class="table table-bordered table-striped">
+                <thead>
+                    <tr>
+                        <th>Fund Source</th>
+                        @foreach (var day in kvp.Value.First().Days)
+                        {
+                            <th>@day.Date.Day<br />@day.Date.ToString("ddd")</th>
+                        }
+                        <th>Total NT</th>
+                        <th>Total OT</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var fundRow in kvp.Value)
+                    {
+                        <tr>
+                            <td>@fundRow.FundSourceName</td>
+                            @foreach (var day in fundRow.Days)
+                            {
+                                <td>@day.Value<br />@day.OvertimeValue</td>
+                            }
+                            <td>@fundRow.TotalNormalHours</td>
+                            <td>@fundRow.TotalOvertimeHours</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+}

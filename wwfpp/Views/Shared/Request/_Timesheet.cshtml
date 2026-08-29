@@ -61,27 +61,42 @@
     <partial name="_ValidationScriptsPartial.cshtml" />
     <script>
         $(document).off("click", "#btnLoadDays").on("click", "#btnLoadDays", async function() {
+
+            const year = document.getElementById("year").value;
+            const month = document.getElementById("month").value;
+            const EmployeeID = document.getElementById("EmployeeList").value;
+            if (year === "") {
+                $('#message').removeClass().addClass('error').html(msg_select_year).show();
+                return;
+            }
+            if (month === "") {
+                $('#message').removeClass().addClass('error').html(msg_select_month).show();
+                return;
+            }
+            if (EmployeeID === "") {
+                $('#message').removeClass().addClass('error').html(msg_select_employee).show();
+                return;
+            }
+            // Call approver check
+            const approverResponse = await fetch(`/Request/CheckEmployeeApprover?empid=${EmployeeID}`);
+            const approverData = await approverResponse.json();
+
+            if (!approverData.hasApprover) {
+                $('#message').removeClass().addClass('error')
+                    .html(msg_no_employee_approver)
+                    .show();
+                return; // stop here
+            }
+
             await loadDays();
         });
         
         async function loadDays() {
+            const spinner = document.getElementById("loadingSpinner");
+            const tableDiv = document.getElementById("daysTable");
             const year = document.getElementById("year").value;
             const month = document.getElementById("month").value;
             const EmployeeID = document.getElementById("EmployeeList").value;
-            const spinner = document.getElementById("loadingSpinner");
-            const tableDiv = document.getElementById("daysTable");
-            if (year === "") {
-                $('#message').removeClass().addClass('error').html("Please select year.").show();
-                return;
-            }
-            if (month === "") {
-                $('#message').removeClass().addClass('error').html('Please select month.').show();
-                return;
-            }
-            if (EmployeeID === "") {
-                $('#message').removeClass().addClass('error').html('Please select employee.').show();
-                return;
-            }
 
             spinner.style.display = "block";
             tableDiv.style.display = "none";

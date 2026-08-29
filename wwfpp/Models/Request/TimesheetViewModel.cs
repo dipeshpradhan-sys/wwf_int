@@ -48,8 +48,9 @@
 
         // ✅ Previous Timesheet
         public int PrevApprovedTimesheetCount { get; set; }
-        public Dictionary<int, List<FundTimesheetRow>> PrevApprovedTimesheets { get; set; }
-            = new Dictionary<int, List<FundTimesheetRow>>();
+        public Dictionary<int, List<FundTimesheetRow>> PrevApprovedTimesheets { get; set; }= new Dictionary<int, List<FundTimesheetRow>>();
+
+        public bool HasApprover { get; set; }
 
     }
 
