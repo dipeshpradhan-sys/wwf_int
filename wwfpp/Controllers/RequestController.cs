@@ -3484,7 +3484,7 @@ namespace wwfpp.Controllers
             if (empId == null) empId = 0;
             fnSmt = $@"
             SELECT emp_travel_id,destinations,date_from,date_to,submit_date,app_status,travel_type,app_by,app_by_post,app_date,app_remarks,can_by,can_date,can_desc,can_remarks,
-            can_submit_date,denomination,m.emp_id,i_app_by,i_app_by_post,i_app_date,i_app_status,rec_remarks,m.remarks,trip_purpose,e.firstname + ' ' + ISNULL(e.middlename,'') + ' ' + e.lastname + ' (' + e.emp_code + ')' AS employeenameWithCode  
+            can_submit_date,denomination,m.emp_id,i_app_by,i_app_by_post,i_app_date,i_app_status,rec_remarks,m.remarks,trip_purpose 
             FROM tbl_employee_travel_main m
             INNER JOIN tbl_employee e ON m.emp_id = e.emp_id
               AND m.date_from BETWEEN '{dateFrom:yyyy-MM-dd}' AND '{dateTo:yyyy-MM-dd}'
@@ -3531,7 +3531,7 @@ namespace wwfpp.Controllers
                         DateTime sd = Convert.ToDateTime(row.submit_date);
                         string appStatus = row.app_status;
                         string travelType = row.travel_type;
-                        string employeenameWithCode = row.employeenameWithCode;
+                        string employeenameWithCode = _employeeServices.GetEmployeeName(Convert.ToInt32(row.emp_id),"code");
 
                         string dateFromStr = df.ToString("dd/MM/yyyy");
                         string dateToStr = dt.ToString("dd/MM/yyyy");

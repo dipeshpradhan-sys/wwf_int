@@ -626,7 +626,6 @@ namespace wwfpp.Data
 
             public DateTime? can_date { get; set; }  //[datetime] NULL,
             public string? can_remarks { get; set; }  //[ntext] NULL,
-            public string? employeenameWithCode { get; set; } // from vw_Employee
     }
         //public DbSet<tbl_employee_travel_sub> tbl_employee_travel_sub { get; set; }
         public class tbl_employee_travel_sub
