@@ -3,6 +3,7 @@ using DocumentFormat.OpenXml.Wordprocessing;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Conventions;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
@@ -3389,6 +3390,341 @@ namespace wwfpp.Controllers
             }
         }
         #endregion
+
+        #region TRAVEL SETTLEMENT
+        [HttpGet]
+        public IActionResult TravelSettlement(int emp_id, string? fiscalYear = null, string? status = null)
+        {
+            var StatusFilter = status == "D" ? "Inactive" : "Active";
+
+            //var Employees = _context.vw_Employee
+            //    .Where(e => e.emp_status == StatusFilter)
+            //    .OrderBy(c => c.employeename)
+            //    .ToList();
+
+            ViewBag.Status = status;
+            //ViewBag.EmployeeList = new SelectList(Employees, "emp_id", "employeenameWithCode", emp_id);
+            ViewBag.FiscalYearList = _settingsServices.GetFiscalYears(HttpContext.Session.GetString("fiscal_year"));
+            //ViewBag.EmployeeStatusFilter = StatusActivePassive("AD", "A");
+            //ViewBag.EmployeeList = new SelectList(Employees, "emp_id", "employeenameWithCode", emp_id);
+
+            return PartialView("Request/_TravelSettlementList");
+        }
+        [HttpPost]
+        public string GetApprovedTravelList(string? fiscalYear, string? settleType)
+        {
+            string fnStr = "";
+            string fnNotIn = "";
+            string fnSettleType = "";
+            int? empId = null;
+            DateTime dateFrom = Convert.ToDateTime(HttpContext.Session.GetString("date_from"));
+            DateTime dateTo = Convert.ToDateTime(HttpContext.Session.GetString("date_to"));
+
+            if (fiscalYear != null)
+            {
+                dateFrom = Convert.ToDateTime(_settingsServices.GetFiscalYearValue(fiscalYear, "date_from"));
+                dateTo = Convert.ToDateTime(_settingsServices.GetFiscalYearValue(fiscalYear, "date_to"));
+            }
+
+            switch (settleType)
+            {
+                case "T": // Saved but not requested for settlement
+                    fnNotIn = " IN ";
+                    fnSettleType = " AND app_status='T'";
+                    break;
+                case "R": // Requested for settlement
+                    fnNotIn = " IN ";
+                    fnSettleType = " AND app_status='P' AND is_for_set ='Y' ";
+                    break;
+                case "S": // Settled
+                    fnNotIn = " IN ";
+                    fnSettleType = " AND app_status='A' AND is_for_set ='Y' ";
+                    break;
+                case "N": // Settlement not required (pending)
+                    fnNotIn = " IN ";
+                    fnSettleType = " AND app_status='P' AND is_for_set ='N' ";
+                    break;
+                case "M": // Settlement not required (approved)
+                    fnNotIn = " IN ";
+                    fnSettleType = " AND app_status='A' AND is_for_set ='N' ";
+                    break;
+                default:
+                    fnNotIn = " NOT IN ";
+                    fnSettleType = "";
+                    break;
+            }
+
+            // Build SQL dynamically (same as Classic ASP)
+            string fnSmt;
+            if (empId == null) empId = 0;
+            fnSmt = $@"
+            SELECT emp_travel_id,destinations,date_from,date_to,submit_date,app_status,travel_type,app_by,app_by_post,app_date,app_remarks,can_by,can_date,can_desc,can_remarks,
+            can_submit_date,denomination,m.emp_id,i_app_by,i_app_by_post,i_app_date,i_app_status,rec_remarks,m.remarks,trip_purpose,e.firstname + ' ' + ISNULL(e.middlename,'') + ' ' + e.lastname + ' (' + e.emp_code + ')' AS employeenameWithCode  
+            FROM tbl_employee_travel_main m
+            INNER JOIN tbl_employee e ON m.emp_id = e.emp_id
+              AND m.date_from BETWEEN '{dateFrom:yyyy-MM-dd}' AND '{dateTo:yyyy-MM-dd}'
+              AND m.app_status = 'Approved'
+              AND (m.can_by = '' OR m.can_by IS NULL)
+              AND m.emp_travel_id {fnNotIn} (
+                  SELECT DISTINCT emp_travel_id
+                  FROM tbl_employee_travel_settlement_main
+                  WHERE ({empId} > 0 {fnSettleType}))";
+            var rsfn = _context.tbl_employee_travel_main
+                               .FromSqlRaw(fnSmt)
+                               .OrderBy(x => x.emp_travel_id) 
+                               .ToList();
+            //foreach (var row in rsfn)
+            if (rsfn != null)
+            {
+                if (rsfn.Any())
+                {
+                    fnStr = @"<div class=""f-left w-100"">
+                <table width=""100%"" border=""0"" cellspacing=""1"" cellpadding=""1"" bgcolor=""#B1B1B1"">
+                <tr>
+                <td Bgcolor=""#FFFFFF"" align=""center"" class=""normal"">
+                <table width=""100%"" border=""0"" cellpadding=""4"" cellspacing=""2"" class=""normal"">
+                <tr bgcolor=""#CCCCCC"">
+                    <td width=""3%"" class=""title center"" height=""25"">S.N</td>
+                    <td width=""20%"" class=""title"">Employee Name</td>
+                    <td width=""10%"" class=""title"">Travel Type</td>
+                    <td width=""15%"" class=""title"">Destination/s</td>
+                    <td width=""15%"" class=""title"">Start Date</td>
+                    <td width=""10%"" class=""title"">End Date</td>
+                    <td width=""10%"" class=""title"">Submitted Date</td>
+                    <td width=""10%"" class=""title"">Status</td>
+                    <td width=""8%"" class=""title"">Action</td>
+                </tr>";
+
+                    int f = 0;
+                    foreach (var row in rsfn)
+                    {
+                        f++;
+                        int empTravelId = row.emp_travel_id;
+                        string destinations = row.destinations;
+                        DateTime df = Convert.ToDateTime(row.date_from);
+                        DateTime dt = Convert.ToDateTime(row.date_to);
+                        DateTime sd = Convert.ToDateTime(row.submit_date);
+                        string appStatus = row.app_status;
+                        string travelType = row.travel_type;
+                        string employeenameWithCode = row.employeenameWithCode;
+
+                        string dateFromStr = df.ToString("dd/MM/yyyy");
+                        string dateToStr = dt.ToString("dd/MM/yyyy");
+                        string submitDateStr = sd.ToString("dd/MM/yyyy");
+
+                        string printLink = "";
+                        string docLink = "";
+                        int travSetId = 0;
+
+                        if (settleType == "R" || settleType == "S" || settleType == "T" || settleType == "N" || settleType == "M")
+                        {
+                            string fnSmt1 = $"SELECT trav_set_id FROM tbl_employee_travel_settlement_main WHERE emp_travel_id = {empTravelId} AND emp_id={empId}";
+                            var rs1fn = _context.tbl_employee_travel_settlement_main
+                                .FromSqlRaw(fnSmt1)
+                                .FirstOrDefault();
+                            if (rs1fn != null)
+                                travSetId = Convert.ToInt32(rs1fn.trav_set_id);
+                        }
+
+                        if (settleType == "R" || settleType == "S")
+                        {
+                            printLink = $" <a href=\"javascript:PopUpW('employee_travel_settlement_print.asp?mode=print&travsettleid={travSetId}&emp_id={empId}&emp_travel_id={empTravelId}')\"><img src=\"/images/print.png\" alt=\"Print\" title=\"Print\" width=\"16\" height=\"16\" border=\"0\"></a>";
+                        }
+
+                        //if (!string.IsNullOrEmpty(settleType))
+                        //{
+                        string fnSmtDoc = $"SELECT * FROM tbl_employee_travel_settlement_sub_doc WHERE trav_set_id = '{travSetId}'";
+                        var rsfndoc = _context.tbl_employee_travel_settlement_sub_doc
+                            .FromSqlRaw(fnSmtDoc)
+                            .ToList();
+                        if (rsfndoc.Any())
+                        {
+                            docLink = $" <a href=\"javascript:PopUpW('employee_travel_settlement_document.asp?mode=doc&travsettleid={travSetId}&emp_id={empId}&emp_travel_id={empTravelId}')\"><img src=\"/images/doc.png\" alt=\"Document\" title=\"Document\" width=\"12\" height=\"16\" border=\"0\"></a>";
+                        }
+                        else
+                        {
+                            docLink = $" <a href=\"javascript:PopUpW('employee_travel_settlement_document.asp?mode=doc&travsettleid={travSetId}&emp_id={empId}&emp_travel_id={empTravelId}')\"><img src=\"/images/no-doc.png\" alt=\"Document\" title=\"Document\" width=\"12\" height=\"16\" border=\"0\"></a>";
+                        }
+                        //}
+
+                        fnStr += $@"<tr bgcolor=""#EEEEEE"" onMouseOver=""this.style.backgroundColor='#E1EAFE'"" onMouseOut=""this.style.backgroundColor='#EEEEEE'"">
+                            <td align=""center"">{f}</td>
+                            <td class=""normal left"" height=""20"">{employeenameWithCode}</td>
+                            <td class=""normal left"" height=""20"">{travelType}</td>
+                            <td class=""normal left"">{destinations}</td>
+                            <td class=""normal left"">{dateFromStr}</td>
+                            <td class=""normal left"">{dateToStr}</td>
+                            <td class=""normal left"">{submitDateStr}</td>
+                            <td class=""normal left"">{appStatus}</td>
+                            <td class=""normal center"">
+                        <a href=""javascript:postdata('employee_travel_settlement_add_edit.asp?mode=edit&emp_travel_id={empTravelId}')""><img src=""/images/edit.png"" width=""16"" height=""16"" border=""0""></a>&nbsp;
+                        {printLink}
+                        {docLink}
+                    </td>
+                </tr>";
+                    }
+
+                    fnStr += @"</table>
+                </td>
+                </tr>
+                </table>
+                </div>";
+                }
+
+                fnStr += $@"<div id=""page-box"">
+                    <div id=""page-box-left""><h5>{rsfn.Count()} record(s) found!</h5></div>
+                    <div id=""page-box-right""><h5>&nbsp;</h5></div>
+                </div>";
+            }
+
+            return fnStr;
+        }
+        public IActionResult TravelSettlementPendingAllList(int? empId, string? fiscalYear, string? status = null)
+        {
+            //var StatusFilter = status == "D" ? "Inactive" : "Active";
+
+            //var Employees = _context.vw_Employee
+            //    .Where(e => e.emp_status == StatusFilter)
+            //    .OrderBy(c => c.employeename)
+            //    .ToList();
+
+            //ViewBag.Status = status;
+            //ViewBag.EmployeeList = new SelectList(Employees, "emp_id", "employeenameWithCode", empId);
+
+            DateTime dateFrom = Convert.ToDateTime(HttpContext.Session.GetString("date_from"));
+            DateTime dateTo = Convert.ToDateTime(HttpContext.Session.GetString("date_to"));
+
+
+
+            //ViewBag.Status = status;
+            //ViewBag.EmployeeList = new SelectList(Employees, "emp_id", "employeenameWithCode", empId);
+            ViewBag.DateFrom = dateFrom.ToShortDateString();
+            ViewBag.DateTo = dateTo.ToShortDateString();
+
+            //return Json(new { status = "success",DateFrom = dateFrom,DateTo = dateTo });
+            return PartialView("Request/_TravelSettlementPendingList");
+        }
+        [HttpPost]
+        public string GetApprovedTravelPendingList(string? settleType)
+        {
+            int empId = 0;
+            string fnStr = "";
+            string fnNotIn = "";
+            string fnSettleType = "";
+
+            DateTime? dateFromNew = Convert.ToDateTime(HttpContext.Session.GetString("date_from")); 
+            DateTime? dateTo = DateTime.Now.Date;
+
+            DateTime? dateFrom = dateFromNew?.AddMonths(-3).Date;
+
+            DateTime dateUpToYesterday = DateTime.Today.AddDays(-1);
+
+            switch (settleType)
+            {
+                case "T": // Saved but not requested for settlement
+                    fnNotIn = " IN ";
+                    fnSettleType = " AND app_status='T'";
+                    break;
+                default:
+                    fnNotIn = " NOT IN ";
+                    fnSettleType = "";
+                    break;
+            }
+            string fnSmt;
+            //if (empId == null) // "all"
+            //{
+            if (empId == null) empId = 0;
+            fnSmt = $@"
+                SELECT m.emp_travel_id,m.destinations,m.date_from,m.date_to,m.submit_date,m.app_status,m.travel_type,m.app_by,m.app_by_post,m.app_date,m.app_remarks,m.can_by,m.can_date,m.can_desc,m.can_remarks,
+                m.can_submit_date,m.denomination,m.emp_id,m.i_app_by,m.i_app_by_post,m.i_app_date,m.i_app_status,m.rec_remarks,m.remarks,m.trip_purpose,e.employeenameWithCode  
+                FROM tbl_employee_travel_main m
+                INNER JOIN vw_Employee e ON m.emp_id = e.emp_id
+                WHERE ({empId} = 0 OR m.emp_id = {empId})
+                AND m.date_from BETWEEN '{dateFrom}' AND '{dateUpToYesterday}' 
+                AND m.date_to <'{dateTo}'
+                AND m.app_status='Approved' 
+                AND (m.can_by = '' OR m.can_by IS NULL)  
+                AND m.emp_travel_id {fnNotIn} (
+                    SELECT DISTINCT emp_travel_id 
+                    FROM tbl_employee_travel_settlement_main 
+                    WHERE ({empId} = 0 OR m.emp_id = {empId}) {fnSettleType}
+                ) 
+                ORDER BY m.emp_travel_id DESC";
+
+            var rsfn = _context.EmployeeTravelSettlementMainViewModel.FromSqlRaw(fnSmt).ToList(); // custom helper for raw SQL
+            //foreach (var row in rsfn)
+            if (rsfn != null)
+            {
+                if (rsfn.Any())
+                {
+                    fnStr = @"<div class=""f-left w-100"">
+                        <table width=""100%"" border=""0"" cellspacing=""1"" cellpadding=""1"" bgcolor=""#B1B1B1"">
+                        <tr>
+                        <td Bgcolor=""#FFFFFF"" align=""center"" class=""normal"">
+                        <table width=""100%"" border=""0"" cellpadding=""4"" cellspacing=""2"" class=""normal"">
+                        <tr bgcolor=""#CCCCCC"">
+                            <td width=""3%"" class=""title center"" height=""25"">S.N</td>
+                            <td width=""24%"" class=""title"">Name</td>
+                            <td width=""10%"" class=""title"">Travel Type</td>
+                            <td width=""20%"" class=""title"">Destination/s</td>
+                            <td width=""15%"" class=""title"">Start Date</td>
+                            <td width=""15%"" class=""title"">End Date</td>
+                            <td width=""15%"" class=""title"">Submitted Date</td>
+                        </tr>";
+
+                    int f = 0;
+                    foreach (var row in rsfn)
+                    {
+                        f++;
+                        string fn_emp_name = row.employeenameWithCode;
+                        int empTravelId = row.emp_travel_id;
+                        string destinations = string.IsNullOrEmpty(row.destinations)
+                                        ? string.Empty
+                                        : row.destinations.Length > 100
+                                            ? row.destinations.Substring(0, 100) + "..."
+                                            : row.destinations;
+                        DateTime df = Convert.ToDateTime(row.date_from);
+                        DateTime dt = Convert.ToDateTime(row.date_to);
+                        DateTime sd = Convert.ToDateTime(row.submit_date);
+                        string appStatus = row.app_status;
+                        string travelType = row.travel_type;
+
+                        string dateFromStr = df.ToString("dd/MM/yyyy");
+                        string dateToStr = dt.ToString("dd/MM/yyyy");
+                        string submitDateStr = sd.ToString("dd/MM/yyyy");
+
+                        //string printLink = "";
+                        //string docLink = "";
+                        //int travSetId = 0;
+
+
+                        fnStr += $@"<tr bgcolor=""#EEEEEE"" onMouseOver=""this.style.backgroundColor='#E1EAFE'"" onMouseOut=""this.style.backgroundColor='#EEEEEE'"">
+                            <td align=""center"">{f}</td>
+                            <td class=""normal left"">{fn_emp_name}</td>
+                            <td class=""normal left"" height=""20"">{travelType}</td>
+                            <td class=""normal left"">{destinations}</td>
+                            <td class=""normal left"">{dateFromStr}</td>
+                            <td class=""normal left"">{dateToStr}</td>
+                            <td class=""normal left"">{submitDateStr}</td>
+                </tr>";
+                    }
+
+                    fnStr += @"</table>
+                </td>
+                </tr>
+                </table>
+                </div>";
+                }
+
+                fnStr += $@"<div id=""page-box"">
+                    <div id=""page-box-left""><h5>{rsfn.Count()} record(s) found!</h5></div>
+                    <div id=""page-box-right""><h5>&nbsp;</h5></div>
+                </div>";
+            }
+            return fnStr;
+        }
+        #endregion
+
 
     }
 }

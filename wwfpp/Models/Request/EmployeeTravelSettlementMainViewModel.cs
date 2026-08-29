@@ -1,33 +1,36 @@
-﻿namespace wwfpp.wwwroot.js
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace wwfpp.Models
 {
     public class EmployeeTravelSettlementMainViewModel
     {
-        public string trav_set_id { get; set; }  //[nvarchar](50) NOT NULL,
-        public int? emp_travel_id { get; set; }  //[int] NULL,
+        [Key]
+        public int emp_travel_id { get; set; }
+        public string? destinations { get; set; }
+        public DateTime? date_from { get; set; }
+        public DateTime? date_to { get; set; }
+        public DateTime? submit_date { get; set; }
+        public string? app_status { get; set; }
+        public string? travel_type { get; set; }
+        public int? app_by { get; set; }
+        public string? app_by_post { get; set; }
+        public DateTime? app_date { get; set; }
+        public string? app_remarks { get; set; }
+        public int? can_by { get; set; }
+        public DateTime? can_date { get; set; }
+        public string? can_desc { get; set; }
+        public string? can_remarks { get; set; }
+        public DateTime? can_submit_date { get; set; }
+        public string? denomination { get; set; }
         public int? emp_id { get; set; }
-        public DateTime? submit_date { get; set; }  //[datetime] NULL,
-        public DateTime? travel_date { get; set; }  //[datetime] NULL,
-        public DateTime? return_date { get; set; }  //[datetime] NULL,
-        public double? usd_rate { get; set; }  //[float] NULL,
-        public decimal? adv_cash_less { get; set; }  //[money] NULL,
-        public string? charge_per_or_amt { get; set; }  //[nvarchar](1) NULL,
-        public int? charge_fund_id_1 { get; set; }  //[int] NULL,   //currently FK not defined with fund_source
-        public int? charge_fund_id_2 { get; set; }  //[int] NULL,   //currently FK not defined with fund_source
-        public int? charge_fund_id_3 { get; set; }  //[int] NULL,   //currently FK not defined with fund_source
-        public int? charge_fund_id_4 { get; set; }  //[int] NULL,   //currently FK not defined with fund_source
-        public double? charge_fund_per_1 { get; set; }  //[float] NULL, 
-        public double? charge_fund_per_2 { get; set; }  //[float] NULL, 
-        public double? charge_fund_per_3 { get; set; }  //[float] NULL, 
-        public double? charge_fund_per_4 { get; set; }  //[float] NULL, 
-        public decimal? charge_fund_amt_1 { get; set; }  //[money] NULL,
-        public decimal? charge_fund_amt_2 { get; set; }  //[money] NULL,
-        public decimal? charge_fund_amt_3 { get; set; }  //[money] NULL,
-        public decimal? charge_fund_amt_4 { get; set; }  //[money] NULL,
-        public string? remarks { get; set; }  //[nvarchar](255) NULL,
-        public string? app_status { get; set; }  //[nvarchar](1) NULL,
-        public int? app_by { get; set; }  //[int] NULL,
-        public DateTime? app_date { get; set; }  //[datetime] NULL,
-        public string? is_for_set { get; set; }  //[nvarchar](1) NULL,
+        public int? i_app_by { get; set; }
+        public string? i_app_by_post { get; set; }
+        public DateTime? i_app_date { get; set; }
+        public string? i_app_status { get; set; }
+        public string? rec_remarks { get; set; }
+        public string? remarks { get; set; }
+        public string? trip_purpose { get; set; }
+        public string? employeenameWithCode { get; set; } // from vw_Employee
     }
 
 }

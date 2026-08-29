@@ -269,6 +269,7 @@ namespace wwfpp.Data
         // public DbSet<que_employee_welfare_paidout> que_employee_welfare_paidout	 { get; set; }
         // public DbSet<que_salary> que_salary	 { get; set; }
          public DbSet<vw_swf_payback> vw_swf_payback { get; set; }
+        public DbSet<EmployeeTravelSettlementMainViewModel> EmployeeTravelSettlementMainViewModel { get; set; }
         // public DbSet<que_year_salary> que_year_salary	 { get; set; }
         // public DbSet<que_year_salary_a_field> que_year_salary_a_field	 { get; set; }
         // public DbSet<que_year_salary_custom> que_year_salary_custom	 { get; set; }

@@ -626,7 +626,8 @@ namespace wwfpp.Data
 
             public DateTime? can_date { get; set; }  //[datetime] NULL,
             public string? can_remarks { get; set; }  //[ntext] NULL,
-        }
+            public string? employeenameWithCode { get; set; } // from vw_Employee
+    }
         //public DbSet<tbl_employee_travel_sub> tbl_employee_travel_sub { get; set; }
         public class tbl_employee_travel_sub
         {
@@ -723,7 +724,7 @@ namespace wwfpp.Data
 
             public DateTime? app_date { get; set; }  //[datetime] NULL,
             public string? is_for_set { get; set; }  //[nvarchar](1) NULL,
-        }
+    }
         //public DbSet<tbl_employee_travel_settlement_sub> tbl_employee_travel_settlement_sub { get; set; }
         public class tbl_employee_travel_settlement_sub
         {

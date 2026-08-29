@@ -1,0 +1,172 @@
+﻿@using Microsoft.AspNetCore.Http;
+@inject IHttpContextAccessor HttpContextAccessor;
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var PageTitle = "Travel Settlement Pending";
+    var Page_Tips = "";  //Tool tip message on right side
+    var msg_please_wait = "";
+    var Page_Mode = PageTitle;
+    var Pern = ViewBag.vpern;
+    ViewData["Title"] = "| " + PageTitle;
+    var Help_Tips = GblUtilities.HelpTips(Page_Tips);
+    /*success|fail|error'*/
+    string ShowMsg = GblUtilities.MsgDisplay(Context.Request.Query["msg"].ToString());
+}
+@Html.AntiForgeryToken()
+@Html.Hidden("ilaka", "/Request/TravelSettlementList")
+<h2 class="titlebig"><span name="header" id="header">@Page_Mode</span> @Html.Raw(Help_Tips)</h2>
+@Html.Hidden("mode", "")
+@Html.Hidden("Id", "")
+<div id="message_header"><p id="loading" class="loading displaynone">@msg_please_wait</p></div>
+<div id="message_header">@Html.Raw(ShowMsg)</div>
+
+<div class="p-0 bg-white rounded mb-8">
+    <div class="row align-items-center">
+        <!-- Left side: Status filter -->
+        <div class="col-auto">
+            Date: @ViewBag.DateFrom - @ViewBag.DateTo
+        </div>
+        <!-- Left side: Status filter -->
+        <!-- Right side: Buttons -->
+        <div class="col-auto ms-auto">
+            <span id="contractSpan">
+                <button type="button" id="BtnUnsettledBack" class="btn btn-sm btn-success m-1 p-1">Travel Settlement</button>
+            </span>
+        </div>
+    </div>
+</div>
+<!-- Stage 1: Read-only grid -->
+<div class="form-group p-2">
+    <table id="tblDataEmp" class="display compact nowrap" style="width:100%">
+        <tbody>
+            <tr style="height: 40px; align-items: center;color:white;" class="bg-secondary bg-opacity-27">
+                <th style="background-color:#FF8484;width:100%;">&nbsp;Unsettled Travel(s)</th>
+            </tr>
+            <tr style="height: 40px; align-items: center;color:white;" class="bg-secondary bg-opacity-27">
+                <th style="background-color:#FFFFFF;width:100%;color:#000000;"><span id="UnsettledContainer"></span></th>
+            </tr>
+            <tr style="height: 40px; align-items: center;color:white;" class="bg-secondary bg-opacity-27">
+                <th style="background-color:#FF8484;width:100%;">&nbsp;Travel Saved for Settlement</th>
+            </tr>
+            <tr style="height: 40px; align-items: center;color:white;" class="bg-secondary bg-opacity-27">
+                <th style="background-color:#FFFFFF;width:100%;color:#000000;"><span id="TravelSavedforSettlement"></span></th>
+            </tr>
+        </tbody>
+    </table>
+</div>
+@section scripts {
+    <script>
+        $(document).ready(function () {
+            $('#StatusFilter').on('change', function () {
+                var status = $(this).val();
+
+                // Clear employee dropdown selection and options
+                var ddl = $('#employeeList');
+                ddl.empty();
+                // Add placeholder option depending on status
+                if (status === "A") {
+                    ddl.append('<option value="">-- Select Active Employee --</option>');
+                } else {
+                    ddl.append('<option value="">-- Select Inactive Employee --</option>');
+                }
+
+                // Reset selected value
+                ddl.val('');
+
+                $.getJSON('/Employee/GetEmployeesByStatus', { status: status }, function (data) {
+                    $.each(data, function (i, emp) {
+                        ddl.append($('<option>', {
+                            value: emp.id,
+                            text: emp.name
+                        }));
+                    });
+                });
+            });
+            getRecords();
+            $('#employeeList').on('change', function () {
+                getRecords();
+            });
+            /*$("#BtnUnsettledBack").click(function() {
+                var fiscalYear = $("select#FiscalYearFilter").val();
+                $.ajax({
+                    url: "/Request/TravelSettlement",
+                    type: 'POST',
+                    data: { fiscalYear: fiscalYear, settleType: "" },
+                    success: function(data) {
+                        // Inject the HTML returned by your action
+                        //$("#UnsettledContainer").html(data);
+                    },
+                    error: function() {
+                        alert("Error loading travel settlement list.");
+                    }
+                });
+            });*/
+            /*$("#BtnUnsettledBack").click(function () {
+                var empId = $("select#employeeList").val();
+                //var fiscalYear = $("select#FiscalYearList").val();
+                var status = $("select#StatusFilter").val();
+                // Get the full query string part of the URL
+                const queryString = window.location.search; // e.g. "?empId=123&fiscalYear=2025&status=Approved"
+
+                // Parse it
+                const urlParams = new URLSearchParams(queryString);
+
+                //var empId = $("select#employeeList").val();
+                //var status = $("select#StatusFilter").val();
+                var fiscalYear = urlParams.get("fiscalYear");
+                window.location.href = '@Url.Action("TravelSettlement", "Request")' + '?emp_id=' + empId + '&fiscalYear=' + fiscalYear + '&status=' + status;
+            });*/
+            //POST TO UNSETTLED PAGE
+            $("#BtnSave").click(function () {
+                $.ajax({
+                    url: '/Request/TravelSettlementAllPendingList',
+                    type: 'POST',
+                    data: {empId:empId,fiscalYear:fiscalYear,settleType:""},
+                    success: function (result) {
+                        // Inject returned HTML into a container
+                        $("#pendingListContainer").html(result);
+                    },
+                    error: function (xhr) {
+                        alert("Error loading unsettled travel list: " + xhr.statusText);
+                    }
+                });
+            });
+        });
+        function getRecords(){
+            // Get the full query string part of the URL
+            const queryString = window.location.search; // e.g. "?empId=123&fiscalYear=2025&status=Approved"
+
+            // Parse it
+            const urlParams = new URLSearchParams(queryString);
+
+            var empId = $("select#employeeList").val();
+            var status = $("select#StatusFilter").val();
+            var fiscalYear = urlParams.get("fiscalYear");
+            $.ajax({
+                url: "/Request/GetApprovedTravelPendingList",
+                type: 'POST',
+                data: {empId:empId,fiscalYear:fiscalYear,status:status,settleType:""},
+                success: function (data) {
+                    // Inject the HTML returned by your action
+                    $("#UnsettledContainer").html(data);
+                },
+                error: function () {
+                    alert("Error loading travel settlement Pending list.");
+                }
+            });
+            $.ajax({
+                url: "/Request/GetApprovedTravelPendingList",
+                type: 'POST',
+                data: {empId:empId,fiscalYear:fiscalYear,status:status,settleType:"T"},
+                success: function (data) {
+                    // Inject the HTML returned by your action
+                    $("#TravelSavedforSettlement").html(data);
+                },
+                error: function () {
+                    alert("Error loading travel settlement Pending list.");
+                }
+            });
+        }
+    </script>
+}
+

@@ -1,0 +1,183 @@
+﻿@using Microsoft.AspNetCore.Http;
+@inject IHttpContextAccessor HttpContextAccessor;
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var PageTitle = "Travel Settlement";
+    var Page_Tips = "";  //Tool tip message on right side
+    var msg_please_wait = "";
+    var Page_Mode = PageTitle;
+    var Pern = ViewBag.vpern;
+    ViewData["Title"] = "| " + PageTitle;
+    var Help_Tips = GblUtilities.HelpTips(Page_Tips);
+    /*success|fail|error'*/
+    string ShowMsg = GblUtilities.MsgDisplay(Context.Request.Query["msg"].ToString());
+}
+@Html.AntiForgeryToken()
+@Html.Hidden("ilaka", "/Request/TravelSettlementList")
+<h2 class="titlebig"><span name="header" id="header">@Page_Mode</span> @Html.Raw(Help_Tips)</h2>
+@Html.Hidden("mode", "")
+@Html.Hidden("Id", "")
+<div id="message_header"><p id="loading" class="loading displaynone">@msg_please_wait</p></div>
+<div id="message_header">@Html.Raw(ShowMsg)</div>
+
+<div class="d-flex align-items-center">
+    <label class="me-2">Fiscal Year:</label>
+    @Html.DropDownList("FiscalYearFilter", (SelectList)ViewBag.FiscalYearList, new { @class = "form-select", style = "width:150px;" })
+
+</div>
+<!-- Controls row under the header -->
+<!-- Right side: Buttons -->
+<div class="col-auto ms-auto">
+    <span id="contractSpan">
+        <button type="button" id="BtnUnsettled" class="btn btn-sm btn-success m-1 p-1">Unsettled Travel(s)</button>
+    </span>
+</div>
+
+<div class="form-group p-2">
+    <table id="tblDataEmp" class="display compact nowrap" style="width:100%">
+        <tbody>
+            <tr style="height: 40px; align-items: center;color:white;" class="bg-secondary bg-opacity-27">
+                <th style="background-color:#FF8484;width:100%;">&nbsp;Unsettled Travel(s)</th>
+            </tr>
+            <tr style="height: 40px; align-items: center;color:white;" class="bg-secondary bg-opacity-27">
+                <th style="background-color:#FFFFFF;width:100%;color:#000000;"><span id="UnsettledContainer"></span></th>
+            </tr>
+            <tr style="height: 40px; align-items: center;color:white;" class="bg-secondary bg-opacity-27">
+                <th style="background-color:#FF8484;width:100%;">&nbsp;Travel Saved for Settlement</th>
+            </tr>
+            <tr style="height: 40px; align-items: center;color:white;" class="bg-secondary bg-opacity-27">
+                <th style="background-color:#FFFFFF;width:100%;color:#000000;"><span id="TravelSavedforSettlement"></span></th>
+            </tr>
+            <tr style="height: 40px; align-items: center;color:white;" class="bg-secondary bg-opacity-27">
+                <th style="background-color:#FF9F40;width:100%;">&nbsp;Travel Submitted for Settlement</th>
+            </tr>
+            <tr style="height: 40px; align-items: center;color:white;" class="bg-secondary bg-opacity-27">
+                <th style="background-color:#FFFFFF;width:100%;color:#000000;"><span id="TravelSubmittedforSettlement"></span></th>
+            </tr>
+            <tr style="height: 40px; align-items: center;color:white;" class="bg-secondary bg-opacity-27">
+                <th style="background-color:#58B539;width:100%;">&nbsp;Settled Travel(s)</th>
+            </tr>
+            <tr style="height: 40px; align-items: center;color:white;" class="bg-secondary bg-opacity-27">
+                <th style="background-color:#FFFFFF;width:100%;color:#000000;"><span id="SettledTravel"></span></th>
+            </tr>
+            <tr style="height: 40px; align-items: center;color:white;" class="bg-secondary bg-opacity-27">
+                <th style="background-color:#FF9F40;width:100%;">&nbsp;Settlement not required [ Pending ]</th>
+            </tr>
+            <tr style="height: 40px; align-items: center;color:white;" class="bg-secondary bg-opacity-27">
+                <th style="background-color:#FFFFFF;width:100%;color:#000000;"><span id="SettlementnotrequiredPending"></span></th>
+            </tr>
+            <tr style="height: 40px; align-items: center;color:white;" class="bg-secondary bg-opacity-27">
+                <th style="background-color:#58B539;width:100%;">&nbsp;Settlement not required [ Verified ] </th>
+            </tr>
+            <tr style="height: 40px; align-items: center;color:white;" class="bg-secondary bg-opacity-27">
+                <th style="background-color:#FFFFFF;width:100%;color:#000000;"><span id="SettlementnotrequiredVerified"></span></th>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+    @await Html.PartialAsync("_SharedModal", new wwfpp.Models.ModalViewModel { ModalId = "ModalID", DialogClass = "modal-lg", BodyId = "ModalBody", })
+    @section Scripts {
+        <script>
+        $(document).ready(function() {
+            getRecords();
+        });
+
+        $('#FiscalYearFilter').on('change', function() {
+            getRecords();
+        });
+        function getRecords() {
+            var empId = $("select#employeeList").val();
+            var fiscalYear = $("select#FiscalYearFilter").val();
+            $.ajax({
+                url: "/Request/GetApprovedTravelList",
+                type: 'POST',
+                data: { fiscalYear: fiscalYear, settleType: "" },
+                success: function(data) {
+                    // Inject the HTML returned by your action
+                    $("#UnsettledContainer").html(data);
+                },
+                error: function() {
+                    alert("Error loading travel settlement list.");
+                }
+            });
+            $.ajax({
+                url: "/Request/GetApprovedTravelList",
+                type: 'POST',
+                data: { fiscalYear: fiscalYear, settleType: "T" },
+                success: function(data) {
+                    // Inject the HTML returned by your action
+                    $("#TravelSavedforSettlement").html(data);
+                },
+                error: function() {
+                    alert("Error loading travel settlement list.");
+                }
+            });
+            $.ajax({
+                url: "/Request/GetApprovedTravelList",
+                type: 'POST',
+                data: { fiscalYear: fiscalYear, settleType: "R" },
+                success: function(data) {
+                    // Inject the HTML returned by your action
+                    $("#TravelSubmittedforSettlement").html(data);
+                },
+                error: function() {
+                    alert("Error loading travel settlement list.");
+                }
+            });
+            $.ajax({
+                url: "/Request/GetApprovedTravelList",
+                type: 'POST',
+                data: { fiscalYear: fiscalYear, settleType: "S" },
+                success: function(data) {
+                    // Inject the HTML returned by your action
+                    $("#SettledTravel").html(data);
+                },
+                error: function() {
+                    alert("Error loading travel settlement list.");
+                }
+            });
+            $.ajax({
+                url: "/Request/GetApprovedTravelList",
+                type: 'POST',
+                data: { fiscalYear: fiscalYear, settleType: "N" },
+                success: function(data) {
+                    // Inject the HTML returned by your action
+                    $("#SettlementnotrequiredPending").html(data);
+                },
+                error: function() {
+                    alert("Error loading travel settlement list.");
+                }
+            });
+            $.ajax({
+                url: "/Request/GetApprovedTravelList",
+                type: 'POST',
+                data: { fiscalYear: fiscalYear, settleType: "M" },
+                success: function(data) {
+                    // Inject the HTML returned by your action
+                    $("#SettlementnotrequiredVerified").html(data);
+                },
+                error: function() {
+                    alert("Error loading travel settlement list.");
+                }
+            });
+
+        }
+
+
+        //POST TO UNSETTLED PAGE
+        $("#BtnUnsettled").click(function() {
+            var fiscalYear = $("select#FiscalYearFilter").val();
+
+            var form = $('<form action="/Request/TravelSettlementPendingAllList" method="post">' +
+                '<input type="hidden" name="fiscalYear" value="' + fiscalYear + '" />' +
+                '</form>');
+            $('body').append(form);
+            form.submit();
+        });
+
+        </script>
+    }
+
+
+
