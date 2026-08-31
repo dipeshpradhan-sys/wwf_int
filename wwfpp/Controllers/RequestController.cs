@@ -3864,5 +3864,304 @@ namespace wwfpp.Controllers
         }
         #endregion
 
+
+        #region PaySLIP
+        public IActionResult PaySlips()
+        {
+            string PageId = "10209";
+            #region FOR PERMISSION
+            var perm = _accountServices.GetMenuPermission(PageId);
+            if (perm.vpern == "false") { return RedirectToAction("PermissionDenied", "Home"); }
+            ViewBag.apern = perm.apern;
+            ViewBag.epern = perm.epern;
+            ViewBag.dpern = perm.dpern;
+            #endregion FOR END PERMISSION;
+            ViewBag.StatusFilter = GblUtilities.StatusActivePassive("AD", "A");
+            ViewBag.EmployeeFilter = _employeeServices.GetEmployeeActiveOnly();
+
+            ViewBag.CalYears = _settingsServices.GetYears(DateTime.Now.Year);
+            ViewBag.CalMonth = _settingsServices.GetMonths(DateTime.Now.Month);
+
+            return PartialView("Request/_PaySlips");
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult ExportPaySlip(int empId, int year, int month)
+        {
+            string diffPeriod = _context.tbl_salary_differential_month.Any(x => x.sal_year == year && x.sal_month == month) ? "Y" : "N";
+
+            var emp = _context.tbl_employee.FirstOrDefault(e => e.emp_id == empId);
+            var salary = _context.tbl_employee_salary
+                .Where(s => s.emp_id == empId && s.sal_year == year && s.sal_month == month)
+                .Select(s => new
+                {
+                    s.emp_id,
+                    s.sal_year,
+                    s.sal_month,
+                    s.basic_salary,
+                    s.act_basic_salary,
+                    s.pf_a,
+                    s.act_pf_a,
+                    s.pf_d,
+                    s.act_pf_d,
+                    s.children_edu_all,
+                    s.insurance,
+                    s.overtime,
+                    s.remote_area_all,
+                    s.dashain_a,
+                    s.performance_all,
+                    s.others,
+                    s.gratuity,
+                    s.gratuity_ded,
+                    s.ssf,
+                    s.ssf_ded,
+                    s.medical_expense_reimburse_total,
+                    s.leave_encash,
+                    s.tel_per_adv,
+                    s.travel_prog_adv,
+                    s.fd_adv,
+                    s.pr_adv,
+                    s.wl_adv,
+                    s.adv_PF_loan,
+                    s.adv_CIT_loan,
+                    s.welfare_fund,
+                    s.cit_d,
+                    s.incometax_d,
+                    s.betalibi_d
+                })
+                .FirstOrDefault()
+                ?? _context.tbl_employee_salary_a_field
+                .Where(s => s.emp_id == empId && s.sal_year == year && s.sal_month == month)
+                .Select(s => new
+                {
+                    s.emp_id,
+                    s.sal_year,
+                    s.sal_month,
+                    s.basic_salary,
+                    s.act_basic_salary,
+                    s.pf_a,
+                    s.act_pf_a,
+                    s.pf_d,
+                    s.act_pf_d,
+                    s.children_edu_all,
+                    s.insurance,
+                    s.overtime,
+                    s.remote_area_all,
+                    s.dashain_a,
+                    s.performance_all,
+                    s.others,
+                    s.gratuity,
+                    s.gratuity_ded,
+                    s.ssf,
+                    s.ssf_ded,
+                    s.medical_expense_reimburse_total,
+                    s.leave_encash,
+                    s.tel_per_adv,
+                    s.travel_prog_adv,
+                    s.fd_adv,
+                    s.pr_adv,
+                    s.wl_adv,
+                    s.adv_PF_loan,
+                    s.adv_CIT_loan,
+                    s.welfare_fund,
+                    s.cit_d,
+                    s.incometax_d,
+                    s.betalibi_d
+                })
+                .FirstOrDefault();
+
+            if (salary == null)
+            {
+                // Only send status flag, no message
+                return Json(new { status = "nosalary" });
+            }
+
+            var gratuityInfo = _context.tbl_employee_gratuity_info.FirstOrDefault(g => g.emp_id == empId);
+            var ssfInfo = _context.tbl_employee_ssf_info.FirstOrDefault(s => s.emp_id == empId);
+
+            // === Replicate ASP calculations ===
+            decimal basicSalary = salary.basic_salary ?? 0;
+            decimal actBasicSalary = salary.act_basic_salary ?? 0;
+            decimal pfA = salary.pf_a ?? 0;
+            decimal actPfA = salary.act_pf_a ?? 0;
+            decimal pfD = salary.pf_d ?? 0;
+            decimal actPfD = salary.act_pf_d ?? 0;
+
+            decimal childrenEduAll = salary.children_edu_all ?? 0;
+            decimal insurance = salary.insurance ?? 0;
+
+            var date = new DateTime(year, month, 1);
+            if (date <= new DateTime(2010, 6, 1))
+            {
+                childrenEduAll = 0;
+                insurance = 0;
+            }
+
+            decimal overtime = salary.overtime ?? 0;
+            decimal remoteAreaAll = salary.remote_area_all ?? 0;
+            decimal dashainA = salary.dashain_a ?? 0;
+            decimal performanceAll = salary.performance_all ?? 0;
+            decimal others = salary.others ?? 0;
+            decimal gratuity = salary.gratuity ?? 0;
+            decimal gratuityDed = salary.gratuity_ded ?? 0;
+            decimal ssf = salary.ssf ?? 0;
+            decimal ssfDed = salary.ssf_ded ?? 0;
+            decimal medicalReimburse = salary.medical_expense_reimburse_total ?? 0;
+            decimal leaveEncash = salary.leave_encash ?? 0;
+
+            // Advances & loans
+            decimal telPerAdv = salary.tel_per_adv ?? 0;
+            decimal travelProgAdv = salary.travel_prog_adv ?? 0;
+            decimal fdAdv = salary.fd_adv ?? 0;
+            decimal prAdv = salary.pr_adv ?? 0;
+            decimal wlAdv = salary.wl_adv ?? 0;
+            decimal advPfLoan = salary.adv_PF_loan ?? 0;
+            decimal advCitLoan = salary.adv_CIT_loan ?? 0;
+            decimal welfareFund = salary.welfare_fund ?? 0;
+
+            // Deductions
+            decimal citD = salary.cit_d ?? 0;
+            decimal taxD = salary.incometax_d ?? 0;
+            decimal betalibiD = salary.betalibi_d ?? 0;
+
+            // Totals
+            decimal totalEarnings = basicSalary + pfA + childrenEduAll + overtime + remoteAreaAll + dashainA +
+                                    performanceAll + others + insurance + medicalReimburse + leaveEncash +
+                                    gratuity + ssf;
+
+            decimal totalDeductions = pfD + citD + taxD + betalibiD + telPerAdv + travelProgAdv + fdAdv +
+                                      prAdv + wlAdv + welfareFund + advPfLoan + advCitLoan +
+                                      gratuityDed + ssfDed;
+
+            decimal netInHand = totalEarnings - totalDeductions;
+
+            // Differential logic
+            decimal diffActBasicSalary = basicSalary - actBasicSalary;
+            decimal diffActPfA = pfA - actPfA;
+            decimal diffActPfD = pfD - actPfD;
+
+            // === Build Excel ===
+            using (var workbook = new XLWorkbook())
+            {
+                var ws = workbook.Worksheets.Add("PaySlip");
+                int row = 1;
+
+                // Organization header
+                ws.Cell(row++, 1).Value = _requestServices.GetApplicationSetting("op_org_name");
+                ws.Cell(row - 1, 2).Value = _requestServices.GetApplicationSetting("op_org_addr");
+                row += 2;
+
+                // Employee details
+                ws.Cell(row++, 1).Value = "Employee Code"; ws.Cell(row - 1, 2).Value = emp.emp_code;
+                ws.Cell(row++, 1).Value = "Name"; ws.Cell(row - 1, 2).Value = $"{emp.firstname} {emp.middlename} {emp.lastname}";
+                ws.Cell(row++, 1).Value = "Designation"; ws.Cell(row - 1, 2).Value = emp.post;
+                ws.Cell(row++, 1).Value = "Month-Year"; ws.Cell(row - 1, 2).Value = $"{month}-{year}";
+                ws.Cell(row++, 1).Value = "Account No"; ws.Cell(row - 1, 2).Value = emp.account_no;
+                ws.Cell(row++, 1).Value = "PF No"; ws.Cell(row - 1, 2).Value = emp.pf_no;
+                ws.Cell(row++, 1).Value = "CIT No"; ws.Cell(row - 1, 2).Value = emp.cit_no;
+                ws.Cell(row++, 1).Value = "PAN No"; ws.Cell(row - 1, 2).Value = emp.pan_no;
+                ws.Cell(row++, 1).Value = "Gratuity No"; ws.Cell(row - 1, 2).Value = gratuityInfo?.gr_number;
+                ws.Cell(row++, 1).Value = "SSF No"; ws.Cell(row - 1, 2).Value = ssfInfo?.ssf_number;
+                row += 2;
+
+                // Earnings section
+                ws.Cell(row++, 1).Value = "Earnings"; ws.Cell(row - 1, 2).Value = totalEarnings;
+                ws.Cell(row++, 1).Value = "Basic Salary"; ws.Cell(row - 1, 2).Value = basicSalary;
+                if (diffPeriod == "Y")
+                {
+                    ws.Cell(row++, 1).Value = "Act Basic Salary"; ws.Cell(row - 1, 2).Value = actBasicSalary;
+                    ws.Cell(row++, 1).Value = "Diff Basic Salary"; ws.Cell(row - 1, 2).Value = diffActBasicSalary;
+                }
+                ws.Cell(row++, 1).Value = "PF Employer"; ws.Cell(row - 1, 2).Value = pfA;
+                if (diffPeriod == "Y")
+                {
+                    ws.Cell(row++, 1).Value = "Act PF Employer"; ws.Cell(row - 1, 2).Value = actPfA;
+                    ws.Cell(row++, 1).Value = "Diff PF Employer"; ws.Cell(row - 1, 2).Value = diffActPfA;
+                }
+                if (gratuity != 0) { ws.Cell(row++, 1).Value = "Gratuity"; ws.Cell(row - 1, 2).Value = gratuity; }
+                if (ssf != 0) { ws.Cell(row++, 1).Value = "SSF"; ws.Cell(row - 1, 2).Value = ssf; }
+                if (childrenEduAll != 0) { ws.Cell(row++, 1).Value = "Children Edu Allowance"; ws.Cell(row - 1, 2).Value = childrenEduAll; }
+                if (insurance != 0) { ws.Cell(row++, 1).Value = "Insurance"; ws.Cell(row - 1, 2).Value = insurance; }
+                //if (overtime != 0) { ws.Cell(row++, 1).Value = "Overtime"; ws.Cell(row - 1, 2).Value = overtime; }
+                // Overtime handling
+                if (overtime != 0)
+                {
+                    if (diffPeriod == "Y")
+                    {
+                        // Query tbl_employee_overtime for ot_diff
+                        var otDiff = _context.tbl_employee_overtime
+                            .Where(o => o.emp_id == empId && o.sal_year == year && o.sal_month == month)
+                            .Sum(o => (decimal?)o.ot_diff) ?? 0;
+
+                        var overtimeAmt = overtime - otDiff;
+
+                        ws.Cell(row++, 1).Value = "Overtime";
+                        ws.Cell(row - 1, 2).Value = overtimeAmt;
+
+                        if (otDiff != 0)
+                        {
+                            ws.Cell(row++, 1).Value = "Differential Overtime";
+                            ws.Cell(row - 1, 2).Value = otDiff;
+                        }
+                    }
+                    else
+                    {
+                        ws.Cell(row++, 1).Value = "Overtime";
+                        ws.Cell(row - 1, 2).Value = overtime;
+                    }
+                }
+
+
+
+
+                if (remoteAreaAll != 0) { ws.Cell(row++, 1).Value = "Remote Area Allowance"; ws.Cell(row - 1, 2).Value = remoteAreaAll; }
+                if (dashainA != 0) { ws.Cell(row++, 1).Value = "Dashain Bonus"; ws.Cell(row - 1, 2).Value = dashainA; }
+                if (performanceAll != 0) { ws.Cell(row++, 1).Value = "Performance Bonus"; ws.Cell(row - 1, 2).Value = performanceAll; }
+                if (medicalReimburse != 0) { ws.Cell(row++, 1).Value = "Medical Reimbursement"; ws.Cell(row - 1, 2).Value = medicalReimburse; }
+                if (leaveEncash != 0) { ws.Cell(row++, 1).Value = "Leave Encashment"; ws.Cell(row - 1, 2).Value = leaveEncash; }
+                if (others != 0) { ws.Cell(row++, 1).Value = "Others"; ws.Cell(row - 1, 2).Value = others; }
+
+                row += 2;
+
+                // Deductions section
+                ws.Cell(row++, 1).Value = "Deductions"; ws.Cell(row - 1, 2).Value = totalDeductions;
+                ws.Cell(row++, 1).Value = "CIT"; ws.Cell(row - 1, 2).Value = citD;
+                if (gratuityDed != 0) { ws.Cell(row++, 1).Value = "Gratuity Deduction"; ws.Cell(row - 1, 2).Value = gratuityDed; }
+                if (ssfDed != 0) { ws.Cell(row++, 1).Value = "SSF Deduction"; ws.Cell(row - 1, 2).Value = ssfDed; }
+                if (diffPeriod == "Y")
+                {
+                    ws.Cell(row++, 1).Value = "Act PF Deduction"; ws.Cell(row - 1, 2).Value = actPfD;
+                    ws.Cell(row++, 1).Value = "Diff PF Deduction"; ws.Cell(row - 1, 2).Value = diffActPfD;
+                }
+                else
+                {
+                    ws.Cell(row++, 1).Value = "PF Deduction"; ws.Cell(row - 1, 2).Value = pfD;
+                }
+                ws.Cell(row++, 1).Value = "Tax"; ws.Cell(row - 1, 2).Value = taxD;
+                if (betalibiD != 0) { ws.Cell(row++, 1).Value = "Betalibi Deduction"; ws.Cell(row - 1, 2).Value = betalibiD; }
+                if (telPerAdv != 0) { ws.Cell(row++, 1).Value = "Personal Advance"; ws.Cell(row - 1, 2).Value = telPerAdv; }
+                if (prAdv != 0) { ws.Cell(row++, 1).Value = "Program Advance"; ws.Cell(row - 1, 2).Value = prAdv; }
+                if (travelProgAdv != 0) { ws.Cell(row++, 1).Value = "Travel Advance"; ws.Cell(row - 1, 2).Value = travelProgAdv; }
+                if (fdAdv != 0) { ws.Cell(row++, 1).Value = "Field Drawing"; ws.Cell(row - 1, 2).Value = fdAdv; }
+                if (wlAdv != 0) { ws.Cell(row++, 1).Value = "Welfare Advance"; ws.Cell(row - 1, 2).Value = wlAdv; }
+                if (advPfLoan != 0) { ws.Cell(row++, 1).Value = "PF Loan"; ws.Cell(row - 1, 2).Value = advPfLoan; }
+                if (advCitLoan != 0) { ws.Cell(row++, 1).Value = "CIT Loan"; ws.Cell(row - 1, 2).Value = advCitLoan; }
+                if (welfareFund != 0) { ws.Cell(row++, 1).Value = "Welfare Contribution"; ws.Cell(row - 1, 2).Value = welfareFund; }
+
+                row += 2;
+
+                // Net
+                ws.Cell(row++, 1).Value = "Net In Hand"; ws.Cell(row - 1, 2).Value = netInHand;
+
+                using (var stream = new MemoryStream())
+                {
+                    workbook.SaveAs(stream);
+                    var base64 = Convert.ToBase64String(stream.ToArray());
+                    return Json(new { status = "success", fileContent = base64, fileName = $"PaySlip-{empId}-{year}{month}.xlsx" });
+                }
+            }
+        }
+        #endregion
+
     }
 }
