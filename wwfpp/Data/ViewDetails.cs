@@ -262,42 +262,28 @@ namespace wwfpp.Data
     {
         [Key]
         public int emp_id { get; set; }   // FK to tbl_employee.emp_id
-
         [StringLength(1)]
-        public string is_field_staff { get; set; }   // never null (ISNULL -> '')
-
+        public string? is_field_staff { get; set; }   // never null (ISNULL -> '')
         [StringLength(1)]
-        public string is_get_dashain { get; set; }
-
-        public byte welfare_con_percent { get; set; }   // ISNULL -> 0
-
+        public string? is_get_dashain { get; set; }
+        public double? welfare_con_percent { get; set; }   // ISNULL -> 0
         [StringLength(1)]
-        public string timesheet_acceptance { get; set; }
-
+        public string? timesheet_acceptance { get; set; }
         [StringLength(1)]
-        public string is_field_salary { get; set; }
-
+        public string? is_field_salary { get; set; }
         [StringLength(1)]
-        public string staff_type { get; set; }
-
+        public string? staff_type { get; set; }
         [StringLength(1)]
-        public string get_leave_accrual { get; set; }
-
+        public string? get_leave_accrual { get; set; }
         [StringLength(1)]
-        public string get_gratuity_accrual { get; set; }
-
+        public string? get_gratuity_accrual { get; set; }
         public DateTime? gratuity_date { get; set; }   // still nullable, no ISNULL
-
         [StringLength(50)]
-        public string duty_station_id { get; set; }
-
-        public int emp_year { get; set; }   // ISNULL -> 0
-
-        public int emp_month { get; set; }
-
+        public string? duty_station_id { get; set; }
+        public int? emp_year { get; set; }   // ISNULL -> 0
+        public int? emp_month { get; set; }
         [StringLength(10)]
         public string fiscal_year { get; set; }
-
         public short emp_week { get; set; }   // ISNULL -> 0
     }
     public class vw_employee_salary_previous

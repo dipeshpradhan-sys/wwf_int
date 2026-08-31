@@ -1,6 +1,6 @@
 ﻿namespace wwfpp.Models.Payroll
 {
-    public class EmployeeMedicalReimburseViewModel
+    public class EmployeeMedicalReimbursePayrollViewModel
     {
         public string id { get; set; }  //[varchar{50) NOT NULL,
         public string? fiscal_year { get; set; }  //[varchar{10) NULL,

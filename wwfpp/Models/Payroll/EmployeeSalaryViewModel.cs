@@ -20,6 +20,7 @@
         public decimal? cit_d { get; set; }  //[money] NULL,
         public decimal? betalibi_d { get; set; }  //[money] NULL,
         public string? is_dashain { get; set; }  //[nvarchar](1) NULL,
+        public string? is_dashain_check { get; set; }  //[nvarchar](1) NULL,
         public decimal? dashain_a { get; set; }  //[money] NULL,
         public decimal? tel_per_adv { get; set; }  //[money] NULL,
         public decimal? travel_prog_adv { get; set; }  //[money] NULL,
@@ -75,6 +76,11 @@
         public double? fifth_tax_percent { get; set; }  //[float] NULL,
         public decimal? annual_health_checkup_add { get; set; }  //[money] NULL,
         public decimal? annual_health_checkup_ded { get; set; }  //[money] NULL,
+        public string? marital_status { get; set; }
+    }    
+    public class EmployeeSalaryListViewModel
+    {
+        public string? mode { get; set; }
+        public List<EmployeeSalaryViewModel> Fields { get; set; }
     }
-
 }

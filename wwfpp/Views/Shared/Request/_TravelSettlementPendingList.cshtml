@@ -21,18 +21,18 @@
 <div id="message_header">@Html.Raw(ShowMsg)</div>
 
 <div class="p-0 bg-white rounded mb-8">
-    <div class="row align-items-center">
+    <div-- class="row align-items-center">
         <!-- Left side: Status filter -->
         <div class="col-auto">
             Date: @ViewBag.DateFrom - @ViewBag.DateTo
         </div>
         <!-- Left side: Status filter -->
         <!-- Right side: Buttons -->
-        <div class="col-auto ms-auto">
+        <!--div class="col-auto ms-auto">
             <span id="contractSpan">
                 <button type="button" id="BtnUnsettledBack" class="btn btn-sm btn-success m-1 p-1">Travel Settlement</button>
             </span>
-        </div>
+        </div-->
     </div>
 </div>
 <!-- Stage 1: Read-only grid -->
@@ -86,36 +86,6 @@
             $('#employeeList').on('change', function () {
                 getRecords();
             });
-            /*$("#BtnUnsettledBack").click(function() {
-                var fiscalYear = $("select#FiscalYearFilter").val();
-                $.ajax({
-                    url: "/Request/TravelSettlement",
-                    type: 'POST',
-                    data: { fiscalYear: fiscalYear, settleType: "" },
-                    success: function(data) {
-                        // Inject the HTML returned by your action
-                        //$("#UnsettledContainer").html(data);
-                    },
-                    error: function() {
-                        alert("Error loading travel settlement list.");
-                    }
-                });
-            });*/
-            /*$("#BtnUnsettledBack").click(function () {
-                var empId = $("select#employeeList").val();
-                //var fiscalYear = $("select#FiscalYearList").val();
-                var status = $("select#StatusFilter").val();
-                // Get the full query string part of the URL
-                const queryString = window.location.search; // e.g. "?empId=123&fiscalYear=2025&status=Approved"
-
-                // Parse it
-                const urlParams = new URLSearchParams(queryString);
-
-                //var empId = $("select#employeeList").val();
-                //var status = $("select#StatusFilter").val();
-                var fiscalYear = urlParams.get("fiscalYear");
-                window.location.href = '@Url.Action("TravelSettlement", "Request")' + '?emp_id=' + empId + '&fiscalYear=' + fiscalYear + '&status=' + status;
-            });*/
             //POST TO UNSETTLED PAGE
             $("#BtnSave").click(function () {
                 $.ajax({
@@ -131,6 +101,16 @@
                     }
                 });
             });
+        });
+        //POST TO UNSETTLED PAGE
+        $("#BtnUnsettledBack").click(function() {
+            var fiscalYear = $("select#FiscalYearFilter").val();
+
+            var form = $('<form action="/Request/TravelSettlement" method="post">' +
+                '<input type="hidden" name="fiscalYear" value="' + fiscalYear + '" />' +
+                '</form>');
+            $('body').append(form);
+            form.submit();
         });
         function getRecords(){
             // Get the full query string part of the URL

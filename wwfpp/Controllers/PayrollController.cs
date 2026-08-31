@@ -5867,6 +5867,817 @@ namespace wwfpp.Controllers
         }
 
         #endregion
+        /********************************************************************************************************************/
+        #region 10907 EMPLOYEE SALARY BULK
+        [HttpGet]
+        public IActionResult SalaryBulk()
+        {
+            string PageId = "10907";
+            #region FOR PERMISSION
+            var perm = _accountServices.GetMenuPermission(PageId);
+            if (perm.vpern == "false") { return RedirectToAction("PermissionDenied", "Home"); }
+            ViewBag.apern = perm.apern;
+            ViewBag.epern = perm.epern;
+            ViewBag.dpern = perm.dpern;
+            #endregion FOR END PERMISSION
+
+            ViewBag.DATE_FORMAT = _appSettings.DATE_FORMAT;
+            ViewBag.StatusFilter = StatusActivePassive("AD");
+            ViewBag.YearDropDown = _settingsServices.GetYears(DateTime.Now.Year);
+            ViewBag.MonthDropDown = _settingsServices.GetMonths(DateTime.Now.Month);
+
+            ViewBag.epern = _accountServices.GetSingleMenuPermission(PageId, "E") ?? "false";
+
+            //END OF MONTH AND YEAR
+            var taxPercent = _context.tbl_tax_setting
+                .Select(f => new
+                {
+                    InitialTaxPercent = f.initial_tax_percent ?? 0m,
+                    FirstTaxPercent = f.first_tax_percent ?? 0d,
+                    SecondTaxPercent = f.second_tax_percent ?? 0d,
+                    ThirdTaxPercent = f.third_tax_percent ?? 0d,
+                    FourthTaxPercent = f.fourth_tax_percent ?? 0d,
+                    FifthTaxPercent = f.fifth_tax_percent ?? 0d,
+
+                    SingleAmt = f.single_amt ?? 0m,
+                    MarriedAmt = f.married_amt ?? 0m,
+                    FirstTaxAmount = f.first_tax_amount ?? 0d,
+                    SecondTaxAmount = f.second_tax_amount ?? 0m,
+                    ThirdTaxAmountSingle = f.third_tax_amount_single ?? 0m,
+                    ThirdTaxAmountMarried = f.third_tax_amount_married ?? 0m,
+                    MaxMedicalExpensesReimbursed = f.max_medical_expenses_reimbursed ?? 0d,
+                    SingleFemaleDedPer = f.single_female_ded_per ?? 0d,
+                    MaxMedicalTaxCreditPer = f.max_medical_tax_credit_per ?? 0d,
+                    FourthTaxAmount = f.fourth_tax_amount ?? 0m,
+
+                    MaxMedicalTaxCreditAmount = f.max_medical_tax_credit_amount ?? 0d,
+                    InsAmt = f.ins_amt ?? 0m,
+                    InsAmtNonLife = f.ins_amt_non_life ?? 0m
+                }).FirstOrDefault();
+                ViewBag.InitialTaxPercent = taxPercent.InitialTaxPercent;
+                ViewBag.FirstTaxPercent = taxPercent.FirstTaxPercent;
+                ViewBag.SecondTaxPercent = taxPercent.SecondTaxPercent;
+                ViewBag.ThirdTaxPercent = taxPercent.ThirdTaxPercent;
+                ViewBag.FourthTaxPercent = taxPercent.FourthTaxPercent;
+                ViewBag.FifthTaxPercent = taxPercent.FifthTaxPercent;
+
+                ViewBag.SingleAmt = taxPercent.SingleAmt;
+                ViewBag.MarriedAmt = taxPercent.MarriedAmt;
+                ViewBag.FirstTaxAmount = taxPercent.FirstTaxAmount;
+                ViewBag.SecondTaxAmount = taxPercent.SecondTaxAmount;
+                ViewBag.ThirdTaxAmountSingle = taxPercent.ThirdTaxAmountSingle;
+                ViewBag.ThirdTaxAmountMarried = taxPercent.ThirdTaxAmountMarried;
+                ViewBag.MaxMedicalExpensesReimbursed = taxPercent.MaxMedicalExpensesReimbursed;
+                ViewBag.SingleFemaleDedPer = taxPercent.SingleFemaleDedPer;
+                ViewBag.MaxMedicalTaxCreditPer = taxPercent.MaxMedicalTaxCreditPer;
+                ViewBag.FourthTaxAmount = taxPercent.FourthTaxAmount;
+                ViewBag.FifthTaxPercent = taxPercent.FifthTaxPercent;
+
+                ViewBag.MaxMedicalTaxCreditAmount = taxPercent.MaxMedicalTaxCreditAmount;
+                ViewBag.InsAmt = taxPercent.InsAmt;
+                ViewBag.InsAmtNonLife = taxPercent.InsAmtNonLife;
+
+            //ViewBag.ViewButtons = _accountServices.getAddEditDeleteAccess("Payroll/SalaryBulk", "Save/CalcualteAll", PageId, Records.Count);
+
+            return PartialView("Payroll/_SalaryBulk", "");
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult SalaryBulkList([FromForm] DataFilterRequest request)
+        {
+            var (pageSize, skip, draw, sortColumn, sortColumnDir, searchValue) = DataTableHelper.GetParameters(Request);
+
+            string? StatusFilter = request.Status;
+            var yearFilter = request.Year;
+            var monthFilter = request.Month;
+            StatusFilter = StatusFilter == "A" ? "Active" : "Inactive";
+
+            int salYear = yearFilter ?? DateTime.Now.Year;
+            int salMonth = monthFilter ?? DateTime.Now.Month;
+            if (salYear < 1 || salYear > 9999)
+            {
+                throw new ArgumentException("Invalid year value");
+            }
+            if (salMonth < 1 || salMonth > 12)
+            {
+                throw new ArgumentException("Invalid month value");
+            }
+
+            DateTime fiscalFrom = new DateTime(salYear, 1, 1);
+            DateTime curFiscalMonth = new DateTime(salYear, salMonth, 1);
+            DateTime fiscal_to = Convert.ToDateTime(HttpContext.Session.GetString("date_to"));
+            DateTime fiscal_from = Convert.ToDateTime(HttpContext.Session.GetString("date_from"));
+
+            var data = _context.vw_Employee.AsQueryable();
+            if (!string.IsNullOrEmpty(StatusFilter) && StatusFilter != "All")
+            {
+                data = data.Where(d => d.emp_status == StatusFilter);
+            }
+            if (!string.IsNullOrEmpty(sortColumn) && !string.IsNullOrEmpty(sortColumnDir))
+            {
+                data = data.OrderBy(sortColumn + " " + sortColumnDir);
+            }
+
+            DateTime? fn_date_upto_sep = null;
+            if (monthFilter >= 7 && yearFilter <= 12)
+            {
+                string sel_fiscal_year = yearFilter + "/" + (yearFilter + 1);
+                if (sel_fiscal_year != "") 
+                { 
+                    DateTime? dateFromStr = Convert.ToDateTime(_settingsServices.GetFiscalYearValue(sel_fiscal_year, "date_from"));
+                    DateTime? dateToStr = Convert.ToDateTime(_settingsServices.GetFiscalYearValue(sel_fiscal_year, "date_to"));
+                }
+                fn_date_upto_sep = new DateTime(salYear, 9, 30);
+            }
+            else if (monthFilter >= 1 && yearFilter <= 6)
+            {
+                string sel_fiscal_year = (yearFilter - 1) + "/" + yearFilter;
+                if (sel_fiscal_year != "")
+                {
+                    DateTime? dateFromStr = Convert.ToDateTime(_settingsServices.GetFiscalYearValue(sel_fiscal_year, "date_from"));
+                    DateTime? dateToStr = Convert.ToDateTime(_settingsServices.GetFiscalYearValue(sel_fiscal_year, "date_to"));
+                }
+                fn_date_upto_sep = new DateTime(salYear - 1, 9, 30);
+            }
+
+            // Materialize first
+            var employeesBase = _context.vw_Employee
+                .Where(e => e.emp_status == StatusFilter)
+                .Join(_context.vw_employee_salary_extra_settings,
+                      e => e.emp_id,
+                      es => es.emp_id,
+                      (e, es) => new { e, es })
+                .Where(joined => joined.es.is_field_salary == "N")
+                .ToList();
+
+            // Now run imperative logic in memory
+            var employees = employeesBase.Select(joined =>
+            {
+                var e = joined.e;
+
+                // Basic salary info
+                var empInfo = _context.tbl_employee
+                    .Where(emp => emp.emp_id == e.emp_id)
+                    .Select(emp => new
+                    {
+                        BasicSalary = (decimal?)emp.salary ?? 0m,
+                        ChildEduAll = (decimal?)emp.child_edu_all ?? 0m,
+                        RemoteAreaAll = (decimal?)emp.remote_area_allow ?? 0m,
+                        YearlyRemoteExem = (decimal?)emp.yearly_remote_exem ?? 0m,
+                        WorkPercent = (int?)emp.work_percent ?? 100
+                    })
+                    .FirstOrDefault();
+
+                var basicSalary = empInfo?.BasicSalary ?? 0m;
+                var childEduAll = empInfo?.ChildEduAll ?? 0m;
+                var remoteAreaAll = empInfo?.RemoteAreaAll ?? 0m;
+                var yearlyRemoteExem = empInfo?.YearlyRemoteExem ?? 0m;
+                var workPercent = empInfo?.WorkPercent ?? 100;
+                var isDashainforce = (workPercent < 100 && salMonth == 9) ? "Y" : "N";
+
+
+                var fiscal_to_1 = HttpContext.Session.GetString("date_to");
+                DateTime e_date = Convert.ToDateTime(e.end_date);
+                if (e.end_date >= Convert.ToDateTime(fiscal_to_1))
+                    e_date = Convert.ToDateTime(fiscal_to_1);
+                // start date is always first day of the month/year
+                DateTime s_date = new DateTime(salYear, salMonth, 1);
+                int month_diff = ((e_date.Year - s_date.Year) * 12) + e_date.Month - s_date.Month + 1;
+
+
+                var query = _context.tbl_employee_salary
+                    .Where(x => x.emp_id == e.emp_id
+                    && x.sal_year == salYear
+                    && x.sal_month == salMonth);
+                var s = query.FirstOrDefault();
+                var count = query.Count();
+                var isDashainAlready = count > 1 ? "Y" : "N";
+
+                var d = _context.tbl_employee_salary_diff
+                    .FirstOrDefault(x => x.emp_id == e.emp_id && x.emp_year == salYear && x.emp_month == salMonth);
+
+                var empPF = _context.tbl_employee_pf.FirstOrDefault(x => x.emp_id == e.emp_id);
+                var empCIT = _context.tbl_employee_cit.FirstOrDefault(x => x.emp_id == e.emp_id);
+
+                var reImburseMedical = _context.tbl_employee_medical_reimburse
+                    .Where(q => q.emp_id == e.emp_id && q.sal_month >= salMonth && q.sal_year <= salYear && q.reim_type == "Medical")
+                    .GroupBy(q => q.emp_id)
+                    .Select(r => new
+                    {
+                        InsuranceReImburse = (r.Sum(x => (decimal?)x.self_amt) ?? 0m) + (r.Sum(x => (decimal?)x.spouse_amt) ?? 0m),
+                        MedicalExpenseReimburseTotal = (r.Sum(x => (decimal?)x.self_amt) ?? 0m) + (r.Sum(x => (decimal?)x.spouse_amt) ?? 0m) + (r.Sum(x => (decimal?)x.other_dep_amt) ?? 0m),
+                        InsuranceSingle = (r.Sum(x => (decimal?)x.self_amt) ?? 0m)
+                    })
+                    .FirstOrDefault();
+                var reImburseLife = _context.tbl_employee_medical_reimburse
+                    .Where(q => q.emp_id == e.emp_id && q.sal_month >= salMonth && q.sal_year <= salYear && q.reim_type == "Life Insurance")
+                    .GroupBy(q => q.emp_id)
+                    .Select(r => new
+                    {
+                        InsuranceReImburse = (r.Sum(x => (decimal?)x.self_amt) ?? 0m) + (r.Sum(x => (decimal?)x.spouse_amt) ?? 0m),
+                        MedicalExpenseReimburseTotal = (r.Sum(x => (decimal?)x.self_amt) ?? 0m) + (r.Sum(x => (decimal?)x.spouse_amt) ?? 0m) + (r.Sum(x => (decimal?)x.other_dep_amt) ?? 0m)
+                    })
+                    .FirstOrDefault();
+
+                var empOvertime = _context.tbl_employee_overtime
+                    .Where(q => q.emp_id == e.emp_id && q.sal_month >= salMonth && q.sal_year <= salYear)
+                    .GroupBy(q => q.emp_id)
+                    .Select(r => new
+                    {
+                        Overtime = (r.Sum(x => (decimal?)x.rate * (decimal?)x.hrs) ?? 0m) + (r.Sum(x => (decimal?)x.ot_diff) ?? 0m)
+                    })
+                    .FirstOrDefault();
+
+                var prev = _context.vw_employee_salary_previous
+                    .Where(q => q.emp_id == e.emp_id && q.fiscal >= fiscal_from && q.fiscal <= fiscal_to)
+                    .GroupBy(q => q.emp_id)
+                    .Select(g => new
+                    {
+                        BasicSalarySumTaken = g.Sum(x => x.t_basic_salary) ?? 0,
+                        PfATaken = g.Sum(x => x.t_pf) ?? 0,
+                        OthersTaken = g.Sum(x => x.t_allow) ?? 0,
+                        InsuranceTaken = g.Sum(x => x.t_lip_rem) ?? 0,
+                        RemoteAreaAllTaken = g.Sum(x => x.t_raa) ?? 0,
+                        DashainAmountTaken = g.Sum(x => x.t_dashain) ?? 0,
+                        PfDDud = g.Sum(x => x.t_pf_d) ?? 0,
+                        CitDud = g.Sum(x => x.t_cit_d) ?? 0,
+                        BetalabiDDud = g.Sum(x => x.t_betalabi) ?? 0,
+                        PreAccessTaxTaken = g.Sum(x => x.t_tax_pre) ?? 0,
+                        TaxDud = g.Sum(x => x.t_tax) ?? 0
+                    })
+                    .FirstOrDefault();
+
+                var fiscal_date = new DateTime(salYear, salMonth, 1);
+                var thisOfficeSalary = _context.vw_year_salary
+                   .Where(q => q.emp_id == e.emp_id
+                            && q.fiscal >= fiscal_from
+                            //&& q.fiscal <= fiscal_to
+                            && q.fiscal < fiscal_date)
+                   .AsEnumerable() // move this BEFORE GroupBy
+                   .GroupBy(q => q.emp_id)
+                   .Select(g => new
+                   {
+                       count_month = g.Count(),
+                       basic_salary_sum_taken = g.Sum(x => x.basic_salary ?? 0m) + (prev?.BasicSalarySumTaken ?? 0m),
+                       remote_area_all_taken = g.Sum(x => x.remote_area_all ?? 0m) + (prev?.RemoteAreaAllTaken ?? 0m),
+                       pf_a_taken = g.Sum(x => x.pf_a ?? 0m) + (prev?.PfATaken ?? 0m),
+                       betalibi_d_dud = g.Sum(x => x.betalibi_d ?? 0m) + (prev?.BetalabiDDud ?? 0m),
+                       pf_d_dud = g.Sum(x => x.pf_d ?? 0m) + (prev?.PfDDud ?? 0m),
+                       cit_d = g.Sum(x => x.cit_d ?? 0m),
+                       pre_access_tax = g.Sum(x => x.pre_access_tax ?? 0m),
+                       incometax_d = g.Sum(x => x.incometax_d ?? 0m),
+                       dashain_a = g.Sum(x => x.dashain_a ?? 0m),
+                       performance_all = g.Sum(x => x.performance_all ?? 0m),
+                       overtime = g.Sum(x => x.overtime ?? 0m),
+                       others = g.Sum(x => x.others ?? 0m),
+                       gratudi = g.Sum(x => x.gratudi ?? 0m),
+                       children_edu_all = g.Sum(x => x.children_edu_all ?? 0m),
+                       insurance_taken = g.Sum(x => x.insurance ?? 0m),
+                       gratuity = g.Sum(x => x.gratuity ?? 0m),
+                       gratuity_ded = g.Sum(x => x.gratuity_ded ?? 0m),
+                       medical_expense_reimburse_eligible = g.Sum(x => x.medical_expense_reimburse_eligible ?? 0m),
+                       medical_expense_reimburse_total = g.Sum(x => x.medical_expense_reimburse_total ?? 0m),
+                       leave_encash = g.Sum(x => x.leave_encash ?? 0m),
+                       medical_deduction_on_tax = g.Sum(x => x.medical_deduction_on_tax ?? 0m),
+                       ssf = g.Sum(x => x.ssf ?? 0m),
+                       ssf_ded = g.Sum(x => x.ssf_ded ?? 0m)
+                   })
+                   .FirstOrDefault();
+
+
+                var citType = s?.cit_type ?? empCIT?.cit_type ?? "";
+                var citTypeDesc = citType switch
+                {
+                    "B" => "Percent in Basic Salary",
+                    "T" => "Max Amount",
+                    "F" => "Fixed Amount",
+                    _ => ""
+                };
+                var citTypeCombined = string.IsNullOrEmpty(citTypeDesc)
+                    ? citType
+                    : $"{citType} - {citTypeDesc}";
+
+                var gratuityInfo = _context.tbl_employee_gratuity_info.FirstOrDefault(x => x.emp_id == e.emp_id);
+                var ssfSetting = _context.tbl_employee_ssf_info.FirstOrDefault(x => x.emp_id == e.emp_id);
+
+                //FOR TAX SETTINGS
+                var taxSetting = _context.tbl_tax_setting
+                    .FirstOrDefault();
+
+
+                int gender_ded = 0;
+                if (e.gender == "F")
+                    gender_ded = (int)taxSetting.single_female_ded_per;
+
+
+                //FOR INSURANCE
+                var insuranceDed = _context.tbl_employee_insurance
+                    .Where(x => x.emp_id == e.emp_id && x.ins_type == "Life" && x.ins_valid_date >= Convert.ToDateTime(fiscal_date))
+                    .GroupBy(q => q.emp_id)
+                    .Select(r => new
+                    {
+                        insuranceDed = (r.Sum(x => (decimal?)x.premium_amount) ?? 0m)
+                    })
+                    .FirstOrDefault();
+
+                //FOR INSURANCE INSNL
+                var insuranceInsNL = _context.tbl_employee_medical_reimburse
+                    .Where(q => q.emp_id == e.emp_id && q.sal_month >= salMonth && q.sal_year <= salYear && q.reim_type == "Non Life Insurance" && q.app_status == "Approved")
+                    .GroupBy(q => q.emp_id)
+                    .Select(r => new
+                    {
+                        insuranceInsNL = (r.Sum(x => (decimal?)x.self_amt) ?? 0m) + (r.Sum(x => (decimal?)x.spouse_amt) ?? 0m)
+                    })
+                    .FirstOrDefault();
+
+                var r_max_med_life_clam = ((e.marital_status == "M" ? reImburseMedical?.InsuranceReImburse ?? 0 : e.marital_status == "S" ? reImburseMedical?.InsuranceSingle ?? 0 : 0) + thisOfficeSalary?.medical_expense_reimburse_total ?? 0) + (thisOfficeSalary?.insurance_taken ?? 0 + reImburseLife?.InsuranceReImburse ?? 0);
+                var total_cur_medical_eme = (((decimal?)r_max_med_life_clam * (decimal?)(taxSetting?.max_medical_tax_credit_per ?? 0)) / 100) - thisOfficeSalary?.medical_deduction_on_tax ?? 0;
+
+                // Advances
+                var adv = _context.tbl_employee_advance
+                    .FirstOrDefault(a => a.emp_id == e.emp_id && a.adv_year == salYear && a.adv_month == salMonth);
+
+                // Dashain Percent Amount Tax
+                var dashainPerAmt = _context.tbl_employee_salary_tax_percent
+                    .FirstOrDefault(a => a.emp_id == e.emp_id);
+
+                int fn_count_days_dashain = 0;
+                if (e.join_date.HasValue && e.join_date.Value < fn_date_upto_sep)
+                {
+                    TimeSpan diff = fn_date_upto_sep.Value - e.join_date.Value;
+                    int dateDiff = diff.Days + 1;
+
+                    fn_count_days_dashain = dateDiff >= 365 ? 0 : dateDiff;
+                }
+                else
+                {
+                    fn_count_days_dashain = -1;
+                }
+
+                return new
+                {
+                    EmplopyeeInfo_EmpId = e.emp_id,
+                    emp_id = e.emp_id,
+                    EmplopyeeInfo_EmpCode = e.emp_code,
+                    EmplopyeeInfo_EmployeeName = e.employeenameWithCode,
+                    EmplopyeeInfo_EmployeeFullName = e.employeename,
+                    EmplopyeeInfo_IsFieldSalary = joined.es.is_field_salary ?? "N",
+                    EmplopyeeInfo_EmpStatus = e.emp_status,
+                    EmplopyeeInfo_MaritalStatus = e.marital_status,
+                    EmplopyeeInfo_Gender = e.gender,
+                    EmplopyeeInfo_StartDate = e.join_date,
+                    EmplopyeeInfo_EndDate = e.end_date,
+
+                    // CURRENT
+                    Current_BasicSalary = _payrollServices.GetFormatValue((s?.basic_salary) ?? basicSalary + (d?.basic_salary ?? 0)),
+                    Current_pfA = _payrollServices.GetFormatValue((s != null && s.pf_a > 0) ? (s.pf_a ?? 0) : (empPF?.pf_group == "A" ? (decimal)(empPF?.add_percent_amount ?? 0) : 0)),
+                    Current_PerformanceAll = _payrollServices.GetFormatValue((s?.performance_all ?? 0)),
+                    Current_Insurance = _payrollServices.GetFormatValue((s?.insurance ?? reImburseLife?.InsuranceReImburse ?? 0)),
+                    Current_Others = _payrollServices.GetFormatValue((s?.others ?? 0)),
+                    Current_ChildrenEduAll = _payrollServices.GetFormatValue(((s?.children_edu_all) ?? childEduAll)),
+                    //Current_Gratuity_a = _generalServices.GetFormatValue((d?.gratuity_a) ?? 0),
+                    Current_Gratuity = _payrollServices.GetFormatValue(((decimal?)s?.gratuity ?? (decimal?)gratuityInfo?.add_percent_amount ?? 0m) + (d?.gratuity_a ?? 0m)),
+                    Current_Gratudi = _payrollServices.GetFormatValue(((s?.gratudi) ?? 0)),
+                    Current_Ssf = _payrollServices.GetFormatValue((s?.ssf ?? d?.ssf_a ?? 0)),
+                    Current_RemoteAreaAll = _payrollServices.GetFormatValue(((s?.remote_area_all) ?? remoteAreaAll)),
+                    Current_YearlyRemoteExem = _payrollServices.GetFormatValue(yearlyRemoteExem),
+                    Current_Overtime = _payrollServices.GetFormatValue(((s?.overtime) ?? (empOvertime?.Overtime) ?? 0)),
+                    Current_MedicalExpenseReimburseTotal = _payrollServices.GetFormatValue((s?.medical_expense_reimburse_total ?? (reImburseMedical?.MedicalExpenseReimburseTotal ?? 0))),
+                    Current_MedicalExpenseReimburseEligible = _payrollServices.GetFormatValue((s?.medical_expense_reimburse_eligible) ?? ((reImburseMedical?.InsuranceReImburse ?? 0) + (thisOfficeSalary?.medical_expense_reimburse_total ?? 0)) + ((thisOfficeSalary?.insurance_taken ?? 0) + (s?.insurance ?? reImburseLife?.InsuranceReImburse ?? 0))),
+                    Current_LeaveEncash = _payrollServices.GetFormatValue((s?.leave_encash ?? 0)),
+
+                    //Dashain Bonus
+                    DashainBonus_Bonus = s?.is_dashain ?? "N",
+                    DashainBonus_Amount = _payrollServices.GetFormatValue((s?.dashain_a ?? 0)),
+
+                    // Deduction for tax calculation
+                    DedTaxCalculation_BasicD = _payrollServices.GetFormatValue((e.marital_status == "M" ? taxSetting?.married_amt ?? 0 : e.marital_status == "S" ? taxSetting?.single_amt ?? 0 : 0)),
+                    DedTaxCalculation_PfD = _payrollServices.GetFormatValue((s != null && s.pf_d > 0) ? (s.pf_d ?? 0) : ((empPF?.pf_group == "A" || empPF?.pf_group == "B") ? (decimal)(empPF?.ded_percent_amount ?? 0) + (d?.pf_d ?? 0) : 0)),
+                    DedTaxCalculation_CitD = _payrollServices.GetFormatValue((s != null && s.a_cit_d > 0) ? (s.a_cit_d ?? 0) : (empCIT?.cit_type == "B" ? Math.Round(basicSalary * (decimal)(empCIT?.percent_amount ?? 0) / 100, 0) : (empCIT?.cit_type == "F" ? (decimal)(empCIT?.percent_amount ?? 0) : 0))),
+                    DedTaxCalculation_GratuityDed = _payrollServices.GetFormatValue((s?.gratuity_ded ?? 0) + (d?.gratuity_d ?? 0)),
+                    DedTaxCalculation_SsfDed = _payrollServices.GetFormatValue((s?.ssf_ded ?? 0) + (d?.ssf_d ?? 0)),
+                    DedTaxCalculation_InsuranceD = _payrollServices.GetFormatValue((s?.insurance_d ?? insuranceDed?.insuranceDed ?? 0)),
+                    DedTaxCalculation_InsuranceDNL = _payrollServices.GetFormatValue(s?.insurance_d_nl ?? insuranceInsNL?.insuranceInsNL ?? 0),
+                    DedTaxCalculation_BetalabiD = _payrollServices.GetFormatValue(s?.betalibi_d ?? 0),
+                    DedTaxCalculation_MedicalDeductionOnTax = _payrollServices.GetFormatValue(s?.medical_deduction_on_tax ?? (decimal?)total_cur_medical_eme ?? 0),
+                    DedTaxCalculation_PreAccessTax = _payrollServices.GetFormatValue(s?.pre_access_tax ?? 0),
+
+                    // Gross
+                    Gross_PrevYearExcessTax = _payrollServices.GetFormatValue(s?.pre_access_tax ?? 0),
+                    Gross_YearlyTaxableSalary = _payrollServices.GetFormatValue(s?.yearly_salary ?? 0),
+                    Gross_YearlyTax = _payrollServices.GetFormatValue(s?.yearly_tax ?? 0),
+                    Gross_MonthlySalary = _payrollServices.GetFormatValue(s?.monthly_salary ?? 0),
+                    Gross_MonthTax = _payrollServices.GetFormatValue(s?.incometax_d ?? 0),
+                    //Gross_MonthAmount = (s?.month_amount ?? 0) - (s?.incometax_d ?? 0),
+                    Gross_MonthAmount = _payrollServices.GetFormatValue(s?.month_amount ?? 0),
+                    Gross_MonthDiff = month_diff,
+
+                    // Advances
+                    Advances_Personnel = _payrollServices.GetFormatValue(s?.tel_per_adv ?? adv?.adv_personnel ?? 0),
+                    Advances_Program = _payrollServices.GetFormatValue(s?.pr_adv ?? adv?.adv_program ?? 0),
+                    Advances_Travel = _payrollServices.GetFormatValue(s?.travel_prog_adv ?? adv?.adv_travel ?? 0),
+                    Advances_FieldDrawing = _payrollServices.GetFormatValue(s?.fd_adv ?? adv?.adv_field_drawing ?? 0),
+                    Advances_Welfare = _payrollServices.GetFormatValue(s?.wl_adv ?? adv?.adv_welfare ?? 0),
+                    Advances_PfLoan = _payrollServices.GetFormatValue(s?.adv_PF_loan ?? adv?.adv_PF_loan ?? 0),
+                    Advances_CitLoan = _payrollServices.GetFormatValue(s?.adv_CIT_loan ?? adv?.adv_CIT_loan ?? 0),
+
+                    // Welfare
+                    Welfare_Percentage = _payrollServices.GetFormatValue((decimal?)(s?.wl_per) ?? (decimal?)(joined.es.welfare_con_percent) ?? 0m),
+                    Welfare_Amount = _payrollServices.GetFormatValue(s?.welfare_fund ?? (((decimal?)(s?.basic_salary) ?? (decimal?)basicSalary + (d?.basic_salary ?? 0) * (s?.wl_per ?? (decimal?)(joined.es.welfare_con_percent) ?? 0m)) / 100) ?? 0),
+
+                    // Net
+                    NetInHand_Amount = _payrollServices.GetFormatValue(s?.net_in_hand ?? 0),
+
+                    // Others
+                    Others_Remarks = s?.remarks ?? "",
+
+                    // ACTUAL
+                    Actual_BasicSalary = _payrollServices.GetFormatValue(s?.act_basic_salary ?? (decimal?)basicSalary ?? 0),
+                    Actual_PfA = _payrollServices.GetFormatValue((s != null && s.act_pf_a > 0) ? (s.act_pf_a ?? 0) : (empPF?.pf_group == "A" ? (decimal)(empPF?.add_percent_amount ?? 0) : 0)),
+                    Actual_RemoteAreaAll = _payrollServices.GetFormatValue(s?.remote_area_all ?? 0),
+                    Actual_PfD = _payrollServices.GetFormatValue((s != null && s.act_pf_d > 0) ? (s.act_pf_d ?? 0) : ((empPF?.pf_group == "A" || empPF?.pf_group == "B") ? (decimal)(empPF?.ded_percent_amount ?? 0) : 0)),
+                    Actual_CitD = _payrollServices.GetFormatValue((s != null && s.a_cit_d > 0) ? (s.a_cit_d ?? 0) : (empCIT?.cit_type == "B" ? Math.Round(basicSalary * (decimal)(empCIT?.percent_amount ?? 0) / 100, 0) : (empCIT?.cit_type == "F" ? (decimal)(empCIT?.percent_amount ?? 0) : 0))),
+                    Actual_CitType = (s != null) ? (s.cit_type) : empCIT?.cit_type,
+                    Actual_CitPercentAmount = citTypeCombined,
+
+                    // Dashain Percent Amount(radio buttons)
+                    //FOR LABEL
+                    d_0_p = taxSetting?.initial_tax_percent ?? 0,
+                    d_1_p = taxSetting?.first_tax_percent ?? 0,
+                    d_2_p = taxSetting?.second_tax_percent ?? 0,
+                    d_3_p = taxSetting?.third_tax_percent ?? 0,
+                    d_4_p = taxSetting?.fourth_tax_percent ?? 0,
+                    d_5_p = taxSetting?.fifth_tax_percent ?? 0,
+                    //FOR VALUE
+                    DahsianPerAmt_d_0_p = s?.percent_for_tax_add ?? dashainPerAmt?.percent_for_tax_add?.ToString() ?? "",
+                    is_dashain_already = isDashainAlready,
+
+                    // PREVIOUS
+                    Previous_BasicSalary = _payrollServices.GetFormatValue(prev?.BasicSalarySumTaken ?? 0),
+                    Previous_PfA = _payrollServices.GetFormatValue(prev?.PfATaken ?? 0),
+                    Previous_RemoteAreaAllTaken = _payrollServices.GetFormatValue(prev?.RemoteAreaAllTaken ?? 0),
+                    Previous_DashainAmountTaken = _payrollServices.GetFormatValue(prev?.DashainAmountTaken ?? 0),
+                    Previous_PerformanceAllTaken = _payrollServices.GetFormatValue(thisOfficeSalary?.performance_all ?? 0),
+                    Previous_ChildrenEduAllTaken = _payrollServices.GetFormatValue(thisOfficeSalary?.children_edu_all ?? 0),
+                    Previous_GratuityTaken = _payrollServices.GetFormatValue(thisOfficeSalary?.gratuity ?? 0),
+                    Previous_GratuityDedTaken = _payrollServices.GetFormatValue(thisOfficeSalary?.gratuity_ded ?? 0),
+                    Previous_SSFTaken = _payrollServices.GetFormatValue(thisOfficeSalary?.ssf ?? 0),
+                    Previous_SSFDedTaken = _payrollServices.GetFormatValue(thisOfficeSalary?.ssf_ded ?? 0),
+                    Previous_MedExpReimTotalTaken = _payrollServices.GetFormatValue(thisOfficeSalary?.medical_expense_reimburse_total ?? 0),
+                    Previous_MedicalExpenseReimburseEligibleTaken = _payrollServices.GetFormatValue(thisOfficeSalary?.medical_expense_reimburse_eligible ?? 0),
+                    Previous_MedicalDeductionOnTaxTaken = _payrollServices.GetFormatValue(thisOfficeSalary?.medical_deduction_on_tax ?? 0),
+                    Previous_LeaveEncashTaken = _payrollServices.GetFormatValue(thisOfficeSalary?.leave_encash ?? 0),
+                    Previous_Others = _payrollServices.GetFormatValue(prev?.OthersTaken ?? 0),
+                    Previous_Betalabi = _payrollServices.GetFormatValue(prev?.BetalabiDDud ?? 0),
+                    Previous_PfD = _payrollServices.GetFormatValue(prev?.PfDDud ?? 0),
+                    Previous_CitD = _payrollServices.GetFormatValue(prev?.CitDud ?? 0),
+                    Previous_SalGotOvertimeSum = _payrollServices.GetFormatValue(thisOfficeSalary?.overtime ?? 0),
+                    Previous_InsuranceTaken = thisOfficeSalary?.insurance_taken ?? 0,
+                    Previous_PreAccessTax = _payrollServices.GetFormatValue(prev?.PreAccessTaxTaken ?? 0),
+                    Previous_TaxDud = _payrollServices.GetFormatValue(prev?.TaxDud ?? 0),
+
+                    count_days_dashain = fn_count_days_dashain,
+                    Gender_ded = gender_ded
+
+                };
+            }).ToList();
+
+            var totalRecord = employees.Count;
+            //var j_field_no = 0;
+            var jsonData = new
+            {
+                draw,
+                recordsFiltered = totalRecord,
+                recordsTotal = totalRecord,
+
+                data = employees.Select((x, index) => new {
+                    //j_field_no = start + index + 1,
+                    j_field_no = index + 1,
+                    x.EmplopyeeInfo_EmpId,
+                    x.EmplopyeeInfo_EmployeeName,
+                    x.EmplopyeeInfo_EmpCode,
+                    x.EmplopyeeInfo_EmployeeFullName,
+                    x.emp_id,
+
+                    d_0_p = x.d_0_p,
+                    d_1_p = x.d_1_p,
+                    d_2_p = x.d_2_p,
+                    d_3_p = x.d_3_p,
+                    d_4_p = x.d_4_p,
+                    d_5_p = x.d_5_p,
+
+                    // Current
+                    basicsalary = $"<input type='number' class='salary-bulk-textbox' name='basic_salary{index + 1}' value='{x.Current_BasicSalary}' onkeyup=\"calculate_employee_salary_new('{index + 1}')\"/><input type='hidden' class='salary-bulk-textbox' name='gender_ded{index + 1}' value='{x.Gender_ded}' /><input type='hidden' class='salary-bulk-textbox' name='empid{index + 1}' value='{x.EmplopyeeInfo_EmpId}' />",
+                    pf = $"<input type='number'  class='salary-bulk-textbox' name='pf_a{index + 1}' value='{x.Current_pfA}' onkeyup=\"calculate_employee_salary_new('{index + 1}')\"/>",
+                    performancebonus = $"<input type='number' class='salary-bulk-textbox' name='performance_all{index + 1}' value='{x.Current_PerformanceAll}' onkeyup=\"calculate_employee_salary_new('{index + 1}')\"/>",
+                    lipreimbursement = $"<input type='text' class='salary-bulk-textbox' name='yearly_insurance{index + 1}' value='{x.Current_Insurance}' readonly/>",
+                    otherallowance = $"<input type='text' class='salary-bulk-textbox' name='others{index + 1}' value='{x.Current_Others}' onkeyup=\"calculate_employee_salary_new('{index + 1}')\"/>",
+                    childreneduallowance = $"<input type='text' class='salary-bulk-textbox' name='children_edu_all{index + 1}' value='{x.Current_ChildrenEduAll}' readonly/>",
+                    gratuity = $"<input type='text' class='salary-bulk-textbox' name='gratuity{index + 1}' value='{x.Current_Gratuity}' /><input type='hidden' name='gratudi{index + 1}' value='{x.Current_Gratudi}' />",
+                    ssf = $"<input type='text' class='salary-bulk-textbox' name='ssf{index + 1}' value='{x.Current_Ssf}' />",
+                    raa = $"<input type='text' class='salary-bulk-textbox' name='remote_area_all{index + 1}' value='{x.Current_RemoteAreaAll}' />",
+                    yearlyraaexem = $"<input type='text' class='salary-bulk-textbox' name='dud_remote_area_all{index + 1}' value='{x.Current_YearlyRemoteExem}' readonly/>",
+                    overtime = $"<input type='text' class='salary-bulk-textbox' name='overtime{index + 1}' value='{x.Current_Overtime}' />",
+                    medical = $"<input type='text' class='salary-bulk-textbox' name='medical_expense_reimburse_total{index + 1}' value='{x.Current_MedicalExpenseReimburseTotal}' readonly/>",
+                    eligiblemedical = $"<input type='text' class='salary-bulk-textbox' name='medical_expense_reimburse_eligible{index + 1}' value='{x.Current_MedicalExpenseReimburseEligible}' readonly/>",
+                    leaveencash = $"<input type='text' class='salary-bulk-textbox' name='leave_encash{index + 1}' value='{x.Current_LeaveEncash}' />",
+
+                    // Dashain Bonus
+                    dashainbonus = $"<input type='checkbox' name='is_dashain{index + 1}' {(x.DashainBonus_Bonus == "Y" ? "checked" : "")} /><input type='hidden' name='is_dashain_check{index + 1}'>",
+                    dashainamount = $"<input type='text' class='salary-bulk-textbox' name='dashain_a{index + 1}' value='{x.DashainBonus_Amount}' readonly/>",
+
+                    // Deductions
+                    basicd = $"<input type='text' class='salary-bulk-textbox' name='d_amt{index + 1}' value='{x.DedTaxCalculation_BasicD}' readonly/>",
+                    pfded = $"<input type='text' class='salary-bulk-textbox' name='pf_d{index + 1}' value='{x.DedTaxCalculation_PfD}' />",
+                    citded = $"<input type='text' class='salary-bulk-textbox' name='cit_d{index + 1}' value='{x.DedTaxCalculation_CitD}' readonly/>",
+                    gratuityded = $"<input type='text' class='salary-bulk-textbox' name='gratuity_ded{index + 1}' value='{x.DedTaxCalculation_GratuityDed}' />",
+                    ssfded = $"<input type='text' class='salary-bulk-textbox' name='ssf_ded{index + 1}' value='{x.DedTaxCalculation_SsfDed}' />",
+                    insurancelife = $"<input type='text' class='salary-bulk-textbox' name='insurance_d{index + 1}' value='{x.DedTaxCalculation_InsuranceD}' readonly/>",
+                    insurancenonlife = $"<input type='text' class='salary-bulk-textbox' name='insurance_d_nl{index + 1}' value='{x.DedTaxCalculation_InsuranceDNL}' readonly/>",
+                    betalabi = $"<input type='text' class='salary-bulk-textbox' name='betalabi_d{index + 1}' value='{x.DedTaxCalculation_BetalabiD}' />",
+                    medicaldeductionontax = $"<input type='text' class='salary-bulk-textbox' name='medical_deduction_on_tax{index + 1}' value='{x.DedTaxCalculation_MedicalDeductionOnTax}' readonly/>",
+                    //PrevExcessTax = $"<input type='text' name='pre_access_tax{index + 1}' value='{x.DedTaxCalculation_PreAccessTax}' />",
+
+                    // Gross
+                    prevyearexcesstax = $"<input type='hidden' class='salary-bulk-textbox' name='month_diff{index + 1}' value='{x.Gross_MonthDiff}' /><input type='text' class='salary-bulk-textbox' name='pre_access_tax{index + 1}' value='{x.Gross_PrevYearExcessTax}' />",
+                    yearlysalary = $"<input type='text' class='salary-bulk-textbox' name='yearly_gross_salary{index + 1}' value='{x.Gross_YearlyTaxableSalary}' readonly/>",
+                    yearlytax = $"<input type='text' class='salary-bulk-textbox' name='yearly_gross_tax{index + 1}' value='{x.Gross_YearlyTax}' readonly/>",
+                    monthlysalary = $"<input type='text' class='salary-bulk-textbox' name='monthly_gross_salary{index + 1}' value='{x.Gross_MonthlySalary}' readonly/>",
+                    monthlytax = $"<input type='text' class='salary-bulk-textbox' name='incometax_d{index + 1}' value='{x.Gross_MonthTax}' />",
+                    netinhand = $"<input type='text' class='salary-bulk-textbox' name='gross_salary_after_tax{index + 1}' value='{x.Gross_MonthAmount}' readonly/>",
+
+                    // Advances
+                    advpersonnel = $"<input type='text' class='salary-bulk-textbox' name='txtadvpe{index + 1}' value='{x.Advances_Personnel}' readonly/>",
+                    advprogram = $"<input type='text' class='salary-bulk-textbox' name='txtadvpr{index + 1}' value='{x.Advances_Program}' readonly/>",
+                    advtravel = $"<input type='text' class='salary-bulk-textbox' name='txtadvtr{index + 1}' value='{x.Advances_Travel}' readonly/>",
+                    advfielddrawing = $"<input type='text' class='salary-bulk-textbox' name='txtadvfd{index + 1}' value='{x.Advances_FieldDrawing}' readonly/>",
+                    advwelfare = $"<input type='text' class='salary-bulk-textbox' name='txtadvwl{index + 1}' value='{x.Advances_Welfare}' readonly/>",
+                    advpfloan = $"<input type='text' class='salary-bulk-textbox' name='txtadvpf{index + 1}' value='{x.Advances_PfLoan}' readonly/>",
+                    advcitloan = $"<input type='text' class='salary-bulk-textbox' name='txtadvcit{index + 1}' value='{x.Advances_CitLoan}' readonly/>",
+
+                    // Welfare
+                    welfarepercent = $"<input type='text' class='salary-bulk-textbox' name='welfare_fund_per{index + 1}' value='{x.Welfare_Percentage}' readonly/>",
+                    welfarefund = $"<input type='text' class='salary-bulk-textbox' name='welfare_fund{index + 1}' value='{x.Welfare_Amount}' readonly/>",
+
+                    // Net In Hand
+                    netinhandamount = $"<input type='text' class='salary-bulk-textbox' name='net_in_hand{index + 1}' value='{x.NetInHand_Amount}' readonly/>",
+
+                    // Others
+                    othersremarks = $"<input type='text' class='salary-bulk-textbox' name='remarks{x.EmplopyeeInfo_EmpId}' value='{x.Others_Remarks}' />",
+
+                    // Actuals (readonly textboxes)
+                    actbasicsalary = $"<input type='text' class='salary-bulk-textbox' name='act_basic_salary{index + 1}' value='{x.Actual_BasicSalary}' readonly />",
+                    actpfa = $"<input type='text' class='salary-bulk-textbox' name='act_pf_a{index + 1}' value='{x.Actual_PfA}' readonly />",
+                    actraa = $"<input type='text' class='salary-bulk-textbox' name='act_remote_area_all{index + 1}' value='{x.Actual_RemoteAreaAll}' readonly />",
+                    actpfd = $"<input type='text' class='salary-bulk-textbox' name='act_pf_d{index + 1}' value='{x.Actual_PfD}' readonly />",
+                    actcitd = $"<input type='text' class='salary-bulk-textbox' name='act_cit_d{index + 1}' value='{x.Actual_CitD}' readonly />",
+                    cittype = $"<input type='text' class='salary-bulk-textbox' name='cit_type{index + 1}' value='{x.Actual_CitType}' readonly />",
+                    citdesc = $"<input type='text' class='salary-bulk-textbox' name='cit_type_desc{index + 1}' value='{x.Actual_CitPercentAmount}' readonly />",
+
+                    // Percent to be added for Dashain amount (radio buttons)
+                    //dashainpercent0 = $"<input type='radio' name='rdo_val{index + 1}' value='0' {(int.TryParse(x.DahsianPerAmt_d_0_p, out var val0) && val0 == 0 ? "checked" : "")}  onclick=\"check_dashain_new('{x.is_dashain_already}','{x.Actual_BasicSalary}','{index + 1}', 'rdo')\"/>",
+                    //dashainpercent5 = $"<input type='radio' name='rdo_val{index + 1}' value='5' {(int.TryParse(x.DahsianPerAmt_d_0_p, out var val5) && val5 == 5 ? "checked" : "")}  onclick=\"check_dashain_new('{x.is_dashain_already}','{x.Actual_BasicSalary}','{index + 1}', 'rdo')\"/>",
+                    //dashainpercent6 = $"<input type='radio' name='rdo_val{index + 1}' value='6' {(int.TryParse(x.DahsianPerAmt_d_0_p, out var val6) && val6 == 6 ? "checked" : "")}  onclick=\"check_dashain_new('{x.is_dashain_already}','{x.Actual_BasicSalary}','{index + 1}', 'rdo')\"/>",
+                    //dashainpercent7 = $"<input type='radio' name='rdo_val{index + 1}' value='7' {(int.TryParse(x.DahsianPerAmt_d_0_p, out var val7) && val7 == 7 ? "checked" : "")}  onclick=\"check_dashain_new('{x.is_dashain_already}','{x.Actual_BasicSalary}','{index + 1}', 'rdo')\"/>",
+                    //dashainPercent8 = $"<input type='radio' name='rdo_val{index + 1}' value='8' {(int.TryParse(x.DahsianPerAmt_d_0_p, out var val8) && val8 == 8 ? "checked" : "")}  onclick=\"check_dashain_new('{x.is_dashain_already}','{x.Actual_BasicSalary}','{index + 1}', 'rdo')\"/>",
+                    //dashainpercent9 = $"<input type='radio' name='rdo_val{index + 1}' value='9' {(int.TryParse(x.DahsianPerAmt_d_0_p, out var val9) && val9 == 9 ? "checked" : "")}  onclick=\"check_dashain_new('{x.is_dashain_already}','{x.Actual_BasicSalary}','{index + 1}', 'rdo')\"/>",
+                    //dashainpercent = $"<select name='dashainpercent{index + 1}'>{GetTaxPercent(decimal.TryParse(x.DahsianPerAmt_d_0_p, out var selVal) ? selVal : (decimal?)null)}</select>",
+                    dashainpercent = $"<select name='rdo_val{index + 1}' style='width:200px;' onchange=\"check_dashain_new('{x.is_dashain_already}','{x.Actual_BasicSalary}','{index + 1}','rdo')\">{GetTaxPercent(decimal.TryParse(x.DahsianPerAmt_d_0_p, out var selVal) ? selVal : (decimal?)null)}</select>",
+
+                    // Previous Totals (all textboxes)
+                    prevbasicsalary = $"<input type='text' class='salary-bulk-textbox' name='basic_salary_sum_taken{index + 1}' value='{x.Previous_BasicSalary}' readonly />",
+                    prevpfa = $"<input type='text' class='salary-bulk-textbox' name='pf_a_taken{index + 1}' value='{x.Previous_PfA}' readonly />",
+                    prevraa = $"<input type='text' class='salary-bulk-textbox' name='remote_area_all_taken{index + 1}' value='{x.Previous_RemoteAreaAllTaken}' readonly />",
+                    prevdashainbonus = $"<input type='text' class='salary-bulk-textbox' name='dashain_amount_taken{index + 1}' value='{x.Previous_DashainAmountTaken}' readonly />",
+                    prevperformancebonus = $"<input type='text' class='salary-bulk-textbox' name='performance_all_taken{index + 1}' value='{x.Previous_PerformanceAllTaken}' readonly />",
+                    prevcea = $"<input type='text' class='salary-bulk-textbox' name='children_edu_all_taken{index + 1}' value='{x.Previous_ChildrenEduAllTaken}' readonly />",
+                    prevgratuityadd = $"<input type='text' class='salary-bulk-textbox' name='gratuity_taken{index + 1}' value='{x.Previous_GratuityTaken}' readonly />",
+                    prevgratuityded = $"<input type='text' class='salary-bulk-textbox' name='gratuity_ded_taken{index + 1}' value='{x.Previous_GratuityDedTaken}' readonly />",
+                    prevssfadd = $"<input type='text' class='salary-bulk-textbox' name='ssf_taken{index + 1}' value='{x.Previous_SSFTaken}' readonly />",
+                    prevssfded = $"<input type='text' class='salary-bulk-textbox' name='ssf_ded_taken{index + 1}' value='{x.Previous_SSFDedTaken}' readonly />",
+                    prevmedical = $"<input type='text' class='salary-bulk-textbox' name='med_exp_reim_total_taken{index + 1}' value='{x.Previous_MedExpReimTotalTaken}' readonly />",
+                    preveligiblemedical = $"<input type='text' class='salary-bulk-textbox' name='med_exp_reim_eligible_taken{index + 1}' value='{x.Previous_MedicalExpenseReimburseEligibleTaken}' readonly />",
+                    prevmedicaldeductionontax = $"<input type='text' class='salary-bulk-textbox' name='medical_deduction_on_tax_taken{index + 1}' value='{x.Previous_MedicalDeductionOnTaxTaken}' readonly />",
+                    prevleaveencash = $"<input type='text' class='salary-bulk-textbox' name='leave_encash_taken{index + 1}' value='{x.Previous_LeaveEncashTaken}' readonly />",
+                    prevothers = $"<input type='text' class='salary-bulk-textbox' name='others_taken{index + 1}' value='{x.Previous_Others}' readonly />",
+                    prevbetalabi = $"<input type='text' class='salary-bulk-textbox' name='betalibi_d_dud{index + 1}' value='{x.Previous_Betalabi}' readonly />",
+                    prevpfded = $"<input type='text' class='salary-bulk-textbox' name='pf_d_dud{index + 1}' value='{x.Previous_PfD}' readonly />",
+                    prevcit = $"<input type='text' class='salary-bulk-textbox' name='cit_dud{index + 1}' value='{x.Previous_CitD}' readonly />",
+                    prevovertime = $"<input type='text' class='salary-bulk-textbox' name='sal_got_overtime_sum{index + 1}' value='{x.Previous_SalGotOvertimeSum}' readonly />",
+                    previnsurancelife = $"<input type='text' class='salary-bulk-textbox' name='insurance_taken{index + 1}' value='{x.Previous_InsuranceTaken}' readonly />",
+                    previnsurancenl = $"<input type='text' class='salary-bulk-textbox' name='pre_access_tax_taken{index + 1}' value='{x.Previous_PreAccessTax}' readonly />",
+                    prevtax = $"<input type='text' class='salary-bulk-textbox' name='tax_dud{index + 1}' value='{x.Previous_TaxDud}' readonly />",
+
+                    // Employee other information
+                    maritalstatus = $"<input type='text' class='salary-bulk-textbox' name='marital_status{index + 1}' value='{x.EmplopyeeInfo_MaritalStatus}' readonly />",
+                    gender = $"<input type='text' class='salary-bulk-textbox' name='gender{index + 1}' value='{x.EmplopyeeInfo_Gender}' readonly />",
+                    startdate = $"<input type='text' class='salary-bulk-textbox' name='start_date{index + 1}' value='{x.EmplopyeeInfo_StartDate?.ToString("yyyy-MM-dd")}' readonly />",
+                    enddate = $"<input type='text' class='salary-bulk-textbox' name='end_date{index + 1}' value='{x.EmplopyeeInfo_EndDate?.ToString("yyyy-MM-dd")}' readonly />",
+                    daysuptosep30 = $"<input type='text' class='salary-bulk-textbox' name='days_sep30{index + 1}' value='{x.count_days_dashain}' readonly />",
+
+                    // Action
+                    action = $"<a href=\"#\" onclick=\"postdata_salary_bulk_indv_clear('{x.EmplopyeeInfo_EmpId}','{x.EmplopyeeInfo_EmployeeFullName}')\">Clear</a>"
+
+                })
+            };
+            return new JsonResult(jsonData);
+        }
+        public string GetTaxPercent(decimal? selValue)
+        {
+            var tax = _context.tbl_tax_setting.FirstOrDefault();
+
+            var taxPercents = new List<SelectListItem>();
+            if (tax != null)
+            {
+                taxPercents.Add(new SelectListItem { Text = tax.initial_tax_percent.HasValue ? tax.initial_tax_percent.Value.ToString("0.##") + " %" : string.Empty, Value = "0", Selected = (selValue.HasValue && selValue.Value == 0) });
+                taxPercents.Add(new SelectListItem { Text = tax.first_tax_percent.ToString() + " %", Value = "5", Selected = (selValue.HasValue && selValue.Value == 5) });
+                taxPercents.Add(new SelectListItem { Text = tax.second_tax_percent.ToString() + " %", Value = "6", Selected = (selValue.HasValue && selValue.Value == 6) });
+                taxPercents.Add(new SelectListItem { Text = tax.third_tax_percent.ToString() + " %", Value = "7", Selected = (selValue.HasValue && selValue.Value == 7) });
+                taxPercents.Add(new SelectListItem { Text = tax.fourth_tax_percent.ToString() + " %", Value = "8", Selected = (selValue.HasValue && selValue.Value == 8) });
+                taxPercents.Add(new SelectListItem { Text = tax.fifth_tax_percent.ToString() + " %", Value = "9", Selected = (selValue.HasValue && selValue.Value == 9) });
+            }
+
+            // Build HTML string for dropdown options
+            var sb = new StringBuilder();
+            foreach (var item in taxPercents)
+            {
+                sb.Append($"<option value='{item.Value}' {(item.Selected ? "selected" : "")}>{item.Text}</option>");
+            }
+
+            return sb.ToString();
+        }
+        [HttpPost]
+        public JsonResult ClearSalary(int? employee_id, string? trans)
+        {
+            var RecordToDelete = new tbl_employee_salary
+            {
+                emp_id = Convert.ToInt32(employee_id),
+            };
+            _context.tbl_employee_salary.Remove(RecordToDelete);
+            _context.SaveChanges();
+
+            return Json(new { status = "success" });
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SalaryBulkSave([FromBody] EmployeeSalaryListViewModel model)
+        {
+            string PageId = "10907";
+            #region FOR PERMISSION
+            var perm = _accountServices.GetMenuPermission(PageId);
+            if (perm.vpern == "false") { return RedirectToAction("PermissionDenied", "Home"); }
+            ViewBag.apern = perm.apern;
+            ViewBag.epern = perm.epern;
+            ViewBag.dpern = perm.dpern;
+            #endregion FOR END PERMISSION
+            if (perm.apern != "true" && perm.epern != "true") { return Json(new { status = "invalid", message = "Not Authorized User" }); }
+            if (!ModelState.IsValid) { return Json(new { status = "error", message = Lang.msg_error_invalid }); }
+            if (model?.Fields == null || !model.Fields.Any()) { return Json(new { status = "error", message = "No employees received." }); }
+
+            //FOR TAX SETTINGS
+            decimal? initial_tax_percent = 0;
+            double? first_tax_percent = 0;
+            double? second_tax_percent = 0;
+            double? third_tax_percent = 0;
+            double? fourth_tax_percent = 0;
+            double? fifth_tax_percent = 0;
+
+            double? first_tax_amount = 0;
+            decimal? second_tax_amount = 0;
+            decimal? third_tax_amount_single = 0;
+            decimal? third_tax_amount_married = 0;
+            decimal? fourth_tax_amount = 0;
+
+            var taxSetting = _context.tbl_tax_setting
+                .FirstOrDefault();
+            if (taxSetting != null)
+            {
+                initial_tax_percent = taxSetting.initial_tax_percent;
+                first_tax_percent = taxSetting.first_tax_percent;
+                second_tax_percent = taxSetting.second_tax_percent;
+                third_tax_percent = taxSetting.third_tax_percent;
+                fourth_tax_percent = taxSetting.fourth_tax_percent;
+                fifth_tax_percent = taxSetting.fifth_tax_percent;
+
+                first_tax_amount = taxSetting.first_tax_amount;
+                second_tax_amount = taxSetting.second_tax_amount;
+                third_tax_amount_single = taxSetting.third_tax_amount_single ?? 0m;
+                third_tax_amount_married = taxSetting.third_tax_amount_married ?? 0m;
+                fourth_tax_amount = taxSetting.fourth_tax_amount;
+            }
+
+            foreach (var emp in model.Fields)
+            {
+                var recordsToDelete = await _context.tbl_employee_salary
+                    .Where(r => r.emp_id == emp.emp_id && r.sal_year == emp.sal_year && r.sal_month == emp.sal_month)
+                    .ToListAsync();
+
+                if (recordsToDelete.Any())
+                {
+                    _context.tbl_employee_salary.RemoveRange(recordsToDelete);
+                    await _context.SaveChangesAsync();
+                }
+
+                var maxId = await _context.tbl_employee_salary.MaxAsync(e => (int?)e.salary_id) ?? 0;
+                var newId = maxId + 1;
+                var newRow = new tbl_employee_salary
+                {
+                    salary_id = newId,
+                    emp_id = emp.emp_id,
+                    sal_year = emp.sal_year,
+                    sal_month = emp.sal_month,
+                    basic_salary = emp.basic_salary,
+                    grade = emp.grade,
+                    pf_a = emp.pf_a,
+                    children_edu_all = emp.children_edu_all,
+                    performance_all = emp.performance_all,
+                    remote_area_all = emp.remote_area_all,
+                    others = emp.others,
+                    overtime = emp.overtime,
+                    pf_d = emp.pf_d,
+                    incometax_d = emp.incometax_d,
+                    insurance_d = emp.insurance_d,
+                    cit_d = emp.cit_d,
+                    betalibi_d = emp.betalibi_d,
+
+                    //is_dashain = emp.is_dashain,
+                    is_dashain = emp.is_dashain_check,
+                    dashain_a = emp.dashain_a,
+
+                    tel_per_adv = emp.tel_per_adv,
+                    travel_prog_adv = emp.travel_prog_adv,
+                    remarks = emp.remarks,
+
+                    submit_date = System.DateTime.Now,
+                    submit_by = Convert.ToInt32(HttpContext.Session.GetString("emp_id")),
+
+                    percent_for_tax_add = emp.percent_for_tax_add,
+                    medical_deduction_on_tax = emp.medical_deduction_on_tax,
+                    welfare_fund = emp.welfare_fund,
+                    remote_exem = emp.remote_exem,
+                    gratudi = emp.gratudi,
+
+                    act_basic_salary = emp.act_basic_salary,
+                    act_pf_a = emp.act_pf_a,
+                    act_remote_area_all = emp.act_remote_area_all,
+                    act_pf_d = emp.act_pf_d,
+                    a_cit_d = emp.a_cit_d,
+
+                    cit_type = emp.cit_type,
+                    cit_percent_amonnt = emp.cit_percent_amonnt,
+
+                    marital_d = emp.marital_d, // check
+                    yearly_salary = emp.yearly_salary,
+                    yearly_tax = emp.yearly_tax,
+                    monthly_salary = emp.monthly_salary,
+                    month_amount = emp.month_amount,
+                    pr_adv = emp.pr_adv,
+                    fd_adv = emp.fd_adv,
+                    wl_adv = emp.wl_adv,
+                    wl_per = emp.wl_per,
+                    net_in_hand = emp.net_in_hand,
+                    insurance = emp.insurance,
+
+                    first_taxable_amount = (decimal)(first_tax_amount ?? 0d),
+
+                    initial_tax_percent = (double)(initial_tax_percent ?? 0m),
+                    first_tax_percent = first_tax_percent,
+                    second_tax_percent = second_tax_percent,
+
+                    pre_access_tax = emp.pre_access_tax,
+                    adv_PF_loan = emp.adv_PF_loan,
+                    adv_CIT_loan = emp.adv_CIT_loan,
+
+                    d_3_amt = emp.marital_status == "S" ? third_tax_amount_single : third_tax_amount_married,
+                    d_3_p = third_tax_percent,
+                    d_4_p = fourth_tax_percent,
+
+                    fiscal_year = emp.fiscal_year,
+                    emp_week = emp.emp_week,
+                    gratuity = emp.gratuity,
+                    gratuity_ded = emp.gratuity_ded,
+                    medical_expense_reimburse_eligible = emp.medical_expense_reimburse_eligible,
+                    medical_expense_reimburse_total = emp.medical_expense_reimburse_total,
+                    leave_encash = emp.leave_encash,
+
+                    second_tax_amount = second_tax_amount,
+                    gender_ded_per = emp.gender_ded_per,
+                    ssf = emp.ssf,
+                    ssf_ded = emp.ssf_ded,
+                    insurance_d_nl = emp.insurance_d_nl,
+                    fourth_tax_amount = fourth_tax_amount,
+                    fifth_tax_percent = fifth_tax_percent,
+
+                    annual_health_checkup_add = emp.annual_health_checkup_add,
+                    annual_health_checkup_ded = emp.annual_health_checkup_ded
+
+                };
+                _context.tbl_employee_salary.Add(newRow);
+                _ = _context.SaveChanges();
+            }
+            return Json(new { status = "success", message = Lang.msg_added_success });
+        }
+        #endregion
 
         public IActionResult Index()
         {

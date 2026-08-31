@@ -1,0 +1,446 @@
+﻿@using Microsoft.AspNetCore.Http;
+@inject IHttpContextAccessor HttpContextAccessor;
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var PageTitle = "Employee Salary Bulk";
+    var Page_Tips = "";  //Tool tip message on right side
+    var msg_please_wait = "";
+    var Page_Mode = PageTitle; 
+    var Pern = ViewBag.vpern;
+    ViewData["Title"] = "| " + PageTitle;
+    var Help_Tips = GblUtilities.HelpTips(Page_Tips);
+    /*success|fail|error'*/
+    string ShowMsg = GblUtilities.MsgDisplay(Context.Request.Query["msg"].ToString());
+}
+@Html.AntiForgeryToken()
+<h2 class="titlebig"><span name="header" id="header">@Page_Mode</span> @Html.Raw(Help_Tips)</h2>
+@Html.Hidden("mode", "")
+@Html.Hidden("Id", "")
+
+<div id="message_header"><p id="loading" class="loading displaynone">@msg_please_wait</p></div>
+
+<div class="d-flex align-items-center">
+    <label class="me-2">Status:</label>
+    @Html.DropDownList("StatusFilter", (SelectList)ViewBag.StatusFilter,
+        new { @class = "form-select me-4", style = "width:150px;" })
+
+    <label class="me-2">Year:</label>
+    @Html.DropDownList("YearFilter", (SelectList)ViewBag.YearDropDown,
+        new { @class = "form-select me-4", style = "width:150px;" })
+
+    <label class="me-2">Month:</label>
+    @Html.DropDownList("MonthFilter", (SelectList)ViewBag.MonthDropDown,
+        new { @class = "form-select me-4", style = "width:150px;" })
+
+</div>
+    <div class="form-group p-2">
+        <input type="hidden" name="d_0_p" id="d_0_p" value="@ViewBag.InitialTaxPercent" />
+        <input type="hidden" name="d_amt_s" id="d_amt_s" value="@ViewBag.SingleAmt" />
+        <input type="hidden" name="d_amt_m" id="d_amt_m" value="@ViewBag.MarriedAmt" />
+        <input type="hidden" name="d_1_p" id="d_1_p" value="@ViewBag.FirstTaxPercent" />
+        <input type="hidden" name="d_1_a" id="d_1_a" value="@ViewBag.FirstTaxAmount" />
+        <input type="hidden" name="d_2_p" id="d_2_p" value="@ViewBag.SecondTaxPercent" />
+
+        <input type="hidden" name="d_2_a" id="d_2_a" value="@ViewBag.SecondTaxAmount" />
+        <input type="hidden" name="d_3_p" id="d_3_p" value="@ViewBag.ThirdTaxPercent" />
+        <input type="hidden" name="d_3_a_s" id="d_3_a_s" value="@ViewBag.ThirdTaxAmountSingle" />
+        <input type="hidden" name="d_3_a_m" id="d_3_a_m" value="@ViewBag.ThirdTaxAmountMarried" />
+        <input type="hidden" name="d_4_p" id="d_4_p" value="@ViewBag.FourthTaxPercent" />
+        <input type="hidden" name="d_female_p" id="d_female_p" value="@ViewBag.SingleFemaleDedPer" />
+        <input type="hidden" name="r_max_med_e" id="r_max_med_e" value="@ViewBag.MaxMedicalExpensesReimbursed" />
+        <input type="hidden" name="d_max_med_a" id="d_max_med_a" value="@ViewBag.MaxMedicalTaxCreditAmount" />
+        <input type="hidden" name="d_max_med_p" id="d_max_med_p" value="@ViewBag.MaxMedicalTaxCreditPer" />
+
+        <input type="hidden" name="d_max_ins_amt" id="d_max_ins_amt" value="@ViewBag.InsAmt" />
+        <input type="hidden" name="d_max_ins_amt_nl" id="d_max_ins_amt_nl" value="@ViewBag.InsAmtNonLife" />
+        <input type="hidden" name="fourth_tax_amount" id="fourth_tax_amount" value="@ViewBag.FourthTaxAmount" />
+        <input type="hidden" name="fifth_tax_percent" id="fifth_tax_percent" value="@ViewBag.FifthTaxPercent" />
+        <table id="tblData" class="display compact nowrap" style="width:100%">
+            <thead>
+            <tr style="background-color:silver; height:40px;">
+                <th colspan="3" class="text-center" style="background-color:silver">Employee information<input type="hidden" name="HRecCount"></th>
+                <th colspan="14" class="text-center" style="background-color:silver">Current</th>
+                <th colspan="2" class="text-center" style="background-color:#FFFF93">Dashain Bonus</th>
+                <th colspan="9" class="text-center" style="background-color:#FFB3B3">Deduction for tax calculation</th>
+                <th colspan="6" class="text-center" style="background-color:#9F8CF7">Gross</th>
+                <th colspan="7" class="text-center" style="background-color:#FFD7AE">Advances</th>
+                <th colspan="2" class="text-center" style="background-color:#FFBC79">Welfare Contribution</th>
+                <th class="text-center" style="background-color:#CCC">Net In Hand</th>
+                <th class="text-center" style="background-color:#CCC">Others</th>
+                <th colspan="7" class="text-center" style="background-color:#A9E0B1">Actual</th>
+                <!--th colspan="6" class="text-center" style="background-color:#FFFF37">Percent to be added for dashian amount</th-->
+                <th class="text-center" style="background-color:#FFFF37">Percent to be added for dashian amount</th>
+                <th colspan="22" class="text-center" style="background-color:#9DD5FD">Previous Total</th>
+                <th colspan="5" class="text-center" style="background-color:#CCC">Employee other information</th>
+                <th class="text-center" style="background-color:#CCC"></th>
+            </tr>
+            <tr>
+                <th class="text-center" style="background-color:silver; height:40px;"><input type="checkbox" id="selectAll"></th>
+                <th style="background-color:silver; height:40px;width:5px;">S.N.</th>
+                <th style="background-color:silver; height:40px;width:200px;">Employee</th>
+                <th style="background-color:silver; height:40px;width:75px;">Basic Salary</th>
+                <th style="background-color:silver; height:40px;width:50px;">PF</th>
+                <th style="background-color:silver; height:40px;width:50px;">Performance Bonus</th>
+                <th style="background-color:silver; height:40px;width:50px;">LIP Reimbursement</th>
+                <th style="background-color:silver; height:40px;width:50px;">Other Allowance</th>
+                <th style="background-color:silver; height:40px;width:50px;">Children Edu. Allowance</th>
+                <th style="background-color:silver; height:40px;width:50px;">Gratuity</th>
+                <th style="background-color:silver; height:40px;width:50px;">SSF</th>
+                <th style="background-color:silver; height:40px;width:50px;">RAA</th>
+                <th style="background-color:silver; height:40px;width:50px;">Yearly RAA Exemption</th>
+                <th style="background-color:silver; height:40px;width:50px;">Overtime</th>
+                <th style="background-color:silver; height:40px;width:50px;">Medical</th>
+                <th style="background-color:silver; height:40px;width:50px;">Eligible medical expenses</th>
+                <th style="background-color:silver; height:40px;width:50px;">Leave Encashment</th>
+
+                <th style="background-color:#FFFF93; height:40px;width:50px;">Bonus</th>
+                <th style="background-color:#FFFF93; height:40px;width:50px;">Amount</th>
+
+                <th style="background-color:#FFB3B3;width:50px;">Basic</th>
+                <th style="background-color:#FFB3B3;width:50px;">PF</th>
+                <th style="background-color:#FFB3B3;width:50px;">CIT</th>
+                <th style="background-color:#FFB3B3;width:50px;">Gratuity</th>
+                <th style="background-color:#FFB3B3;width:50px;">SSF</th>
+                <th style="background-color:#FFB3B3;width:50px;">Yearly Insurance Premium</th>
+                <th style="background-color:#FFB3B3;width:50px;">Yearly Insurance Premium(NL)</th>
+                <th style="background-color:#FFB3B3;width:50px;">Betalabi Deduction</th>
+                <th style="background-color:#FFB3B3;width:50px;">Medical Deduction on tax</th>
+
+                <!--GROSS-->
+                <th style="background-color:#9F8CF7">Prev. Year Excess/(Less) Tax</th>
+                <th style="background-color:#9F8CF7">Yearly Taxable Salary</th>
+                <th style="background-color:#9F8CF7">Yearly Tax</th>
+                <th style="background-color:#9F8CF7">Month Salary (S)</th>
+                <th style="background-color:#9F8CF7">Month Tax (T)</th>
+                <th style="background-color:#9F8CF7">Month Amount (S - T)</th>
+
+                <th style="background-color:#FFD7AE">Personal</th>
+                <th style="background-color:#FFD7AE">Program</th>
+                <th style="background-color:#FFD7AE">Travel</th>
+                <th style="background-color:#FFD7AE">Field Drawing</th>
+                <th style="background-color:#FFD7AE">Welfare</th>
+                <th style="background-color:#FFD7AE">PF Loan</th>
+                <th style="background-color:#FFD7AE">CIT Loan</th>
+
+                <th style="background-color:#FFBC79">Percentage</th>
+                <th style="background-color:#FFBC79">Amount</th>
+
+                <th style="background-color:#CCC">Amount</th>
+                <th style="background-color:#CCC">Remarks</th>
+
+                <th style="background-color:#A9E0B1">Basic Salary</th>
+                <th style="background-color:#A9E0B1">PF Addition</th>
+                <th style="background-color:#A9E0B1">RAA</th>
+                <th style="background-color:#A9E0B1">PF deduction</th>
+                <th style="background-color:#A9E0B1">CIT deduction</th>
+                <th style="background-color:#A9E0B1">CIT deduction Type</th>
+                <th style="background-color:#A9E0B1">CIT deduction Desc</th>
+
+                <!--th style="background-color:#FFFF37"><span id="initial"></span></th>
+                <th style="background-color:#FFFF37"><span id="first"></span></th>
+                <th style="background-color:#FFFF37"><span id="second"></span></th>
+                <th style="background-color:#FFFF37"><span id="third"></span></th>
+                <th style="background-color:#FFFF37"><span id="fourth"></span></th>
+                <th style="background-color:#FFFF37"><span id="fifth"></span></th-->
+                <th style="background-color:#FFFF37">Percent to be added for dashian amount</th>
+
+                <th style="background-color:#9DD5FD">Basic Salary</th>
+                <th style="background-color:#9DD5FD">PF Addition</th>
+                <th style="background-color:#9DD5FD">RAA</th>
+                <th style="background-color:#9DD5FD">Dashain Bonus</th>
+                <th style="background-color:#9DD5FD">Performance Bonus</th>
+                <th style="background-color:#9DD5FD">C.E.A.</th>
+                <th style="background-color:#9DD5FD">Gratuity(+)</th>
+                <th style="background-color:#9DD5FD">Gratuity(-)</th>
+                <th style="background-color:#9DD5FD">SSF(+)</th>
+                <th style="background-color:#9DD5FD">SSF(-)</th>
+                <th style="background-color:#9DD5FD">Medical</th>
+                <th style="background-color:#9DD5FD">Eligible medical expenses</th>
+                <th style="background-color:#9DD5FD">Medical Deduction on tax</th>
+                <th style="background-color:#9DD5FD">Leave Encashment</th>
+                <th style="background-color:#9DD5FD">Other Allowance</th>
+                <th style="background-color:#9DD5FD">Betalabi Deduction</th>
+                <th style="background-color:#9DD5FD">PF deduction</th>
+                <th style="background-color:#9DD5FD">CIT</th>
+                <th style="background-color:#9DD5FD">Overtime</th>
+                <th style="background-color:#9DD5FD">Yearly Insurance Premium</th>
+                <th style="background-color:#9DD5FD">Prev. Year Excess/(Less) Tax</th>
+                <th style="background-color:#9DD5FD">Paid Tax</th>
+
+                <th style="background-color:#CCC">Marital Status</th>
+                <th style="background-color:#CCC">Gender</th>
+                <th style="background-color:#CCC">Start Date</th>
+                <th style="background-color:#CCC">End Date</th>
+                <th style="background-color:#CCC">Days up toSep 30</th>
+
+                <th style="background-color:#CCC">Action</th>
+            </tr>
+            </thead>
+            <tbody>
+                <!-- Data dynamically injected here -->
+            </tbody>
+        </table>
+    </div>
+
+<div id="message_header">@Html.Raw(ShowMsg)</div>
+@if (ViewBag.epern == "true")
+{
+    <div class="form-group row p-1">
+        <label class="col-sm-4 col-form-label">&nbsp;</label>
+        <div class="col-sm-8">
+            <button type="reset" name="btnReset" id="btnReset" class="button btn-secondary">Reset</button>
+            <button type="button" name="btnSave" id="btnSave" class="button btn-primary">Save</button>
+            <button type="button" id="btnCalculate" class="button btn-primary" onclick="postdata_auto_calculate_salary_bulk()">Calculate All</button>
+        </div>
+    </div>
+}
+@section scripts
+{
+    <script src="~/js/employee-salary-bulk.js"></script>
+    <script>
+        var ilaka = "/Payroll/SalaryBulk";
+        var selectedIds = new Set();
+        var hideviewaction = "yes";
+        var table;
+        $(document).ready(function() {
+            GetAllData(ilaka, "emp_id", [
+                {
+                    data: null,
+                    name: "serial",
+                    autoWidth: false,
+                    render: function(data, type, row, meta) {
+                        return meta.row + 1; // serial number starting from 1
+                    }
+                },
+                { data: "emplopyeeInfo_EmployeeName", name: "EmplopyeeInfo_EmployeeName", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "basicsalary", name: "basicsalary", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "pf", name: "pf", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "performancebonus", name: "performancebonus", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "lipreimbursement", name: "lipreimbursement", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "otherallowance", name: "otherallowance", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "childreneduallowance", name: "childreneduallowance", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "gratuity", name: "gratuity", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "ssf", name: "ssf", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "raa", name: "raa", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "yearlyraaexem", name: "YearlyraaeExem", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "overtime", name: "overtime", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "medical", name: "medical", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "eligiblemedical", name: "eligiblemedical", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "leaveencash", name: "leaveencash", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+
+                { data: "dashainbonus", name: "dashainbonus", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "dashainamount", name: "dashainamount", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+
+                { data: "basicd", name: "basicd", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "pfded", name: "pfded", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "citded", name: "citded", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "gratuityded", name: "gratuityded", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "ssfded", name: "ssfded", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "insurancelife", name: "insurancelife", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "insurancenonlife", name: "insurancenonlife", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "betalabi", name: "betalabi", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "medicaldeductionontax", name: "medicaldeductionontax", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+
+                { data: "prevyearexcesstax", name: "prevyearexcesstax", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "yearlysalary", name: "yearlysalary", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "yearlytax", name: "yearlytax", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "monthlysalary", name: "monthlysalary", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "monthlytax", name: "monthlytax", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "netinhand", name: "netinhand", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+
+                { data: "advpersonnel", name: "advpersonnel", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "advprogram", name: "advprogram", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "advtravel", name: "advtravel", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "advfielddrawing", name: "advfielddrawing", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "advwelfare", name: "advwelfare", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "advpfloan", name: "advpfloan", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "advcitloan", name: "advcitloan", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+
+                { data: "welfarepercent", name: "welfarepercent", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "welfarefund", name: "welfarefund", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+
+                { data: "netinhandamount", name: "netinhandamount", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "othersremarks", name: "othersremarks", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+
+                { data: "actbasicsalary", name: "actbasicsalary", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "actpfa", name: "actpfa", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "actraa", name: "actraa", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "actpfd", name: "actpfd", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "actcitd", name: "actcitd", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "cittype", name: "cittype", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "citdesc", name: "citdesc", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+
+                //{ data: "dashainpercent0", name: "dashainpercent0", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                //{ data: "dashainpercent5", name: "dashainpercent5", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                //{ data: "dashainpercent6", name: "dashainpercent6", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                //{ data: "dashainpercent7", name: "dashainpercent7", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                //{ data: "dashainPercent8", name: "dashainPercent8", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                //{ data: "dashainpercent9", name: "dashainpercent9", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "dashainpercent", name: "dashainpercent", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+
+                { data: "prevbasicsalary", name: "prevbasicsalary", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "prevpfa", name: "prevpfa", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "prevraa", name: "prevraa", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "prevdashainbonus", name: "prevdashainbonus", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "prevperformancebonus", name: "prevperformancebonus", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "prevcea", name: "prevcea", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "prevgratuityadd", name: "prevgratuityadd", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "prevgratuityded", name: "prevgratuityded", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "prevssfadd", name: "prevssfadd", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "prevssfded", name: "prevssfded", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "prevmedical", name: "prevmedical", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "preveligiblemedical", name: "preveligiblemedical", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "prevmedicaldeductionontax", name: "prevmedicaldeductionontax", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "prevleaveencash", name: "prevleaveencash", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "prevothers", name: "prevothers", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "prevbetalabi", name: "prevbetalabi", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "prevpfded", name: "prevpfded", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "prevcit", name: "prevcit", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "prevovertime", name: "prevovertime", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "previnsurancelife", name: "previnsurancelife", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "previnsurancenl", name: "previnsurancenl", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                { data: "prevtax", name: "prevtax", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },               
+
+                { data: "maritalstatus", name: "maritalstatus", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },               
+                { data: "gender", name: "gender", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },               
+                { data: "startdate", name: "startdate", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },               
+                { data: "enddate", name: "enddate", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },               
+                { data: "daysuptosep30", name: "daysuptosep30", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },               
+
+                { data: "action", name: "action", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } }               
+
+
+            ],
+                {
+                    Status: "StatusFilter",
+                    Year: "YearFilter",
+                    Month: "MonthFilter"
+                });
+            $(document).one('init.dt', '#tblData', function() { table.page.len(-1).draw(); })/** Wait for first draw to complete before changing page length*/
+            $('#tblData_filter').hide();
+            $('#tblData_length').hide();
+
+            table.on('xhr.dt', function (e, settings, json, xhr) {
+                var totalRecord = json.recordsTotal;
+                //var InitialTaxPercent = json.data.length > 0 ? json.data[0].d_0_p : 0;
+                //var FirstTaxPercent = json.data.length > 0 ? json.data[0].d_1_p : 0;
+                //var SecondTaxPercent = json.data.length > 0 ? json.data[0].d_2_p : 0;
+                //var ThirdTaxPercent = json.data.length > 0 ? json.data[0].d_3_p : 0;
+                //var FourthTaxPercent = json.data.length > 0 ? json.data[0].d_4_p : 0;
+                //var FifthTaxPercent = json.data.length > 0 ? json.data[0].d_5_p : 0;
+                //document.getElementById("initial").innerHTML = InitialTaxPercent + '%';
+                //document.getElementById("first").innerHTML = FirstTaxPercent + '%';
+                //document.getElementById("second").innerHTML = SecondTaxPercent + '%';
+                //document.getElementById("third").innerHTML = ThirdTaxPercent + '%';
+                //document.getElementById("fourth").innerHTML = FourthTaxPercent + '%';
+                //document.getElementById("fifth").innerHTML = FifthTaxPercent + '%';
+                // Example: update hidden field or label
+                var hRecEls = document.getElementsByName("HRecCount");
+                if (hRecEls.length > 0) {
+                    hRecEls[0].value = totalRecord;
+                }
+            });
+        });
+
+        function collectExtraFields() {
+            var extraSettings = [];
+            $("#tblData tbody tr").each(function() {
+                var row = $(this);
+                var id = row.find("input.row-checkbox:checked").val();
+                if (selectedIds.has(id)) {
+                    extraSettings.push({
+                        salary_id: 0,
+                        emp_id: parseInt(id, 10),
+                        sal_year: parseInt($("#YearFilter").val(), 10) || 0,
+                        sal_month: parseInt($("#MonthFilter").val(), 10) || 0,
+                        basic_salary: parseFloat(row.find("input[name^='basic_salary']").val()) || 0,
+                        grade: parseFloat(row.find("input[name^='performance_all']").val()) || 0,
+                        pf_a: parseFloat(row.find("input[name^='pf_a']").val()) || 0,
+                        children_edu_all: parseFloat(row.find("input[name^='children_edu_all']").val()) || 0,
+                        //performance_all: parseFloat(row.find("input[name^='performance_all']").val()) || 0,
+                        remote_area_all: parseFloat(row.find("input[name^='remote_area_all']").val()) || 0,
+                        others: parseFloat(row.find("input[name^='others']").val()) || 0,
+                        overtime: parseFloat(row.find("input[name^='overtime']").val()) || 0,
+                        pf_d: parseFloat(row.find("input[name^='pf_d']").val()) || 0,
+                        incometax_d: parseFloat(row.find("input[name^='incometax_d']").val()) || 0,
+                        insurance_d: parseFloat(row.find("input[name^='insurance_d']").val()) || 0,
+                        cit_d: parseFloat(row.find("input[name^='cit_d']").val()) || 0,
+                        betalibi_d: parseFloat(row.find("input[name^='betalibi_d']").val()) || 0,
+
+                        is_dashain: row.find("input[name^='is_dashain']").val() || "",
+                        dashain_a: parseFloat(row.find("input[name^='dashain_a']").val()) || 0,
+
+                        tel_per_adv: parseFloat(row.find("input[name^='tel_per_adv']").val()) || 0,
+                        travel_prog_adv: parseFloat(row.find("input[name^='travel_prog_adv']").val()) || 0,
+                        remarks: row.find("input[name^='remarks']").val() || "",
+
+                        percent_for_tax_add: row.find("select[name^='rdo_val']").val() || "",
+                        medical_deduction_on_tax: parseFloat(row.find("input[name^='medical_deduction_on_tax']").val()) || 0,
+                        welfare_fund: parseFloat(row.find("input[name^='welfare_fund']").val()) || 0,
+                        remote_exem: parseFloat(row.find("input[name^='remote_exem']").val()) || 0,
+                        gratudi: parseFloat(row.find("input[name^='gratudi']").val()) || 0,
+
+                        act_basic_salary: parseFloat(row.find("input[name^='act_basic_salary']").val()) || 0,
+                        act_pf_a: parseFloat(row.find("input[name^='act_pf_a']").val()) || 0,
+                        act_remote_area_all: parseFloat(row.find("input[name^='act_remote_area_all']").val()) || 0,
+                        act_pf_d: parseFloat(row.find("input[name^='act_pf_d']").val()) || 0,
+                        a_cit_d: parseFloat(row.find("input[name^='a_cit_d']").val()) || 0,
+
+                        cit_type: row.find("input[name^='cit_type']").val() || "",
+                        cit_percent_amonnt: parseFloat(row.find("input[name^='cit_percent_amonnt']").val()) || 0,
+
+                        marital_d: parseFloat(row.find("input[name^='marital_d']").val()) || 0,
+                        yearly_salary: parseFloat(row.find("input[name^='yearly_gross_salary']").val()) || 0,
+                        yearly_tax: parseFloat(row.find("input[name^='yearly_gross_tax']").val()) || 0,
+                        monthly_salary: parseFloat(row.find("input[name^='monthly_gross_salary']").val()) || 0,
+                        month_amount: parseFloat(row.find("input[name^='month_amount']").val()) || 0,
+                        pr_adv: parseFloat(row.find("input[name^='pr_adv']").val()) || 0,
+                        fd_adv: parseFloat(row.find("input[name^='fd_adv']").val()) || 0,
+                        wl_adv: parseFloat(row.find("input[name^='wl_adv']").val()) || 0,
+                        wl_per: parseFloat(row.find("input[name^='wl_per']").val()) || 0,
+                        net_in_hand: parseFloat(row.find("input[name^='net_in_hand']").val()) || 0,
+                        insurance: parseFloat(row.find("input[name^='insurance']").val()) || 0,
+                        //first_taxable_amount: parseFloat(row.find("input[name^='first_taxable_amount']").val()) || 0,
+
+                        //initial_tax_percent: parseFloat(row.find("input[name^='initial_tax_percent']").val()) || 0,
+                        //first_tax_percent: parseFloat(row.find("input[name^='first_tax_percent']").val()) || 0,
+                        //second_tax_percent: parseFloat(row.find("input[name^='second_tax_percent']").val()) || 0,
+
+                        pre_access_tax: parseFloat(row.find("input[name^='pre_access_tax']").val()) || 0,
+                        adv_PF_loan: parseFloat(row.find("input[name^='adv_PF_loan']").val()) || 0,
+                        adv_CIT_loan: parseFloat(row.find("input[name^='adv_CIT_loan']").val()) || 0,
+                        //d_3_amt: parseFloat(row.find("input[name^='d_3_amt']").val()) || 0,
+                        //d_3_p: parseFloat(row.find("input[name^='d_3_p']").val()) || 0,
+                        //d_4_p: parseFloat(row.find("input[name^='d_4_p']").val()) || 0,
+
+                        fiscal_year: row.find("input[name^='fiscal_year']").val() || "",
+                        emp_week: parseInt(row.find("input[name^='emp_week']").val()) || 0,
+
+                        gratuity: parseFloat(row.find("input[name^='gratuity']").val()) || 0,
+                        gratuity_ded: parseFloat(row.find("input[name^='gratuity_ded']").val()) || 0,
+                        medical_expense_reimburse_eligible: parseFloat(row.find("input[name^='medical_expense_reimburse_eligible']").val()) || 0,
+                        medical_expense_reimburse_total: parseFloat(row.find("input[name^='medical_expense_reimburse_total']").val()) || 0,
+                        leave_encash: parseFloat(row.find("input[name^='leave_encash']").val()) || 0,
+                        //second_tax_amount: parseFloat(row.find("input[name^='second_tax_amount']").val()) || 0,
+                        gender_ded_per: parseFloat(row.find("input[name^='gender_ded_per']").val()) || 0,
+                        ssf: parseFloat(row.find("input[name^='ssf']").val()) || 0,
+                        ssf_ded: parseFloat(row.find("input[name^='ssf_ded']").val()) || 0,
+                        insurance_d_nl: parseFloat(row.find("input[name^='insurance_d_nl']").val()) || 0,
+                        //fourth_tax_amount: parseFloat(row.find("input[name^='fourth_tax_amount']").val()) || 0,
+                        //fifth_tax_percent: parseFloat(row.find("input[name^='fifth_tax_percent']").val()) || 0,
+                        annual_health_checkup_add: parseFloat(row.find("input[name^='annual_health_checkup_add']").val()) || 0,
+                        annual_health_checkup_ded: parseFloat(row.find("input[name^='annual_health_checkup_ded']").val()) || 0
+
+                    });
+                }
+            });
+            return extraSettings;
+        }
+        $(document).on('change', '.pf_group', function() { var serial = $(this).data("serial"); change_pf_add_ded_amount(serial); });
+        $(document).on('change', '.pf_type', function() { var serial = $(this).data("serial"); change_pf_add_ded_amount(serial); });
+        $(document).off("click", "#btnSave").on("click", "#btnSave", function() { $("#mode").val("update"); updateDataJSON(ilaka + "Save"); });
+        $("#StatusFilter").off("change").on("change", function() { const statusV = $(this).val(); if (!statusV) { return; } const $myButton = $("#btnSave"); if ($myButton.length) { if (statusV === "A") { $myButton.show(); $('#tblData_length').hide(); table.page.len(-1).draw(); } else { $myButton.hide(); $('#tblData_length').show(); table.page.len(10).draw(); } } table.draw(); });
+
+    </script>
+}
+

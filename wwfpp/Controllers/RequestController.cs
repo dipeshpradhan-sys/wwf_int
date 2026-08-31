@@ -17,6 +17,7 @@ using wwfpp.Helpers;
 using wwfpp.Models;
 using wwfpp.Models.Employee;
 using wwfpp.Models.General;
+using wwfpp.Models.Payroll;
 using wwfpp.Models.Request;
 using wwfpp.Services;
 using wwfpp.wwwroot.js;
@@ -3422,16 +3423,8 @@ namespace wwfpp.Controllers
         {
             var StatusFilter = status == "D" ? "Inactive" : "Active";
 
-            //var Employees = _context.vw_Employee
-            //    .Where(e => e.emp_status == StatusFilter)
-            //    .OrderBy(c => c.employeename)
-            //    .ToList();
-
             ViewBag.Status = status;
-            //ViewBag.EmployeeList = new SelectList(Employees, "emp_id", "employeenameWithCode", emp_id);
             ViewBag.FiscalYearList = _settingsServices.GetFiscalYears(HttpContext.Session.GetString("fiscal_year"));
-            //ViewBag.EmployeeStatusFilter = StatusActivePassive("AD", "A");
-            //ViewBag.EmployeeList = new SelectList(Employees, "emp_id", "employeenameWithCode", emp_id);
 
             return PartialView("Request/_TravelSettlementList");
         }
@@ -3750,6 +3743,126 @@ namespace wwfpp.Controllers
         }
         #endregion
 
+        #region 10210 SWF LOAN
+        [HttpGet]
+        public IActionResult SWFLoan()
+        {
+            string PageId = "10210";
+            #region FOR PERMISSION
+            var perm = _accountServices.GetMenuPermission(PageId);
+            if (perm.vpern == "false") { return RedirectToAction("PermissionDenied", "Home"); }
+            ViewBag.apern = perm.apern;
+            ViewBag.epern = perm.epern;
+            ViewBag.dpern = perm.dpern;
+            #endregion FOR END PERMISSION
+
+            var Records = (from emp in _context.tbl_employee
+                           join lft in _context.tbl_employee_swf_loan
+                           on emp.emp_id equals lft.emp_id
+                           orderby lft.start_year descending, lft.start_month descending
+                           select new SwfLoanViewModel
+                           {
+                               emp_id = lft.emp_id ?? 0,
+                               start_year = lft.start_year,
+                               start_month = lft.start_month,
+                               amount = lft.amount,
+                               int_amount = lft.int_amount,
+                               total_loan = lft.amount + lft.int_amount,
+                               no_of_installment = lft.no_of_installment,
+                               status = lft.status,
+                               remarks = lft.remarks,
+                               firstname = emp.firstname,
+                               middlename = emp.middlename,
+                               lastname = emp.lastname,
+                               employee = $"{emp.firstname} {emp.middlename} {emp.lastname} ({emp.emp_code})",
+                               emp_status = emp.emp_status
+                           }).ToList();
+            ViewBag.EmployeeStatusFilter = StatusActivePassive("AD", "A");
+            ViewBag.LoanStatusFilter = StatusActivePassive("AP", "A");
+            //ViewBag.ViewButtons = _accountServices.getAddEditDeleteAccess("Payroll/_SWFLoan", "ADD|DEL", PageId, Records.Count);
+            return PartialView("Payroll/_SWFLoan", Records);
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SWFLoanList([FromForm] MultipleCostumFilterRequest request)
+        {
+            var (pageSize, skip, draw, sortColumn, sortColumnDir, searchValue) = DataTableHelper.GetParameters(Request);
+
+            var EmployeeStatusFilter = request.FilterValue1;
+            var LoanStatusFilter = request.FilterValue2;
+
+            var query = from emp in _context.tbl_employee
+                        join lft in _context.tbl_employee_swf_loan
+                        on emp.emp_id equals lft.emp_id
+                        select new SwfLoanViewModel
+                        {
+                            id = lft.id,
+                            emp_id = lft.emp_id ?? 0,
+                            start_year = lft.start_year,
+                            start_month = lft.start_month,
+                            amount = lft.amount,
+                            int_amount = lft.int_amount,
+                            no_of_installment = lft.no_of_installment,
+                            total_loan = (lft.amount ?? 0) + (lft.int_amount ?? 0),
+                            month_installment = Math.Round(((lft.amount ?? 0) + (lft.int_amount ?? 0)) / (lft.no_of_installment ?? 0), 2),
+                            status = lft.status,
+                            remarks = lft.remarks,
+                            firstname = emp.firstname,
+                            middlename = emp.middlename,
+                            lastname = emp.lastname,
+                            employee = $"{emp.firstname} {emp.middlename} {emp.lastname} ({emp.emp_code})",
+                            emp_status = emp.emp_status
+                        };
+            if (!string.IsNullOrEmpty(EmployeeStatusFilter))
+            {
+                query = query.Where(d => d.emp_status == EmployeeStatusFilter);
+            }
+            if (!string.IsNullOrEmpty(LoanStatusFilter))
+            {
+                query = query.Where(d => d.status == LoanStatusFilter);
+            }
+            if (!string.IsNullOrEmpty(sortColumn) && !string.IsNullOrEmpty(sortColumnDir))
+            {
+                if (sortColumn == "employee")
+                {
+                    if (sortColumnDir == "asc")
+                    {
+                        query = query.OrderBy(d => d.firstname).ThenBy(d => d.middlename).ThenBy(d => d.lastname);
+                    }
+                    else
+                    {
+                        query = query.OrderByDescending(d => d.firstname).ThenByDescending(d => d.middlename).ThenByDescending(d => d.lastname);
+                    }
+                }
+                else
+                {
+                    if (sortColumn != "month_installment") { query = query.OrderBy(sortColumn + " " + sortColumnDir); }
+                }
+            }
+            if (!string.IsNullOrWhiteSpace(searchValue))
+            {
+                query = query.Where(a =>
+                    a.firstname != null && a.firstname.Contains(searchValue) ||
+                    a.middlename != null && a.middlename.Contains(searchValue) ||
+                    a.lastname != null && a.lastname.Contains(searchValue) ||
+                    a.remarks != null && a.remarks.Contains(searchValue)
+                );
+            }
+            var data = query.ToList();
+
+            int totalRecord = data.Count();
+            if (pageSize == -1) { pageSize = totalRecord; }
+            var cData = data.Skip(skip).Take(pageSize).ToList();
+            var jsonData = new
+            {
+                draw,
+                recordsFiltered = totalRecord,
+                recordsTotal = totalRecord,
+                data = cData
+            };
+            return new JsonResult(jsonData);
+        }
+        #endregion
 
     }
 }

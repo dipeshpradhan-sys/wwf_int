@@ -274,5 +274,13 @@ namespace wwfpp.Services
             };
             return GblUtilities.BuildSelectList(options, selvalue);
         }
+
+        public string GetFormatValue(decimal value)
+        {
+            var rounded = Math.Round(value, 2);
+            return rounded % 1 == 0
+                ? rounded.ToString("0")
+                : rounded.ToString("0.##");
+        }
     }
 }
