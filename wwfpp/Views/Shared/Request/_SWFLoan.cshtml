@@ -13,7 +13,7 @@
     string ShowMsg = GblUtilities.MsgDisplay(Context.Request.Query["msg"].ToString());
 }
 @Html.AntiForgeryToken()
-@Html.Hidden("ilaka", "/Payroll/SWFLoan")
+@Html.Hidden("ilaka", "/Request/SWFLoan")
 <h2 class="titlebig"><span name="header" id="header">@Page_Mode</span> @Html.Raw(Help_Tips)</h2>
 @Html.Hidden("mode", "")
 @Html.Hidden("Id", "")

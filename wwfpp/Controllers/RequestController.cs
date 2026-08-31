@@ -45,6 +45,7 @@ namespace wwfpp.Controllers
         private readonly EmployeeOvertimeServices _employeeOvertimeServices;
         private readonly TravelApprovalService _travelApprovalService;
         private readonly ApproverResolverService _approverResolver;
+        private readonly PayrollServices _payrollServices;
         public RequestController(
             AppDbContext context,
             IOptions<AppSettings> appSettings,
@@ -60,7 +61,8 @@ namespace wwfpp.Controllers
             ApproverResolverService approverResolver,
             EmployeeOvertimeServices employeeOvertimeServices,
             TravelApprovalService travelApprovalService,
-            IWebHostEnvironment webHostEnvironment
+            IWebHostEnvironment webHostEnvironment,
+            PayrollServices payrollServices
         )
         {
             _context = context;
@@ -78,6 +80,7 @@ namespace wwfpp.Controllers
             _employeeOvertimeServices = employeeOvertimeServices;
             _travelApprovalService = travelApprovalService;
             _administrationEmailService = administrationEmailService;
+            _payrollServices = payrollServices;
         }
 
         #region EMPLOYEE MEDICAL INSURANCE
@@ -3575,7 +3578,7 @@ namespace wwfpp.Controllers
                             <td class=""normal left"">{submitDateStr}</td>
                             <td class=""normal left"">{appStatus}</td>
                             <td class=""normal center"">
-                        <a href=""javascript:postdata('employee_travel_settlement_add_edit.asp?mode=edit&emp_travel_id={empTravelId}')""><img src=""/images/edit.png"" width=""16"" height=""16"" border=""0""></a>&nbsp;
+                        <a href=""javascript:postdata('TravelSettlementAddEdit.asp?mode=edit&emp_travel_id={empTravelId}')""><img src=""/images/edit.png"" width=""16"" height=""16"" border=""0""></a>&nbsp;
                         {printLink}
                         {docLink}
                     </td>
@@ -3780,7 +3783,7 @@ namespace wwfpp.Controllers
             ViewBag.EmployeeStatusFilter = StatusActivePassive("AD", "A");
             ViewBag.LoanStatusFilter = StatusActivePassive("AP", "A");
             //ViewBag.ViewButtons = _accountServices.getAddEditDeleteAccess("Payroll/_SWFLoan", "ADD|DEL", PageId, Records.Count);
-            return PartialView("Payroll/_SWFLoan", Records);
+            return PartialView("Request/_SWFLoan", Records);
         }
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -3862,6 +3865,148 @@ namespace wwfpp.Controllers
             };
             return new JsonResult(jsonData);
         }
+        public IActionResult SWFLoanAddEdit(string id, string mode)
+        {
+            string PageId = "10916";
+            #region FOR PERMISSION
+            var perm = _accountServices.GetMenuPermission(PageId);
+            if (perm.vpern == "false") { return RedirectToAction("PermissionDenied", "Home"); }
+            ViewBag.apern = perm.apern;
+            ViewBag.epern = perm.epern;
+            ViewBag.dpern = perm.dpern;
+            #endregion FOR END PERMISSION
+            ViewBag.Status = StatusActivePassive("AP", "A");
+            ViewBag.YearDropDown = _settingsServices.GetYears(DateTime.Now.Year);
+            ViewBag.MonthDropDown = _settingsServices.GetMonths(DateTime.Now.Month);
+
+            ViewBag.mode = mode;
+            ViewBag.DATE_FORMAT = _appSettings.DATE_FORMAT;
+            SwfLoanViewModel model;
+
+            model = new SwfLoanViewModel();
+            if (mode == "add")
+            {
+                ViewBag.EmployeeList = _payrollServices.GetEmployeeNotHavingActiveSWFLoan();
+                return PartialView("Payroll/_SWFLoanAddEdit", model);
+            }
+            else if (mode == "edit")
+            {
+                if (id == null)
+                {
+                    return Json(new { success = false, message = Lang.msg_error });
+                }
+                else
+                {
+                    var sw = (from emp in _context.tbl_employee
+                              join e in _context.tbl_employee_swf_loan
+                              on emp.emp_id equals e.emp_id
+                              where e.id == id.ToString()
+                              select new
+                              {
+                                  e.id,
+                                  e.emp_id,
+                                  e.start_year,
+                                  e.start_month,
+                                  e.amount,
+                                  e.int_amount,
+                                  e.no_of_installment,
+                                  e.status,
+                                  e.remarks,
+                                  total_loan = Math.Round((e.amount ?? 0) + (e.int_amount ?? 0), 2),
+                                  employee = $"{emp.firstname} {emp.middlename} {emp.lastname} ({emp.emp_code})",
+                                  emp.emp_status
+                              }).FirstOrDefault();
+                    if (sw == null) { return Json(new { success = false, message = Lang.msg_error }); }
+
+                    model = new SwfLoanViewModel
+                    {
+                        id = sw.id,
+                        emp_id = sw.emp_id ?? 0,
+                        start_year = sw.start_year,
+                        start_month = sw.start_month,
+                        amount = Math.Round(sw.amount ?? 0, 2),
+                        int_amount = Math.Round(sw.int_amount ?? 0, 2),
+                        no_of_installment = sw.no_of_installment,
+                        status = sw.status,
+                        remarks = sw.remarks,
+                        total_loan = sw.total_loan,
+                        month_installment = Math.Round(((sw.amount ?? 0) + (sw.int_amount ?? 0)) / (sw.no_of_installment ?? 0), 2),
+                        employee = sw.employee,
+                        emp_status = sw.emp_status
+                    };
+
+                    decimal totalLoan = sw.total_loan;
+                    DateTime fiscal = new DateTime(Convert.ToInt32(sw.start_year), Convert.ToInt32(sw.start_month), 1);
+                    decimal totalBulkPaid = _payrollServices.GetSwfLoanBulkPaid(id);
+                    decimal totalMonltyPaid = _payrollServices.GetSwfLoanPaidHistory(sw.emp_id ?? 0, fiscal, totalLoan, sw.id);
+                    decimal totalPaid = totalMonltyPaid + totalBulkPaid;
+                    decimal totalDue = totalLoan - totalPaid;
+
+                    ViewBag.TotalPaid = Math.Round(totalPaid, 2);
+                    ViewBag.TotalDue = Math.Round(totalDue, 2);
+
+                    var result = (from settle in _context.tbl_employee_swf_loan_direct_settle
+                                  where settle.swf_loan_id == id.ToString()
+                                  select new
+                                  {
+                                      s_amount = (decimal?)settle.amount,
+                                      settle.s_date,
+                                      s_remarks = settle.remarks
+                                  }).FirstOrDefault();
+                    if (result != null)
+                    {
+                        model.paid_amount = Math.Round(result.s_amount ?? 0, 2);
+                        model.s_remarks = result.s_remarks;
+                        model.s_date = result.s_date;
+                    }
+                    return PartialView("Request/_SWFLoanAddEdit", model);
+
+                }
+            }
+            else
+            {
+                return Json(new { success = false, message = Lang.msg_error });
+            }
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult GetPaidTillDate(int empId, string fiscal, decimal amount, decimal intAmount, string loanId)
+        {
+            var model = new SwfLoanViewModel
+            {
+                Settlements = _context.tbl_employee_swf_loan_direct_settle
+                    .Where(s => s.swf_loan_id == loanId)
+                    .Select(s => new SettlementRow { s_date = s.s_date, remarks = s.remarks, amount = s.amount })
+                    .ToList(),
+
+                History = _context.vw_swf_payback
+                    .Where(q => q.emp_id == empId && q.loan != 0 && q.fiscal >= Convert.ToDateTime(fiscal))
+                    .OrderBy(q => q.fiscal)
+                    .Select(q => new wwfpp.Models.Payroll.HistoryRow
+                    {
+                        sal_year = (int)(q.sal_year ?? 0),
+                        sal_month = (int)(q.sal_month ?? 0),
+                        loan = q.loan
+                    })
+                    .ToList(),
+
+                Totals = new TotalsRow
+                {
+                    TotalPaidLoan = (_context.tbl_employee_swf_loan_direct_settle.Where(s => s.swf_loan_id == loanId).Sum(s => s.amount ?? 0) +
+                         _context.vw_swf_payback.Where(q => q.emp_id == empId && q.loan != 0 && q.fiscal >= Convert.ToDateTime(fiscal)).Sum(q => q.loan ?? 0)),
+                    TotalDueLoan = (amount + intAmount) -
+                        (_context.tbl_employee_swf_loan_direct_settle.Where(s => s.swf_loan_id == loanId).Sum(s => s.amount ?? 0) +
+                         _context.vw_swf_payback.Where(q => q.emp_id == empId && q.loan != 0 && q.fiscal >= Convert.ToDateTime(fiscal)).Sum(q => q.loan ?? 0))
+                },
+                TloanInt = new SwfLoanTotalViewModel
+                {
+                    TLoanInt = amount + intAmount
+                }
+            };
+
+            return PartialView("Payroll/_SWFLoanPaidTillDate", model);
+        }
+
         #endregion
 
 
