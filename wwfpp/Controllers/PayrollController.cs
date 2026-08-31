@@ -303,7 +303,6 @@ namespace wwfpp.Controllers
                 return Json(new { success = false, message = Lang.msg_error });
             }
         }
-
         public JsonResult SWFLoanSave(SwfLoanViewModel model)
         {
             ModelState.Remove("id");
@@ -469,7 +468,6 @@ namespace wwfpp.Controllers
 
             return Json(new { status = "success", message = Lang.msg_delete_success.Replace("[<DELETED-ROWS>]", deletedCount.ToString()) });
         }
-
         [HttpPost]
         [ValidateAntiForgeryToken]
         public IActionResult GetPaidTillDate(int empId, string fiscal, decimal amount, decimal intAmount, string loanId)

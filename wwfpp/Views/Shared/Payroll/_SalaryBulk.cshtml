@@ -342,7 +342,7 @@
             });
         });
 
-        function collectExtraFields() {
+        $(document).off("click", "#btnCalculate").on("click", "#btnCalculate", function () {
             var extraSettings = [];
             $("#tblData tbody tr").each(function() {
                 var row = $(this);
@@ -435,7 +435,7 @@
                 }
             });
             return extraSettings;
-        }
+        });
         $(document).on('change', '.pf_group', function() { var serial = $(this).data("serial"); change_pf_add_ded_amount(serial); });
         $(document).on('change', '.pf_type', function() { var serial = $(this).data("serial"); change_pf_add_ded_amount(serial); });
         $(document).off("click", "#btnSave").on("click", "#btnSave", function() { $("#mode").val("update"); updateDataJSON(ilaka + "Save"); });

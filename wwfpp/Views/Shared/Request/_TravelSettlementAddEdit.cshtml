@@ -43,17 +43,21 @@
 
     </div>
 
-@if (mode == "add" && ViewBag.apern == "true")
-{
-    <script>renderModalButtons("modal-button-list", "Save");</script>
+@if (mode == "add" && ViewBag.apern == "true") 
+{ 
+    <script>
+       document.getElementById("modal-button-list").innerHTML =
+       '<button type="button" name ="btnSave" id="btnSave" class="button btn-primary">Save</button>'+
+       '<button type="button" name ="btnC" id="btnC" class="button btn-secondary">Close</button>';
+    </script>
 }
-else if (mode == "edit" && ViewBag.epern == "true")
-{
-    <script>renderModalButtons("modal-button-list", "Edit");</script>
-}
-else
-{
-    <script>renderModalCloseButton("modal-button-list")</script>
+    else if (mode == "edit" && ViewBag.epern == "true") 
+{ 
+    <script>
+        document.getElementById("modal-button-list").innerHTML =
+        '<button type="button" name ="btnSave" id="btnSave" class="button btn-primary">Edit</button>'+
+        '<button type="button" name ="btnC" id="btnC" class="button btn-secondary">Close</button>';
+    </script>
 }
     <script>
     // Toggle between Edit and Update
@@ -69,7 +73,7 @@ else
             if ( checkInput( 'txt', 'module_sort', 'Sorting is required.', 'modal-message') == false ) {return false;}
             if ( checkInput( 'cmb', 'module_status', 'Status is required.', 'modal-message') == false ) {return false;}
 
-            submitSaveUpdate('@Url.Content("~/Admin/Modules")');
+            submitSaveUpdate("/Admin/Modules");
         }
     });
     </script>
