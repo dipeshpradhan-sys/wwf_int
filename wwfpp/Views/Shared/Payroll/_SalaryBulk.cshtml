@@ -190,7 +190,7 @@
         <div class="col-sm-8">
             <button type="reset" name="btnReset" id="btnReset" class="button btn-secondary">Reset</button>
             <button type="button" name="btnSave" id="btnSave" class="button btn-primary">Save</button>
-            <button type="button" id="btnCalculate" class="button btn-primary" onclick="postdata_auto_calculate_salary_bulk()">Calculate All</button>
+            <button type="button" id="btnCalculate" class="button btn-primary">Calculate All</button>
         </div>
     </div>
 }
@@ -322,19 +322,6 @@
 
             table.on('xhr.dt', function (e, settings, json, xhr) {
                 var totalRecord = json.recordsTotal;
-                //var InitialTaxPercent = json.data.length > 0 ? json.data[0].d_0_p : 0;
-                //var FirstTaxPercent = json.data.length > 0 ? json.data[0].d_1_p : 0;
-                //var SecondTaxPercent = json.data.length > 0 ? json.data[0].d_2_p : 0;
-                //var ThirdTaxPercent = json.data.length > 0 ? json.data[0].d_3_p : 0;
-                //var FourthTaxPercent = json.data.length > 0 ? json.data[0].d_4_p : 0;
-                //var FifthTaxPercent = json.data.length > 0 ? json.data[0].d_5_p : 0;
-                //document.getElementById("initial").innerHTML = InitialTaxPercent + '%';
-                //document.getElementById("first").innerHTML = FirstTaxPercent + '%';
-                //document.getElementById("second").innerHTML = SecondTaxPercent + '%';
-                //document.getElementById("third").innerHTML = ThirdTaxPercent + '%';
-                //document.getElementById("fourth").innerHTML = FourthTaxPercent + '%';
-                //document.getElementById("fifth").innerHTML = FifthTaxPercent + '%';
-                // Example: update hidden field or label
                 var hRecEls = document.getElementsByName("HRecCount");
                 if (hRecEls.length > 0) {
                     hRecEls[0].value = totalRecord;
@@ -342,7 +329,7 @@
             });
         });
 
-        $(document).off("click", "#btnCalculate").on("click", "#btnCalculate", function () {
+        function collectExtraFields() {
             var extraSettings = [];
             $("#tblData tbody tr").each(function() {
                 var row = $(this);
@@ -435,12 +422,14 @@
                 }
             });
             return extraSettings;
-        });
+        }
         $(document).on('change', '.pf_group', function() { var serial = $(this).data("serial"); change_pf_add_ded_amount(serial); });
         $(document).on('change', '.pf_type', function() { var serial = $(this).data("serial"); change_pf_add_ded_amount(serial); });
         $(document).off("click", "#btnSave").on("click", "#btnSave", function() { $("#mode").val("update"); updateDataJSON(ilaka + "Save"); });
         $("#StatusFilter").off("change").on("change", function() { const statusV = $(this).val(); if (!statusV) { return; } const $myButton = $("#btnSave"); if ($myButton.length) { if (statusV === "A") { $myButton.show(); $('#tblData_length').hide(); table.page.len(-1).draw(); } else { $myButton.hide(); $('#tblData_length').show(); table.page.len(10).draw(); } } table.draw(); });
-
-    </script>
+        $(document).off("click", "#btnCalculate").on("click", "#btnCalculate", function() {
+            postdata_auto_calculate_salary_bulk();
+        });
+    </script>    
 }
 

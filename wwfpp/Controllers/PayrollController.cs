@@ -5935,7 +5935,13 @@ namespace wwfpp.Controllers
                 ViewBag.InsAmt = taxPercent.InsAmt;
                 ViewBag.InsAmtNonLife = taxPercent.InsAmtNonLife;
 
-            //ViewBag.ViewButtons = _accountServices.getAddEditDeleteAccess("Payroll/SalaryBulk", "Save/CalcualteAll", PageId, Records.Count);
+            var Records = (
+                from con in _context.tbl_employee_salary
+                select con
+            ).ToList();
+
+
+            ViewBag.ViewButtons = _accountServices.getAddEditDeleteAccess("Payroll/SalaryBulk", "", PageId, Records.Count);
 
             return PartialView("Payroll/_SalaryBulk", "");
         }
