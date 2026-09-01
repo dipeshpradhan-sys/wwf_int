@@ -176,9 +176,9 @@ else
                     extraSettings.push({
                         emp_id: parseInt(row.find("input[name^='emp_id']").val(), 10) || null,
                         fiscal_year: $("#FiscalYearFilter").val(),
-                        join_date: formatDate(row.find("input[name^='join_date_']").val()),
-                        gratuity_date: formatDate(row.find("input[name^='gratuity_date_']").val()),
-                        fy_end_fiscal_date: formatDate(row.find("input[name^='fy_end_fiscal_date_']").val()),
+                        join_date: formatDateToISO(row.find("input[name^='join_date_']").val()),
+                        gratuity_date: formatDateToISO(row.find("input[name^='gratuity_date_']").val()),
+                        fy_end_fiscal_date: formatDateToISO(row.find("input[name^='fy_end_fiscal_date_']").val()),
                         service_year: parseFloat(row.find("input[name^='service_year_']").val()) || null,
                         base_salary: parseFloat(row.find("input[name^='base_salary_']").val()) || null,
                         gratuity_encash: parseFloat(row.find("input[name^='gratuity_encash_']").val()) || null,
@@ -192,7 +192,7 @@ else
             }
 
             // helper to convert "dd/MM/yyyy" into ISO string
-            function formatDate(val) {
+            /*function formatDate(val) {
                 if (!val) return null;
                 var parts = val.split("/");
                 if (parts.length === 3) {
@@ -201,7 +201,7 @@ else
                     return d.toISOString();
                 }
                 return null;
-            }
+            }*/
 
             $(document).off("click", "#btnSave").on("click", "#btnSave", function () { $("#mode").val("update"); updateDataNoChk(ilaka + "Save"); });
 
@@ -311,7 +311,6 @@ else
             function PeriodSelect(){
                 var fiscalYear = $(this).val();
                 var periodSelect = $("#PeriodFilter");
-                //alert(fiscalYear+'--'+periodSelect);
                 // Clear existing options
                 periodSelect.empty();
 
@@ -325,8 +324,8 @@ else
                     periodSelect.append(new Option("4", "4"));
 
                     // Auto‑select based on current date difference
-                    //var startFiscalDate = new Date(fiscalYear.substring(0, 4), 3, 1); // Example: fiscal year starts April
-                    var startFiscalDateStr = '@Context.Session.GetString("date_from")';
+                    //var startFiscalDateStr = 'Context.Session.GetString("date_from")';
+                    var startFiscalDateStr = '@ViewBag.DateFrom';
                     var startFiscalDate = new Date(startFiscalDateStr);
                     var today = new Date();
                     var curDateDiff = (today.getFullYear() - startFiscalDate.getFullYear()) * 12 +
