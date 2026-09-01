@@ -173,6 +173,9 @@ namespace wwfpp.Data
         public DbSet<vw_employee_salary_extra_settings> vw_employee_salary_extra_settings { get; set; } = null!;
         public DbSet<vw_employee_salary_previous> vw_employee_salary_previous { get; set; } = null!;
         public DbSet<vw_year_salary> vw_year_salary { get; set; } = null!;
+        public DbSet<vw_year_salary> vw_year_salary_a_field { get; set; } = null!;
+        public DbSet<vw_year_salary> vw_year_salary_sum_fiscalwise { get; set; } = null!;
+        public DbSet<vw_year_salary> vw_year_salary_sum_fiscalwise_all { get; set; } = null!;
         public DbSet<vw_timesheet_sub> vw_timesheet_sub { get; set; } = null!;
 
 
@@ -419,6 +422,23 @@ namespace wwfpp.Data
             _ = modelBuilder.Entity<vw_year_salary>()
                 .HasNoKey()
                 .ToView("vw_year_salary");
+
+            _ = modelBuilder.Entity<vw_year_salary_sum_fiscalwise>()
+                .HasNoKey()
+                .ToView("vw_year_salary_sum_fiscalwise");
+            _ = modelBuilder.Entity<vw_year_salary_sum_fiscalwise>()
+                .HasNoKey()
+                .ToView("vw_year_salary_sum_fiscalwise");
+
+            _ = modelBuilder.Entity<vw_year_salary_sum_fiscalwise_all>()
+                .HasNoKey()   // <-- tells EF Core it's a keyless entity
+                .ToView("vw_year_salary_sum_fiscalwise_all")   // <-- tells EF Core to query the View
+                .Property(e => e.actual_fiscal)
+                .HasColumnName("actual_fiscal");
+
+
+
+
             _ = modelBuilder.Entity<vw_timesheet_sub>(entity =>
             {
                 entity.ToView("vw_timesheet_sub"); // exact SQL view name

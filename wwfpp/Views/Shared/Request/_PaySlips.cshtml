@@ -33,8 +33,7 @@
                 new { @class = "form-select", style = "width:300px;" })
         </div>
     </div>
-
-    <!-- Second row: Start & End Date in same column -->
+    <!--Single Period-->
     <div class="row align-items-center mt-2">
         <div class="col-auto">Single Period:
         </div>
@@ -46,6 +45,21 @@
         </div>
         <div class="col-auto">
             <button id="btnSinglePeriod" class="button bg-green">Export</button>
+        </div>
+    </div>
+    <!--Single Year-->
+    <div class="row align-items-center mt-2">
+        <div class="col-auto">
+            Single Year:
+        </div>
+        <div class="col-auto">
+            <select id="FiscalYearList" class="form-control-sm" asp-items="ViewBag.FiscalYearList">
+                <option value="">-- Fiscal year --</option>
+            </select>
+        </div>
+
+        <div class="col-auto">
+            <button id="btnSingleYear" class="button bg-green">Export</button>
         </div>
     </div>
 
@@ -127,6 +141,46 @@
             .catch(error => {
                 $('#message').removeClass().addClass('error').html("Error in process: " + error).show();
             });
+        });
+
+        $(document).off("click", "#btnSingleYear").on("click", "#btnSingleYear", function() {
+            var FiscalYear = $("#FiscalYearList").val();
+            var Employee = $("#EmployeeFilter").val();
+
+            // Validation
+            if (!FiscalYear) {
+                $('#message').removeClass().addClass('error').html(msg_select_fiscal_year).show();
+                return false;
+            }
+            if (!Employee) {
+                $('#message').removeClass().addClass('error').html(msg_select_employee).show();
+                return false;
+            }
+
+            fetch('/Request/ExportPaySlipSingleYear', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val()
+                },
+                body: `empId=${Employee}&sal_fiscal_year=${FiscalYear}`
+            })
+                .then(response => response.json())
+                .then(res => {
+                    if (res.status === "success") {
+                        // Just download the file silently
+                        const link = document.createElement('a');
+                        link.href = 'data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,' + res.fileContent;
+                        link.download = res.fileName;
+                        link.click();
+                    } else if (res.status === "nosalary") {
+                        // Only show message if no salary
+                        $('#message').removeClass().addClass('error').html("No salary data found for this employee.").show();
+                    }
+                })
+                .catch(error => {
+                    $('#message').removeClass().addClass('error').html("Error in process: " + error).show();
+                });
         });
 
 

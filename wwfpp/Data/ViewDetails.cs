@@ -315,9 +315,9 @@ namespace wwfpp.Data
     public class vw_year_salary
     {
         public float? salary_id { get; set; }
-        public int emp_id { get; set; }
-        public short sal_year { get; set; }
-        public short sal_month { get; set; }
+        public int? emp_id { get; set; }
+        public short? sal_year { get; set; }
+        public short? sal_month { get; set; }
         public decimal? basic_salary { get; set; }
         public decimal? grade { get; set; }
         public decimal? pf_a { get; set; }
@@ -335,7 +335,7 @@ namespace wwfpp.Data
         public decimal? dashain_a { get; set; }
         public decimal? tel_per_adv { get; set; }
         public decimal? travel_prog_adv { get; set; }
-        public string remarks { get; set; }
+        public string? remarks { get; set; }
         public DateTime? submit_date { get; set; }
         public int? submit_by { get; set; }
         public string? percent_for_tax_add { get; set; }
@@ -348,7 +348,7 @@ namespace wwfpp.Data
         public decimal? act_remote_area_all { get; set; }
         public decimal? act_pf_d { get; set; }
         public decimal? a_cit_d { get; set; }
-        public string cit_type { get; set; }
+        public string? cit_type { get; set; }
         public double? cit_percent_amonnt { get; set; }
         public decimal? marital_d { get; set; }
         public decimal? yearly_salary { get; set; }
@@ -371,8 +371,8 @@ namespace wwfpp.Data
         public decimal? d_3_amt { get; set; }
         public double? d_3_p { get; set; }
         public double? d_4_p { get; set; }
-        public string fiscal_year { get; set; }
-        public byte emp_week { get; set; }
+        public string ?fiscal_year { get; set; }
+        public byte ?emp_week { get; set; }
         public decimal? gratuity { get; set; }
         public decimal? gratuity_ded { get; set; }
         public decimal? medical_expense_reimburse_eligible { get; set; }
@@ -386,11 +386,11 @@ namespace wwfpp.Data
         public decimal? fourth_tax_amount { get; set; }
         public double? fifth_tax_percent { get; set; }
 
-        public string fullname { get; set; }
-        public string employee_type { get; set; }
-        public string post { get; set; }
+        public string ?fullname { get; set; }
+        public string ?employee_type { get; set; }
+        public string ?post { get; set; }
         public DateTime? fiscal { get; set; }
-        public string actual_fiscal { get; set; }
+        public string ?actual_fiscal { get; set; }
     }
     public class vw_timesheet_sub
     {
@@ -408,5 +408,145 @@ namespace wwfpp.Data
         public short emp_week { get; set; }
         public DateTime? fiscal { get; set; }
     }
+
+    public class vw_year_salary_a_field
+    {
+        public string? salary_id { get; set; }
+        public int? emp_id { get; set; }
+        public short? sal_year { get; set; }
+        public short? sal_month { get; set; }
+        public decimal? act_basic_salary { get; set; }
+        public decimal? act_pf_a { get; set; }
+        public decimal? act_pf_d { get; set; }
+        public decimal? a_cit_d { get; set; }
+        public decimal? act_remote_area_all { get; set; }
+        public decimal? basic_salary { get; set; }
+        public decimal? grade { get; set; }
+        public decimal? pf_a { get; set; }
+        public decimal? children_edu_all { get; set; }
+        public decimal? performance_all { get; set; }
+        public decimal? remote_area_all { get; set; }
+        public decimal? overtime { get; set; }
+        public decimal? dashain_a { get; set; }
+        public decimal? gratudi { get; set; }
+        public decimal? insurance { get; set; }
+        public decimal? others { get; set; }
+        public decimal? pf_d { get; set; }
+        public decimal? cit_d { get; set; }
+        public decimal? pre_access_tax { get; set; }
+        public decimal? incometax_d { get; set; }
+        public decimal? betalibi_d { get; set; }
+        public decimal? tel_per_adv { get; set; }
+        public decimal? travel_prog_adv { get; set; }
+        public decimal? pr_adv { get; set; }
+        public decimal? fd_adv { get; set; }
+        public decimal? welfare_fund { get; set; }
+        public decimal? adv_PF_loan { get; set; }
+        public decimal? adv_CIT_loan { get; set; }
+        public decimal? wl_adv { get; set; }
+        public decimal? net_in_hand { get; set; }
+        public string? remarks { get; set; }
+        public DateTime? submit_date { get; set; }
+        public int? submit_by { get; set; }
+        public string? fiscal_year { get; set; }
+        public byte? emp_week { get; set; }
+        public decimal? gratuity { get; set; }
+        public decimal? gratuity_ded { get; set; }
+        public decimal? medical_expense_reimburse_total { get; set; }
+        public decimal? leave_encash { get; set; }
+        public decimal? ssf { get; set; }
+        public decimal? ssf_ded { get; set; }
+        public decimal? annual_health_checkup_add { get; set; }
+        public decimal? annual_health_checkup_ded { get; set; }
+
+        // Extra columns from View
+        public string? fullname { get; set; }
+        public DateTime? fiscal { get; set; }
+        public string ?employee_type { get; set; }
+        public string ?post { get; set; }
+        public string ?actual_fiscal { get; set; }
+    }
+
+    public class vw_year_salary_sum_fiscalwise
+    {
+        public int? emp_id { get; set; }
+        public string? fullname { get; set; }
+        public string ?actual_fiscal { get; set; }
+        public string ?fiscal_year { get; set; }
+
+        public decimal? basic_salary { get; set; }
+        public decimal? grade { get; set; }
+        public decimal? pf_a { get; set; }
+        public decimal? children_edu_all { get; set; }
+        public decimal? performance_all { get; set; }
+        public decimal? remote_area_all { get; set; }
+        public decimal? others { get; set; }
+        public decimal? overtime { get; set; }
+        public decimal? pf_d { get; set; }
+        public decimal? incometax_d { get; set; }
+        public decimal? cit_d { get; set; }
+        public decimal? betalibi_d { get; set; }
+        public decimal? dashain_a { get; set; }
+        public decimal? tel_per_adv { get; set; }
+        public decimal? travel_prog_adv { get; set; }
+        public decimal? welfare_fund { get; set; }
+        public decimal? gratudi { get; set; }
+        public decimal? pr_adv { get; set; }
+        public decimal? fd_adv { get; set; }
+        public decimal? wl_adv { get; set; }
+        public decimal? net_in_hand { get; set; }
+        public decimal? insurance { get; set; }
+        public decimal? pre_access_tax { get; set; }
+        public decimal? adv_PF_loan { get; set; }
+        public decimal? adv_CIT_loan { get; set; }
+        public decimal? gratuity { get; set; }
+        public decimal? gratuity_ded { get; set; }
+        public decimal? medical_expense_reimburse_total { get; set; }
+        public decimal? leave_encash { get; set; }
+        public decimal? ssf { get; set; }
+        public decimal? ssf_ded { get; set; }
+    }
+
+    public class vw_year_salary_sum_fiscalwise_all
+    {
+        public int? emp_id { get; set; }
+        public string? fullname { get; set; }
+        public string ?actual_fiscal { get; set; }
+        public string ?fiscal_year { get; set; }
+
+        public decimal? basic_salary { get; set; }
+        public decimal? grade { get; set; }
+        public decimal? pf_a { get; set; }
+        public decimal? children_edu_all { get; set; }
+        public decimal? performance_all { get; set; }
+        public decimal? remote_area_all { get; set; }
+        public decimal? others { get; set; }
+        public decimal? overtime { get; set; }
+        public decimal? pf_d { get; set; }
+        public decimal? incometax_d { get; set; }
+        public decimal? cit_d { get; set; }
+        public decimal? betalibi_d { get; set; }
+        public decimal? dashain_a { get; set; }
+        public decimal? tel_per_adv { get; set; }
+        public decimal? travel_prog_adv { get; set; }
+        public decimal? welfare_fund { get; set; }
+        public decimal? gratudi { get; set; }
+        public decimal? pr_adv { get; set; }
+        public decimal? fd_adv { get; set; }
+        public decimal? wl_adv { get; set; }
+        public decimal? net_in_hand { get; set; }
+        public decimal? insurance { get; set; }
+        public decimal? pre_access_tax { get; set; }
+        public decimal? adv_PF_loan { get; set; }
+        public decimal? adv_CIT_loan { get; set; }
+        public decimal? gratuity { get; set; }
+        public decimal? gratuity_ded { get; set; }
+        public decimal? medical_expense_reimburse_total { get; set; }
+        public decimal? leave_encash { get; set; }
+        public decimal? ssf { get; set; }
+        public decimal? ssf_ded { get; set; }
+    }
+
+
 
 }
