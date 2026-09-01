@@ -62,7 +62,32 @@
             <button id="btnSingleYear" class="button bg-green">Export</button>
         </div>
     </div>
+    <!--Multi Period-->
+    <div class="row align-items-center mt-2">
+        <div class="col-auto">
+            Multi Period:
+        </div>
+        <div class="col-auto">
+            @Html.DropDownList("StartMonth", (SelectList)ViewBag.CalMonth, "-- Month --", new { @class = "form-select" })
+        </div>
 
+        <div class="col-auto">
+            @Html.DropDownList("StartYear", (SelectList)ViewBag.CalYears, "-- Year --", new { @class = "form-select" })
+        </div>
+        <div class="col-auto">
+            --
+        </div>
+        <div class="col-auto">
+            @Html.DropDownList("EndMonth", (SelectList)ViewBag.CalMonth, "-- Month --", new { @class = "form-select" })
+        </div>
+
+        <div class="col-auto">
+            @Html.DropDownList("EndYear", (SelectList)ViewBag.CalYears, "-- Year --", new { @class = "form-select" })
+        </div>
+        <div class="col-auto">
+            <button id="btnMultiPeriod" class="button bg-green">Export</button>
+        </div>
+    </div>
 
 
 </div>
@@ -183,7 +208,60 @@
                 });
         });
 
+        $(document).off("click", "#btnMultiPeriod").on("click", "#btnMultiPeriod", function() {
+            var StartYear = $("#StartYear").val();
+            var StartMonth = $("#StartMonth").val();
+            var EndYear = $("#EndYear").val();
+            var EndMonth = $("#EndMonth").val();
+            var Employee = $("#EmployeeFilter").val();
 
+            // Validation
+            if (!StartMonth) {
+                $('#message').removeClass().addClass('error').html(msg_select_start_month).show();
+                return false;
+            }
+            if (!StartYear) {
+                $('#message').removeClass().addClass('error').html(msg_select_start_year).show();
+                return false;
+            }
+            if (!EndMonth) {
+                $('#message').removeClass().addClass('error').html(msg_select_end_month).show();
+                return false;
+            }
+            if (!EndYear) {
+                $('#message').removeClass().addClass('error').html(msg_select_end_year).show();
+                return false;
+            }
+            if (!Employee) {
+                $('#message').removeClass().addClass('error').html(msg_select_employee).show();
+                return false;
+            }
+
+            fetch('/Request/ExportPaySlipMultiPeriod', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val()
+                },
+                body: `empId=${Employee}&startMonth=${StartMonth}&startYear=${StartYear}&endMonth=${EndMonth}&endYear=${EndYear}`
+            })
+                .then(response => response.json())
+                .then(res => {
+                    if (res.status === "success") {
+                        // Just download the file silently
+                        const link = document.createElement('a');
+                        link.href = 'data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,' + res.fileContent;
+                        link.download = res.fileName;
+                        link.click();
+                    } else if (res.status === "nosalary") {
+                        // Only show message if no salary
+                        $('#message').removeClass().addClass('error').html("No salary data found for this employee.").show();
+                    }
+                })
+                .catch(error => {
+                    $('#message').removeClass().addClass('error').html("Error in process: " + error).show();
+                });
+        });
 
 
 
