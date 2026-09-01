@@ -120,8 +120,6 @@ else
                         data: "pre_leave_payable",
                         render: function(data, type, row) {
                             return '<input type="number" name="pr_pro_' + row.emp_id + '" id="pr_pro_' + row.emp_id + '" value="' + data + '" ' +
-                                'onkeyup="calculate_net_leave_encashment_new(' + row.emp_id + ')" ' +
-                                'onblur="calculate_net_leave_encashment_new(' + row.emp_id + ')" ' +
                                 'class="form-control rate-input" style="width:90px;">';
                         }
                     },
@@ -159,8 +157,6 @@ else
                         showError("Leave Accrual for the fiscal year has not processed yet", "process-message");
                     }
                 });
-
-                //loadLeaveAccrualMessageAndReload();
             });
             function collectExtraFields() {
                 var extraSettings = [];
@@ -185,6 +181,9 @@ else
                 });
                 return extraSettings;
             }
+
+            $(document).off('blur', 'input[id^="pr_pro_"]').on('blur', 'input[id^="pr_pro_"]', function() { calculate_net_leave_encashment_new(this.id.replace('pr_pro_', '')); });
+            $(document).off('keyup', 'input[id^="pr_pro_"]').on('keyup', 'input[id^="pr_pro_"]', function() { calculate_net_leave_encashment_new(this.id.replace('pr_pro_', '')); });
 
             $(document).off("click", "#btnSave").on("click", "#btnSave", function () { $("#mode").val("update"); updateDataNoChk(ilaka + "Save"); });
 

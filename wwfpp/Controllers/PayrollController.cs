@@ -666,8 +666,8 @@ namespace wwfpp.Controllers
                     x.FullName,
                     x.emp_code,
                     gender = x.gender == "M" ? "Male" : "Female",
-                    join_date = x.join_date?.ToString("dd-MMM-yyyy"),
-                    end_date = x.end_date?.ToString("dd-MMM-yyyy"),
+                    join_date = x.join_date,
+                    end_date = x.end_date,
                     BasicSalary = x.salary,
                     x.Times,
                     x.PeriodHours,
@@ -5000,8 +5000,8 @@ namespace wwfpp.Controllers
                     x.full_name,
                     x.emp_code,
                     gender = x.gender == "M" ? "Male" : "Female",
-                    join_date = x.join_date?.ToString("dd-MMM-yyyy"),
-                    end_date = x.end_date?.ToString("dd-MMM-yyyy"),
+                    join_date = x.join_date,
+                    end_date = x.end_date,
                     basic_salary = Math.Round(x.basic_salary ?? 0, 2),
                     emp_status = x.emp_status,
                     an_bal = Math.Round(x.an_bal ?? 0, 2),
@@ -5334,6 +5334,7 @@ namespace wwfpp.Controllers
             string? FiscalYearActive = HttpContext.Session.GetString("FiscalYear");
             ViewBag.FiscalYearActive = FiscalYearActive;
             ViewBag.FiscalYearList = _settingsServices.GetFiscalYears(HttpContext.Session.GetString("fiscal_year"));
+            ViewBag.DateFrom = Convert.ToDateTime(HttpContext.Session.GetString("date_from"));
 
             ViewBag.PeriodList = _payrollServices.PeriodFilter();
 
