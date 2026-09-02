@@ -6710,16 +6710,19 @@ namespace wwfpp.Controllers
             var (pageSize, skip, draw, sortColumn, sortColumnDir, searchValue) = DataTableHelper.GetParameters(Request);
 
             string FiscalYearFilter = request.FiscalYearFilter;
-            bool? blnShow = false;
+            DateTime? start_fiscal_date = Convert.ToDateTime(_settingsServices.GetFiscalYearValue(FiscalYearFilter!, "date_from"));
+            DateTime? end_fiscal_date = Convert.ToDateTime(_settingsServices.GetFiscalYearValue(FiscalYearFilter!, "date_to"));
+
+            bool? blnShow = true;
             bool hasRecords = _context.tbl_employee_excess_leave_encash_emp_wise
-                .Any(x => x.fiscal_year == FiscalYearFilter);
+                .Any(x => x.fiscal_year == FiscalYearFilter && x.counter == 1);
 
             var query = hasRecords
                 ? (from emp in _context.tbl_employee
                    where emp.emp_status == "A"
                    join lft in _context.tbl_employee_excess_leave_encash_emp_wise
                            .Where(x => x.fiscal_year == FiscalYearFilter)
-                           on emp.emp_id equals lft.emp_id
+                           on emp.emp_id equals lft.emp_id 
                    orderby emp.emp_status, emp.firstname, emp.middlename, emp.lastname
                    select new
                    {
@@ -6731,8 +6734,7 @@ namespace wwfpp.Controllers
                        emp.emp_code,
                        employee = $"{emp.firstname} {emp.middlename} {emp.lastname}",
                        amount = lft.amount ?? 0m,   // cast to decimal
-                       remarks = lft.remarks ?? string.Empty,
-                       blnShow = true
+                       remarks = lft.remarks ?? string.Empty
                    })
                 : (from emp in _context.tbl_employee
                    where emp.emp_status == "A"
@@ -6746,9 +6748,12 @@ namespace wwfpp.Controllers
                        emp.emp_status,
                        emp.emp_code,
                        employee = $"{emp.firstname} {emp.middlename} {emp.lastname}",
-                       amount = 0m,                 // cast to decimal
-                       remarks = string.Empty,
-                       blnShow = true
+                       amount = _context.que_year_salary_custom
+                        .Where(q => q.emp_id == emp.emp_id
+                                    && q.fiscal >= start_fiscal_date
+                                    && q.fiscal <= end_fiscal_date)
+                        .Sum(q => (decimal?)q.leave_encash) ?? 0m,
+                       remarks = string.Empty
                    });
 
 
@@ -6783,9 +6788,10 @@ namespace wwfpp.Controllers
             }
 
             var data = query.ToList();
-            if(data.Any(r => r.amount > 0))
+            //if(data.Any(r => r.amount > 0))
+            if(hasRecords == false)
             {
-                blnShow = true;
+                blnShow = false;
             }
             int totalRecord = data.Count();
             if (pageSize == -1) { pageSize = totalRecord; }

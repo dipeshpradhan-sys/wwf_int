@@ -4012,7 +4012,6 @@ namespace wwfpp.Controllers
 
             return PartialView("Payroll/_SWFLoanPaidTillDate", model);
         }
-
         #endregion
 
         #region PaySLIP

@@ -275,7 +275,7 @@ namespace wwfpp.Data
         public DbSet<EmployeeTravelSettlementMainViewModel> EmployeeTravelSettlementMainViewModel { get; set; }
         // public DbSet<que_year_salary> que_year_salary	 { get; set; }
         // public DbSet<que_year_salary_a_field> que_year_salary_a_field	 { get; set; }
-        // public DbSet<que_year_salary_custom> que_year_salary_custom	 { get; set; }
+         public DbSet<que_year_salary_custom> que_year_salary_custom	 { get; set; }
         // public DbSet<que_year_salary_sum_fiscalwise> que_year_salary_sum_fiscalwise	 { get; set; }
         // public DbSet<que_year_salary_sum_fiscalwise_all> que_year_salary_sum_fiscalwise_all	 { get; set; }
 
@@ -436,7 +436,9 @@ namespace wwfpp.Data
                 .Property(e => e.actual_fiscal)
                 .HasColumnName("actual_fiscal");
 
-
+            _ = modelBuilder.Entity<que_year_salary_custom>()
+                .HasNoKey()
+                .ToView("que_year_salary_custom");
 
 
             _ = modelBuilder.Entity<vw_timesheet_sub>(entity =>

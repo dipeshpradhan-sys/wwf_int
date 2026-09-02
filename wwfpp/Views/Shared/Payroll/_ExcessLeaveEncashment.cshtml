@@ -3,7 +3,7 @@
 @{
     Layout = "~/Views/Shared/_Layout.cshtml";
     var PageTitle = "Excess Leave Encashment";
-    var Page_Tips = "";  //Tool tip message on right side
+    var Page_Tips = "The Amount will be populated after Leave encash amount saved on Salary Bulk.<br><br>Save button will not display if entire employee's amount are zero.";  //Tool tip message on right side
     var msg_please_wait = "";
     var Page_Mode = PageTitle; 
     var Pern = ViewBag.vpern;
@@ -109,7 +109,7 @@ else
                 table.on('draw.dt', function() {
                     var blnShowSave = table.ajax.json().blnShow; // get from last JSON
                     if (blnShowSave == false) {
-                        $("input[name^='amount_']").prop("readonly", false);
+                        $("input[name^='amount_']").prop("readonly", true);
                         $("input[name^='remarks_']").prop("readonly", false);
                         $('#saveSection').show();
                         $('#deleteSection').hide();
