@@ -422,7 +422,9 @@ namespace wwfpp.Data
             _ = modelBuilder.Entity<que_year_salary>()
                 .HasNoKey()
                 .ToView("que_year_salary");
-
+            _ = modelBuilder.Entity<que_year_salary_a_field>()
+                .HasNoKey()
+                .ToView("que_year_salary_a_field");
             _ = modelBuilder.Entity<que_year_salary_sum_fiscalwise>()
                 .HasNoKey()
                 .ToView("que_year_salary_sum_fiscalwise");
