@@ -713,5 +713,4 @@ namespace wwfpp.Data
         public double? opening_balance { get; set; }  //[float] NULL,
         public double? opening_interest { get; set; }  //[float] NULL,
     }
-
 }

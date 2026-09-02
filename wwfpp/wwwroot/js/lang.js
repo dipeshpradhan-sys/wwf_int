@@ -174,6 +174,11 @@ var msg_gratuity_accrual_cleared_successfully = "Gratuity accrual cleared succes
 var msg_date_required = "Date is required.";
 var msg_no_employee_approver = "No approver is assigned for this employee. Please contact your administrator.";
 
+/*--------------------------------------------------------------------------------'
+'* Payroll Administration > EXCESS LEAVE ENCASHMENT '
+'*--------------------------------------------------------------------------------*/
+var msg_excess_leave_encashment_cleared_scuccessfully = "Excess Leave Encashment cleared successfully";
+
 
 
 

@@ -2,6 +2,7 @@
 using ClosedXML.Excel;
 using DocumentFormat.OpenXml.Bibliography;
 using DocumentFormat.OpenXml.Drawing.Charts;
+using DocumentFormat.OpenXml.Office2010.Excel;
 using DocumentFormat.OpenXml.Office2016.Drawing.ChartDrawing;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -944,6 +945,8 @@ namespace wwfpp.Controllers
 
                     // ✅ Use non-generic Set(Type) overload
                     _context.Add(newRecord);
+
+                    //SetInsertAccrualFundSource("tbl_employee_leave_accrual_new", nextId, update.emp_id, update.pre_fiscal_year, Convert.ToDateTime(start_fiscal_date), Convert.ToDateTime(end_fiscal_date), "tbl_employee_leave_accrual_new_fund_wise", 4);
                 }
             }
 
@@ -6682,6 +6685,381 @@ namespace wwfpp.Controllers
             }
             return Json(new { status = "success", message = Lang.msg_added_success });
         }
+        #endregion
+        /********************************************************************************************************************/
+        #region 10363 EXCESS LEAVE ENCASHMENT
+        [HttpGet]
+        public IActionResult ExcessLeaveEncashment(string fiscalYearFilter, string? periodInput)
+        {
+            string PageId = "10363";
+            #region FOR PERMISSION
+            var perm = _accountServices.GetMenuPermission(PageId);
+            if (perm.vpern == "false") { return RedirectToAction("PermissionDenied", "Home"); }
+            ViewBag.apern = perm.apern;
+            ViewBag.epern = perm.epern;
+            ViewBag.dpern = perm.dpern;
+            #endregion FOR END PERMISSION
+            string? FiscalYearActive = HttpContext.Session.GetString("FiscalYear");
+            ViewBag.FiscalYearActive = FiscalYearActive;
+            ViewBag.FiscalYearList = _settingsServices.GetFiscalYears(HttpContext.Session.GetString("fiscal_year"));
+
+            return PartialView("Payroll/_ExcessLeaveEncashment", "");
+        }
+        public async Task<IActionResult> ExcessLeaveEncashmentList([FromForm] DataFilterRequest request)
+        {
+            var (pageSize, skip, draw, sortColumn, sortColumnDir, searchValue) = DataTableHelper.GetParameters(Request);
+
+            string FiscalYearFilter = request.FiscalYearFilter;
+            bool? blnShow = false;
+            bool hasRecords = _context.tbl_employee_excess_leave_encash_emp_wise
+                .Any(x => x.fiscal_year == FiscalYearFilter);
+
+            var query = hasRecords
+                ? (from emp in _context.tbl_employee
+                   where emp.emp_status == "A"
+                   join lft in _context.tbl_employee_excess_leave_encash_emp_wise
+                           .Where(x => x.fiscal_year == FiscalYearFilter)
+                           on emp.emp_id equals lft.emp_id
+                   orderby emp.emp_status, emp.firstname, emp.middlename, emp.lastname
+                   select new
+                   {
+                       emp.emp_id,
+                       emp.firstname,
+                       emp.middlename,
+                       emp.lastname,
+                       emp.emp_status,
+                       emp.emp_code,
+                       employee = $"{emp.firstname} {emp.middlename} {emp.lastname}",
+                       amount = lft.amount ?? 0m,   // cast to decimal
+                       remarks = lft.remarks ?? string.Empty,
+                       blnShow = true
+                   })
+                : (from emp in _context.tbl_employee
+                   where emp.emp_status == "A"
+                   orderby emp.emp_status, emp.firstname, emp.middlename, emp.lastname
+                   select new
+                   {
+                       emp.emp_id,
+                       emp.firstname,
+                       emp.middlename,
+                       emp.lastname,
+                       emp.emp_status,
+                       emp.emp_code,
+                       employee = $"{emp.firstname} {emp.middlename} {emp.lastname}",
+                       amount = 0m,                 // cast to decimal
+                       remarks = string.Empty,
+                       blnShow = true
+                   });
+
+
+
+            // Search filter
+            if (!string.IsNullOrEmpty(searchValue))
+            {
+                query = query.Where(e =>
+                e.firstname.Contains(searchValue) ||
+                e.middlename.Contains(searchValue) ||
+                e.lastname.Contains(searchValue)
+                );
+            }
+
+            if (!string.IsNullOrEmpty(sortColumn) && !string.IsNullOrEmpty(sortColumnDir))
+            {
+                if (sortColumn == "employee")
+                {
+                    if (sortColumnDir == "asc")
+                    {
+                        query = query.OrderBy(d => d.firstname).ThenBy(d => d.middlename).ThenBy(d => d.lastname);
+                    }
+                    else
+                    {
+                        query = query.OrderByDescending(d => d.firstname).ThenByDescending(d => d.middlename).ThenByDescending(d => d.lastname);
+                    }
+                }
+                else
+                {
+                    query = query.OrderBy(sortColumn + " " + sortColumnDir);
+                }
+            }
+
+            var data = query.ToList();
+            if(data.Any(r => r.amount > 0))
+            {
+                blnShow = true;
+            }
+            int totalRecord = data.Count();
+            if (pageSize == -1) { pageSize = totalRecord; }
+            var cData = data.Skip(skip).Take(pageSize).ToList();
+
+            var jsonData = new
+            {
+                draw,
+                blnShow = blnShow,
+                recordsFiltered = totalRecord,
+                recordsTotal = totalRecord,
+                data = cData
+            };
+            return new JsonResult(jsonData);
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<JsonResult> ExcessLeaveEncashmentSave([FromBody] EmployeeExcessLeaveEncashListViewModel model)
+        {
+            string PageId = "10363";
+            #region FOR PERMISSION
+            var perm = _accountServices.GetMenuPermission(PageId);
+            ViewBag.apern = perm.apern;
+            ViewBag.epern = perm.epern;
+            #endregion FOR END PERMISSION
+
+            _ = ModelState.Remove("id");
+            if (perm.apern != "true" && perm.epern != "true") { return Json(new { status = "invalid", message = "Not Authorized User" }); }
+            if (!ModelState.IsValid) { return Json(new { status = "error", message = Lang.msg_error_invalid }); }
+            if (model?.Fields == null || !model.Fields.Any()) { return Json(new { status = "error", message = "No employees received." }); }
+
+            foreach (var item in model.Fields)
+            {
+                if (!item.emp_id.HasValue) { continue; }
+
+                var StartEndDates = _settingsServices.GetFiscalStartEndDate(item.fiscal_year!);
+                DateTime start_fiscal_date = StartEndDates.StartDate;
+                DateTime end_fiscal_date = StartEndDates.EndDate;
+
+                var existing = _context.tbl_employee_excess_leave_encash_emp_wise
+                .Where(a => a.emp_id == item.emp_id
+                            && a.fiscal_year == item.fiscal_year
+                            && a.counter == item.counter)
+                .ToList();
+
+                if (existing.Count > 0)
+                {
+                    _context.tbl_employee_excess_leave_encash_emp_wise.RemoveRange(existing);
+                    _ = _context.SaveChanges();
+                    _context.ChangeTracker.Clear();
+                }
+                if (item.amount > 0)
+                {
+                    //var nextId = Guid.NewGuid().ToString();
+                    var id = UniqueID();
+
+                    var newRec = new tbl_employee_excess_leave_encash_emp_wise
+                    {
+                        id = id,
+                        emp_id = item.emp_id,
+                        fiscal_year = item.fiscal_year,
+                        counter = 1,
+                        amount = item.amount.GetValueOrDefault(),
+                        total_hours = 0,
+                        remarks = item.remarks,
+                    };
+                    _ = _context.tbl_employee_excess_leave_encash_emp_wise.Add(newRec);
+                    _ = _context.SaveChanges();
+                    _context.ChangeTracker.Clear();
+
+                    SetInsertAccrualFundSource("tbl_employee_excess_leave_encash_emp_wise", id, Convert.ToInt32(item.emp_id), Convert.ToString(item.fiscal_year), Convert.ToDateTime(start_fiscal_date), Convert.ToDateTime(end_fiscal_date), "tbl_employee_excess_leave_encash_fund_wise", 1);
+                }
+            }
+            return Json(new { status = "success", message = Lang.msg_update_success });
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<JsonResult> ExcessLeaveEncashmentClear(string? fiscalYear, int? period)
+        {
+            await _context.Database.ExecuteSqlRawAsync("DELETE FROM tbl_employee_excess_leave_encash_emp_wise WHERE fiscal_year = {0} AND counter = {1}", fiscalYear, period);
+            await _context.Database.ExecuteSqlRawAsync("DELETE FROM tbl_employee_excess_leave_encash_fund_wise WHERE fiscal_year = {0} AND counter = {1}", fiscalYear, period);
+
+            return Json(new
+            {
+                status = "success",
+                message = "clearsuccess",
+                fiscal_year = fiscalYear,
+                period = period
+            });
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult ExportExcessLeaveEncash(string fiscalYear)
+        {
+            // Break fiscal year like Classic ASP
+            var fiscalYearBreak = fiscalYear.Split('/');
+
+            // Get organization name
+            var orgName = _context.tbl_pp_options
+                .FirstOrDefault(x => x.option_name == "op_org_name")?.option_value ?? "";
+
+            // Query employee excess leave encashment records
+            var records = (from e in _context.tbl_employee
+                           join l in _context.tbl_employee_excess_leave_encash_emp_wise
+                               on e.emp_id equals l.emp_id
+                           where l.fiscal_year == fiscalYear && l.counter == 1
+                           orderby e.firstname, e.middlename, e.lastname
+                           select new
+                           {
+                               e.emp_code,
+                               FullName = e.firstname + " " + e.middlename + " " + e.lastname,
+                               l.amount,
+                               l.remarks
+                           }).ToList();
+
+            using (var workbook = new XLWorkbook())
+            {
+                var ws = workbook.Worksheets.Add("ExcessLeaveEncash");
+
+                int row = 1;
+                ws.Cell(row++, 1).Value = "Organization: " + orgName;
+                ws.Cell(row++, 1).Value = "Fiscal Year: " + fiscalYear;
+                ws.Cell(row++, 1).Value = "Staff Statement of Excess Leave Encashment";
+
+                row++;
+                // Header row
+                ws.Cell(row, 1).Value = "Serial Number";
+                ws.Cell(row, 2).Value = "Employee Name";
+                ws.Cell(row, 3).Value = "Employee Code";
+                ws.Cell(row, 4).Value = "Amount";
+                ws.Cell(row, 5).Value = "Remarks";
+                ws.Row(row).Style.Font.Bold = true;
+                row++;
+
+                int serial = 1;
+                decimal totalAmount = 0;
+
+                foreach (var r in records)
+                {
+                    ws.Cell(row, 1).Value = serial++;
+                    ws.Cell(row, 2).Value = r.FullName;
+                    ws.Cell(row, 3).Value = r.emp_code;
+                    ws.Cell(row, 4).Value = r.amount ?? 0m;
+                    ws.Cell(row, 5).Value = r.remarks ?? string.Empty;
+
+                    totalAmount += r.amount ?? 0m;
+                    row++;
+                }
+
+                // Totals row
+                ws.Cell(row, 1).Value = "Total";
+                ws.Range(row, 1, row, 3).Merge();
+                ws.Cell(row, 4).Value = totalAmount;
+
+                ws.Columns().AdjustToContents();
+
+                using (var stream = new System.IO.MemoryStream())
+                {
+                    workbook.SaveAs(stream);
+                    var content = Convert.ToBase64String(stream.ToArray());
+
+                    return Json(new
+                    {
+                        status = "success",
+                        fileName = $"employee_excess_leave_encash_export_{fiscalYearBreak[1]}.xlsx",
+                        fileContent = content
+                    });
+                }
+            }
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult ExportExcessLeaveEncashCCD(string fiscalYear, int period)
+        {
+            // Break fiscal year like Classic ASP
+            var fiscalYearBreak = fiscalYear.Split('/');
+
+            // Get Organization name
+            var orgName = _context.tbl_pp_options
+                .FirstOrDefault(x => x.option_name == "op_org_name")?.option_value ?? "";
+
+            // Query employee excess leave encashment records
+            var records = (from e in _context.tbl_employee
+                           join l in _context.tbl_employee_excess_leave_encash_emp_wise
+                               on e.emp_id equals l.emp_id
+                           where l.fiscal_year == fiscalYear && l.counter == period
+                           orderby e.firstname, e.middlename, e.lastname
+                           select new
+                           {
+                               e.emp_id,
+                               e.emp_code,
+                               FullName = e.firstname + " " + e.middlename + " " + e.lastname,
+                               total_hours = l.total_hours,
+                               amount = l.amount,
+                               remarks = l.remarks
+                           }).ToList();
+
+            using (var workbook = new XLWorkbook())
+            {
+                var ws = workbook.Worksheets.Add("ExcessLeaveEncashCCD");
+
+                int row = 1;
+                ws.Cell(row++, 1).Value = "Organization: " + orgName;
+                ws.Cell(row++, 1).Value = "Fiscal Year: " + fiscalYear;
+                ws.Cell(row++, 1).Value = "Period: " + period;
+                ws.Cell(row++, 1).Value = "Staff Statement of Excess Leave Encashment with Fund Source Allocation";
+
+                row++;
+                // Header row
+                ws.Cell(row, 1).Value = "Serial Number";
+                ws.Cell(row, 2).Value = "Employee Name";
+                ws.Cell(row, 3).Value = "Employee ID";
+                ws.Cell(row, 4).Value = "Fund Source";
+                ws.Cell(row, 5).Value = "Hours";
+                ws.Cell(row, 6).Value = "Amount";
+                ws.Row(row).Style.Font.Bold = true;
+                row++;
+
+                int serial = 1;
+                foreach (var r in records)
+                {
+                    // Main employee row
+                    ws.Cell(row, 1).Value = serial++;
+                    ws.Cell(row, 2).Value = r.FullName;
+                    ws.Cell(row, 3).Value = r.emp_code;
+                    ws.Cell(row, 4).Value = "";
+                    ws.Cell(row, 5).Value = r.total_hours;
+                    ws.Cell(row, 6).Value = r.amount;
+                    row++;
+
+                    // Fund-wise allocations
+                    var fundWise = _context.tbl_employee_excess_leave_encash_fund_wise
+                        .Where(f => f.emp_id == r.emp_id && f.fiscal_year == fiscalYear && f.counter == period)
+                        .ToList();
+
+                    foreach (var f in fundWise)
+                    {
+                        if (f.hours == 0) continue;
+
+                        string fundSource = _context.tbl_fund_source
+                            .Where(fs => fs.fund_id == f.fund_id)
+                            .Select(fs => fs.fund_source)
+                            .FirstOrDefault();
+
+                        // Build GL code (simplified version of Classic ASP logic)
+                        string glFundSourceCode = $"{fundSource}-{r.emp_code}";
+
+                        decimal? amount = r.total_hours != null && r.total_hours != 0
+                            ? Math.Round(((r.amount ?? 0m) * (decimal)(f.hours ?? 0d)) / (decimal)(r.total_hours ?? 0d), 2)
+                            : 0m;
+
+                        ws.Cell(row, 4).Value = glFundSourceCode;
+                        ws.Cell(row, 5).Value = f.hours;
+                        ws.Cell(row, 6).Value = amount;
+                        row++;
+                    }
+                }
+
+                ws.Columns().AdjustToContents();
+
+                using (var stream = new System.IO.MemoryStream())
+                {
+                    workbook.SaveAs(stream);
+                    var content = Convert.ToBase64String(stream.ToArray());
+                    return Json(new
+                    {
+                        status = "success",
+                        fileName = $"employee_excess_leave_encash_ccd_{fiscalYearBreak[1]}_{period}.xlsx",
+                        fileContent = content
+                    });
+                }
+            }
+        }
+
         #endregion
 
         public IActionResult Index()

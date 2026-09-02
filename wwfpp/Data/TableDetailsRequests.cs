@@ -100,7 +100,7 @@ namespace wwfpp.Data
             public int? fund_id { get; set; }  //[int] NULL,
             public tbl_fund_source TblFundSource { get; set; } = null!;
 
-            public string? hours { get; set; }  //[float] NULL,
+            public double? hours { get; set; }  //[float] NULL,
             public DateTime? submit_date { get; set; }  //[datetime] NULL,
             public short? counter { get; set; }  //[smallint] NULL,
         }
