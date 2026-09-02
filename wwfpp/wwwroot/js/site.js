@@ -400,7 +400,7 @@ function updateStatus(parm, status) {
 
 }
 /*----------------------------------------------------------------------------------------*/
-function updateDataNoChk(parm, callback=null) {
+function updateDataNoChk(parm, callback = null) {
 	if (confirm(msg_are_you_sure_to_perform_this_action)) {
 		var payload = { mode: "updateDataNoChk" };
 		if (typeof collectExtraFields === "function") {
