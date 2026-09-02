@@ -88,7 +88,25 @@
             <button id="btnMultiPeriod" class="button bg-green">Export</button>
         </div>
     </div>
-
+    <!--Multi Year-->
+    <div class="row align-items-center mt-2">
+        <div class="col-auto">
+            Multi Year:
+        </div>
+        <div class="col-auto">
+            <select id="FiscalYearListStart" class="form-control-sm" asp-items="ViewBag.FiscalYearList">
+                <option value="">-- Fiscal year --</option>
+            </select>
+        </div>
+        <div class="col-auto">
+            <select id="FiscalYearListEnd" class="form-control-sm" asp-items="ViewBag.FiscalYearList">
+                <option value="">-- Fiscal year --</option>
+            </select>
+        </div>
+        <div class="col-auto">
+            <button id="btnMultiYear" class="button bg-green">Export</button>
+        </div>
+    </div>
 
 </div>
 
@@ -127,7 +145,7 @@
             var Year = $("#year").val();
             var Month = $("#month").val();
             var Employee = $("#EmployeeFilter").val();
-
+            $('#message').removeClass().html("").hide();
             // Validation
             if (!Year) {
                 $('#message').removeClass().addClass('error').html(msg_select_year).show();
@@ -171,7 +189,7 @@
         $(document).off("click", "#btnSingleYear").on("click", "#btnSingleYear", function() {
             var FiscalYear = $("#FiscalYearList").val();
             var Employee = $("#EmployeeFilter").val();
-
+            $('#message').removeClass().html("").hide();
             // Validation
             if (!FiscalYear) {
                 $('#message').removeClass().addClass('error').html(msg_select_fiscal_year).show();
@@ -214,7 +232,7 @@
             var EndYear = $("#EndYear").val();
             var EndMonth = $("#EndMonth").val();
             var Employee = $("#EmployeeFilter").val();
-
+            $('#message').removeClass().html("").hide();
             // Validation
             if (!StartMonth) {
                 $('#message').removeClass().addClass('error').html(msg_select_start_month).show();
@@ -263,6 +281,50 @@
                 });
         });
 
+        $(document).off("click", "#btnMultiYear").on("click", "#btnMultiYear", function() {
+            var FiscalYearStart = $("#FiscalYearListStart").val();
+            var FiscalYearEnd = $("#FiscalYearListEnd").val();
+            var Employee = $("#EmployeeFilter").val();
+            $('#message').removeClass().html("").hide();
+            // Validation
+            if (!FiscalYearStart) {
+                $('#message').removeClass().addClass('error').html(msg_select_start_fiscal_year).show();
+                return false;
+            }
+            if (!FiscalYearEnd) {
+                $('#message').removeClass().addClass('error').html(msg_select_end_fiscal_year).show();
+                return false;
+            }
+            if (!Employee) {
+                $('#message').removeClass().addClass('error').html(msg_select_employee).show();
+                return false;
+            }
+
+            fetch('/Request/ExportPaySlipMultiYear', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val()
+                },
+                body: `empId=${Employee}&start_fiscal_year=${FiscalYearStart}&end_fiscal_year=${FiscalYearEnd}`
+            })
+                .then(response => response.json())
+                .then(res => {
+                    if (res.status === "success") {
+                        // Just download the file silently
+                        const link = document.createElement('a');
+                        link.href = 'data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,' + res.fileContent;
+                        link.download = res.fileName;
+                        link.click();
+                    } else if (res.status === "nosalary") {
+                        // Only show message if no salary
+                        $('#message').removeClass().addClass('error').html("No salary data found for this employee.").show();
+                    }
+                })
+                .catch(error => {
+                    $('#message').removeClass().addClass('error').html("Error in process: " + error).show();
+                });
+        });
 
 
     </script>

@@ -49,6 +49,7 @@ namespace wwfpp.Controllers
         private readonly TravelApprovalService _travelApprovalService;
         private readonly ApproverResolverService _approverResolver;
         private readonly PayrollServices _payrollServices;
+        private readonly PaySlipMultiYearService _paySlipMultiYearService;
         public RequestController(
             AppDbContext context,
             IOptions<AppSettings> appSettings,
@@ -65,7 +66,8 @@ namespace wwfpp.Controllers
             EmployeeOvertimeServices employeeOvertimeServices,
             TravelApprovalService travelApprovalService,
             IWebHostEnvironment webHostEnvironment,
-            PayrollServices payrollServices
+            PayrollServices payrollServices,
+            PaySlipMultiYearService paySlipMultiYearService
         )
         {
             _context = context;
@@ -84,6 +86,7 @@ namespace wwfpp.Controllers
             _travelApprovalService = travelApprovalService;
             _administrationEmailService = administrationEmailService;
             _payrollServices = payrollServices;
+            _paySlipMultiYearService = paySlipMultiYearService;
         }
 
         #region EMPLOYEE MEDICAL INSURANCE
@@ -4315,7 +4318,7 @@ namespace wwfpp.Controllers
         [ValidateAntiForgeryToken]
         public IActionResult ExportPaySlipSingleYear(int empId, string sal_fiscal_year)
         {
-            var record = _context.vw_year_salary_sum_fiscalwise_all.FirstOrDefault(s => s.emp_id == empId && s.actual_fiscal == "2026/2027");
+            var record = _context.vw_year_salary_sum_fiscalwise_all.FirstOrDefault(s => s.emp_id == empId && s.actual_fiscal == sal_fiscal_year);
             if (record == null)
             {
                 // Only send status flag, no message
@@ -4510,11 +4513,16 @@ namespace wwfpp.Controllers
             var calculator = new PaySlipMultiPeriod(_context)
                 .GetMultiMonthPaySlip(empId, startMonth, startYear, endMonth, endYear, "user");
 
-            if (calculator.ary_total_earnings.Count == 0)
+            // Case 1: Check if all values are zero
+            if (calculator.ary_total_earnings.All(v => v == 0))
             {
-                return Json(new { success = false, message = "No payslip data found for this period." });
+                return Json(new { status = "nosalary" });
             }
 
+            if (!calculator.ary_total_earnings.Any(v => v != 0))
+            {
+                return Json(new { status = "nosalary" });
+            }
             var sb = new StringBuilder();
 
             // Header
@@ -4597,6 +4605,117 @@ namespace wwfpp.Controllers
             return Json(new { status = "success", fileContent = base64, fileName = $"PaySlip-MultiPeriod-{empId}.xls" });
         }
 
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult ExportPaySlipMultiYear(int empId, string start_fiscal_year, string end_fiscal_year)
+        {
+            string sal_fiscal_year = HttpContext.Session.GetString("fiscal_year");
+            var result = _paySlipMultiYearService.GetFiscalWisePaySlip(empId, start_fiscal_year, end_fiscal_year, sal_fiscal_year);
+            var arr_total_earnings_check = (decimal[])result.GetType().GetProperty("arr_total_earnings").GetValue(result);
+
+            if (arr_total_earnings_check.All(v => v == 0))
+            {
+                return Json(new { status = "nosalary" });
+            }
+
+            var sb = new StringBuilder();
+            // Header
+            sb.AppendLine("<table border=0 cellspacing=0 cellpadding=1 width='95%' bgcolor='#ffffff' align='center'>");
+            sb.AppendLine("<tr><td>&nbsp;</td></tr>");
+            sb.AppendLine($"<tr><td><b>{_requestServices.GetApplicationSetting("op_org_name")}, {_requestServices.GetApplicationSetting("op_org_addr")}</b></td></tr>");
+            sb.AppendLine("</table>");
+            sb.AppendLine("<table border=0 cellspacing=0 cellpadding=1 width='95%' bgcolor='#ffffff' align='center'>");
+            sb.AppendLine("<tr><td width='15%' align='left'><b>Employee:</b></td><td width='85%'>" + _employeeServices.GetEmployeeName(empId) + "</td></tr>");
+            sb.AppendLine("<tr><td align='left'><b>Pay Slip of:</b></td><td>" + start_fiscal_year + " to " + end_fiscal_year + "</td></tr>");
+            sb.AppendLine("</table>");
+
+            // Main table
+            var arrFiscal = (string[])result.GetType().GetProperty("arrFiscal").GetValue(result);
+
+            sb.AppendLine("<table border=0 cellspacing=1 cellpadding=5 width='95%' bgcolor='#ffffff' align='center'>");
+            sb.AppendLine("<tr bgcolor='#e1e1e1'><td><b>Description</b></td>");
+            foreach (var fy in arrFiscal)
+            {
+                sb.AppendLine($"<td align='right'><b>{fy}</b></td>");
+            }
+            sb.AppendLine("<td align='right'><b>Total</b></td></tr>");
+
+            // Helper to render a row
+            void RenderRow(string label, string arrName, string gName)
+            {
+                var arr = (decimal[])result.GetType().GetProperty(arrName).GetValue(result);
+                var g = (decimal)result.GetType().GetProperty(gName).GetValue(result);
+                if (g != 0)
+                {
+                    sb.AppendLine("<tr><td align='left'>" + label + "</td>");
+                    foreach (var val in arr) sb.AppendLine($"<td align='right'>{val:F2}</td>");
+                    sb.AppendLine($"<td align='right'>{g:F2}</td></tr>");
+                }
+            }
+
+            // Earnings section
+            sb.AppendLine("<tr bgcolor='#eeeeee'><td><b>Your Earnings</b></td>");
+            var arr_total_earnings = (decimal[])result.GetType().GetProperty("arr_total_earnings").GetValue(result);
+            var g_total_earnings = (decimal)result.GetType().GetProperty("g_total_earnings").GetValue(result);
+            foreach (var val in arr_total_earnings) sb.AppendLine($"<td align='right'>{val:F2}</td>");
+            sb.AppendLine($"<td align='right'>{g_total_earnings:F2}</td></tr>");
+
+            RenderRow("Basic Salary", "arr_basic_salary", "g_basic_salary");
+            RenderRow("PF Contributions by Employer", "arr_pf_a", "g_pf_a");
+            RenderRow("Children Edu Allowance", "arr_children_edu_all", "g_children_edu_all");
+            RenderRow("Insurance", "arr_insurance", "g_insurance");
+            RenderRow("Overtime", "arr_overtime", "g_overtime");
+            RenderRow("Remote Area Allowance", "arr_remote_area_all", "g_remote_area_all");
+            RenderRow("Dashain Bonus", "arr_dashain_a", "g_dashain_a");
+            RenderRow("Performance Bonus", "arr_performance_all", "g_performance_all");
+            RenderRow("Gratuity", "arr_gratuity", "g_gratuity");
+            RenderRow("SSF", "arr_ssf", "g_ssf");
+            RenderRow("Medical Reimbursement", "arr_medical_expense_reimburse_total", "g_medical_expense_reimburse_total");
+            RenderRow("Leave Encashment", "arr_leave_encash", "g_leave_encash");
+            RenderRow("Others", "arr_others", "g_others");
+
+            // Deductions section
+            sb.AppendLine("<tr bgcolor='#eeeeee'><td><b>Your Deductions</b></td>");
+            var arr_total_deduction = (decimal[])result.GetType().GetProperty("arr_total_deduction").GetValue(result);
+            var g_total_deduction = (decimal)result.GetType().GetProperty("g_total_deduction").GetValue(result);
+            foreach (var val in arr_total_deduction) sb.AppendLine($"<td align='right'>{val:F2}</td>");
+            sb.AppendLine($"<td align='right'>{g_total_deduction:F2}</td></tr>");
+
+            RenderRow("CIT", "arr_cit_d", "g_cit_d");
+            RenderRow("Gratuity Deduction", "arr_gratuity_ded", "g_gratuity_ded");
+            RenderRow("SSF Deduction", "arr_ssf_ded", "g_ssf_ded");
+            RenderRow("Provident Fund", "arr_pf_d", "g_pf_d");
+            RenderRow("Tax on Remuneration", "arr_tax_d", "g_tax_d");
+            RenderRow("Betalabi Deduction", "arr_betalibi_d", "g_betalibi_d");
+            RenderRow("Personal Advance", "arr_tel_per_adv", "g_tel_per_adv");
+            RenderRow("Program Advance", "arr_pr_adv", "g_pr_adv");
+            RenderRow("Travel Advance", "arr_travel_prog_adv", "g_travel_prog_adv");
+            RenderRow("Field Drawing", "arr_fd_adv", "g_fd_adv");
+            RenderRow("Welfare Advance", "arr_wl_adv", "g_wl_adv");
+            RenderRow("PF Loan", "arr_adv_pf_loan", "g_adv_pf_loan");
+            RenderRow("CIT Loan", "arr_adv_cit_loan", "g_adv_cit_loan");
+            RenderRow("Welfare Contribution", "arr_welfare_fund", "g_welfare_fund");
+
+            // Net Take Home
+            sb.AppendLine("<tr bgcolor='#eeeeee'><td><b>Net Take Home</b></td>");
+            var arr_net_in_hand = (decimal[])result.GetType().GetProperty("arr_net_in_hand").GetValue(result);
+            var g_net_in_hand = (decimal)result.GetType().GetProperty("g_net_in_hand").GetValue(result);
+            foreach (var val in arr_net_in_hand) sb.AppendLine($"<td align='right'>{val:F2}</td>");
+            sb.AppendLine($"<td align='right'>{g_net_in_hand:F2}</td></tr>");
+
+            sb.AppendLine("</table>");
+
+            // Convert to base64
+            byte[] fileBytes = Encoding.UTF8.GetBytes(sb.ToString());
+            string base64 = Convert.ToBase64String(fileBytes);
+
+            return Json(new
+            {
+                status = "success",
+                fileContent = base64,
+                fileName = $"PaySlip-MultiYear-{start_fiscal_year.Replace("/", "")}-{end_fiscal_year.Replace("/", "")}-{empId}.xls"
+            });
+        }
         #endregion
 
     }
