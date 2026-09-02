@@ -1247,3 +1247,8 @@ body{
     border-left: 5px solid #ffc107; /* yellow accent bar */
 }
 
+.salary-bulk-textbox {
+    width: 100px; /* Adjust the value as needed */
+    padding: 6px; /* Optional: adds spacing inside the textbox */
+    box-sizing: border-box;
+}
