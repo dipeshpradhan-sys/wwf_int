@@ -6906,8 +6906,14 @@ namespace wwfpp.Controllers
                 var ws = workbook.Worksheets.Add("ExcessLeaveEncash");
 
                 int row = 1;
+
+                ws.Range(row, 1, row, 3).Merge();
                 ws.Cell(row++, 1).Value = "Organization: " + orgName;
+
+                ws.Range(row, 1, row, 3).Merge();
                 ws.Cell(row++, 1).Value = "Fiscal Year: " + fiscalYear;
+
+                ws.Range(row, 1, row, 3).Merge();
                 ws.Cell(row++, 1).Value = "Staff Statement of Excess Leave Encashment";
 
                 row++;

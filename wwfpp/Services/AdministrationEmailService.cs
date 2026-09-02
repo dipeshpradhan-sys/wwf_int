@@ -21,10 +21,7 @@ public class AdministrationEmailService
         async Task<string> GetEmailAsync(int? empId)
         {
             if (!empId.HasValue) return string.Empty;
-            return await _context.tbl_employee
-                .Where(e => e.emp_id == empId.Value)
-                .Select(e => e.e_mail)
-                .FirstOrDefaultAsync() ?? string.Empty;
+            return await _context.tbl_employee.Where(e => e.emp_id == empId.Value).Select(e =>(e.firstname ?? "").Trim() + " " +(e.middlename ?? "").Trim() + " " +(e.lastname ?? "").Trim() + "<" +(e.e_mail ?? "").Trim() + ">").FirstOrDefaultAsync();
         }
 
         var result = new Dictionary<string, (int?, string)>
