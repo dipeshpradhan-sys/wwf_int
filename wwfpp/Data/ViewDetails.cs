@@ -547,6 +547,46 @@ namespace wwfpp.Data
         public decimal? ssf_ded { get; set; }
     }
 
+    public class que_year_salary_custom
+    {
+        public int emp_id { get; set; }
+        public string fullname { get; set; }
+        public string employee_type { get; set; }
+        public DateTime? fiscal { get; set; }          // depends on actual type in que_year_salary
+        public decimal? pf_d { get; set; }
+        public decimal? cit_d { get; set; }
+        public decimal? incometax_d { get; set; }
+        public decimal? welfare_fund { get; set; }
+        public decimal? adv_pf_loan { get; set; }
+        public decimal? adv_cit_loan { get; set; }
+        public decimal? wl_adv { get; set; }
+        public decimal? basic_salary { get; set; }
+        public string grade { get; set; }
+        public decimal? pf_a { get; set; }
+        public decimal? children_edu_all { get; set; }
+        public decimal? insurance { get; set; }
+        public decimal? performance_all { get; set; }
+        public decimal? remote_area_all { get; set; }
+        public decimal? others { get; set; }
+        public decimal? overtime { get; set; }
+        public decimal? betalibi_d { get; set; }
+        public decimal? dashain_a { get; set; }
+        public decimal? tel_per_adv { get; set; }
+        public decimal? pr_adv { get; set; }
+        public decimal? travel_prog_adv { get; set; }
+        public decimal? fd_adv { get; set; }
+        public string actual_fiscal { get; set; }
+        public string fiscal_year { get; set; }
+        public int? emp_week { get; set; }
+        public decimal? gratuity { get; set; }
+        public decimal? gratuity_ded { get; set; }
+        public decimal? medical_expense_reimburse_total { get; set; }
+        public decimal? leave_encash { get; set; }
+        public decimal? ssf { get; set; }
+        public decimal? ssf_ded { get; set; }
+        public decimal? annual_health_checkup_add { get; set; }
+        public decimal? annual_health_checkup_ded { get; set; }
+    }
 
 
 }
