@@ -1,4 +1,6 @@
 ﻿using ClosedXML.Excel;
+using DocumentFormat.OpenXml.Bibliography;
+using DocumentFormat.OpenXml.Spreadsheet;
 using DocumentFormat.OpenXml.Wordprocessing;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
@@ -11,6 +13,7 @@ using Microsoft.Reporting.NETCore;
 using System.Globalization;
 using System.Linq.Dynamic.Core;
 using System.Net.Mail;
+using System.Text;
 using wwfpp.Data;
 using wwfpp.EmailServices;
 using wwfpp.Helpers;
@@ -4023,6 +4026,7 @@ namespace wwfpp.Controllers
             #endregion FOR END PERMISSION;
             ViewBag.StatusFilter = GblUtilities.StatusActivePassive("AD", "A");
             ViewBag.EmployeeFilter = _employeeServices.GetEmployeeActiveOnly();
+            ViewBag.FiscalYearList = _settingsServices.GetFiscalYears(HttpContext.Session.GetString("fiscal_year"));
 
             ViewBag.CalYears = _settingsServices.GetYears(DateTime.Now.Year);
             ViewBag.CalMonth = _settingsServices.GetMonths(DateTime.Now.Month);
@@ -4302,10 +4306,297 @@ namespace wwfpp.Controllers
                 {
                     workbook.SaveAs(stream);
                     var base64 = Convert.ToBase64String(stream.ToArray());
-                    return Json(new { status = "success", fileContent = base64, fileName = $"PaySlip-{empId}-{year}{month}.xlsx" });
+                    return Json(new { status = "success", fileContent = base64, fileName = $"PaySlip-SinglePeriod-{empId}-{year}{month}.xlsx" });
                 }
             }
         }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult ExportPaySlipSingleYear(int empId, string sal_fiscal_year)
+        {
+            var record = _context.vw_year_salary_sum_fiscalwise_all.FirstOrDefault(s => s.emp_id == empId && s.actual_fiscal == "2026/2027");
+            if (record == null)
+            {
+                // Only send status flag, no message
+                return Json(new { status = "nosalary" });
+            }
+
+                // Null handling
+                decimal basic_salary = record.basic_salary ?? 0;
+                decimal grade = record.grade ?? 0;
+                decimal pf_a = record.pf_a ?? 0;
+                decimal children_edu_all = record.children_edu_all ?? 0;
+                decimal insurance = record.insurance ?? 0;
+                decimal performance_all = record.performance_all ?? 0;
+                decimal remote_area_all = record.remote_area_all ?? 0;
+                decimal others = record.others ?? 0;
+                decimal overtime = record.overtime ?? 0;
+                decimal dashain_a = record.dashain_a ?? 0;
+
+                decimal pf_d = record.pf_d ?? 0;
+                decimal cit_d = record.cit_d ?? 0;
+                decimal incometax_d = record.incometax_d ?? 0;
+                decimal betalibi_d = record.betalibi_d ?? 0;
+                decimal tel_per_adv = record.tel_per_adv ?? 0;
+                decimal travel_prog_adv = record.travel_prog_adv ?? 0;
+                decimal pr_adv = record.pr_adv ?? 0;
+                decimal fd_adv = record.fd_adv ?? 0;
+                decimal wl_adv = record.wl_adv ?? 0;
+                decimal adv_pf_loan = record.adv_PF_loan ?? 0;
+                decimal adv_cit_loan = record.adv_CIT_loan ?? 0;
+                decimal welfare_fund = record.welfare_fund ?? 0;
+                decimal pre_access_tax = record.pre_access_tax ?? 0;
+
+                decimal gratuity = record.gratuity ?? 0;
+                decimal gratuity_ded = record.gratuity_ded ?? 0;
+                decimal ssf = record.ssf ?? 0;
+                decimal ssf_ded = record.ssf_ded ?? 0;
+                decimal medical_expense_reimburse_total = record.medical_expense_reimburse_total ?? 0;
+                decimal leave_encash = record.leave_encash ?? 0;
+
+                // Fiscal year condition
+                decimal net_addition;
+                if (sal_fiscal_year == "2009/2010")
+                {
+                    children_edu_all = 0;
+                    insurance = 0;
+                    net_addition = basic_salary + grade + pf_a + performance_all +
+                                   remote_area_all + others + overtime + dashain_a;
+                }
+                else
+                {
+                    net_addition = basic_salary + grade + pf_a + children_edu_all +
+                                   performance_all + remote_area_all + others + overtime +
+                                   dashain_a + insurance + medical_expense_reimburse_total +
+                                   leave_encash + gratuity + ssf;
+                }
+
+                // Deduction block
+                decimal net_deduction = pf_d + cit_d + incometax_d + betalibi_d +
+                                        tel_per_adv + travel_prog_adv + pr_adv + fd_adv +
+                                        wl_adv + welfare_fund + adv_pf_loan + adv_cit_loan +
+                                        gratuity_ded + ssf_ded;
+
+                // Net in hand temp
+                decimal net_in_hand_temp = net_addition - net_deduction;
+
+                // Net in hand from DB
+                decimal net_in_hand = record.net_in_hand ?? 0;
+
+                // Actual tax deduction
+                decimal actual_tax_d = incometax_d + pre_access_tax;
+
+                // ✅ Totals (don’t miss these!)
+                decimal total_earnings = Math.Round(net_addition, 2);
+                decimal total_deduction = Math.Round(net_deduction, 2);
+
+                // Rounding (like Classic ASP round + formatnumber)
+                basic_salary = Math.Round(basic_salary, 2);
+                grade = Math.Round(grade, 2);
+                pf_a = Math.Round(pf_a, 2);
+                children_edu_all = Math.Round(children_edu_all, 2);
+                insurance = Math.Round(insurance, 2);
+                performance_all = Math.Round(performance_all, 2);
+                remote_area_all = Math.Round(remote_area_all, 2);
+                others = Math.Round(others, 2);
+                overtime = Math.Round(overtime, 2);
+                dashain_a = Math.Round(dashain_a, 2);
+                pf_d = Math.Round(pf_d, 2);
+                cit_d = Math.Round(cit_d, 2);
+                incometax_d = Math.Round(incometax_d, 2);
+                betalibi_d = Math.Round(betalibi_d, 2);
+                tel_per_adv = Math.Round(tel_per_adv, 2);
+                travel_prog_adv = Math.Round(travel_prog_adv, 2);
+                pr_adv = Math.Round(pr_adv, 2);
+                fd_adv = Math.Round(fd_adv, 2);
+                wl_adv = Math.Round(wl_adv, 2);
+                adv_pf_loan = Math.Round(adv_pf_loan, 2);
+                adv_cit_loan = Math.Round(adv_cit_loan, 2);
+                welfare_fund = Math.Round(welfare_fund, 2);
+                gratuity = Math.Round(gratuity, 2);
+                gratuity_ded = Math.Round(gratuity_ded, 2);
+                ssf = Math.Round(ssf, 2);
+                ssf_ded = Math.Round(ssf_ded, 2);
+                medical_expense_reimburse_total = Math.Round(medical_expense_reimburse_total, 2);
+                leave_encash = Math.Round(leave_encash, 2);
+                pre_access_tax = Math.Round(pre_access_tax, 2);
+                actual_tax_d = Math.Round(actual_tax_d, 2);
+                net_addition = Math.Round(net_addition, 2);
+                net_deduction = Math.Round(net_deduction, 2);
+                net_in_hand_temp = Math.Round(net_in_hand_temp, 2);
+                net_in_hand = Math.Round(net_in_hand, 2);
+                total_earnings = Math.Round(total_earnings, 2);
+                total_deduction = Math.Round(total_deduction, 2);
+
+                // Now you have ALL values exactly like Classic ASP
+                string ORG_NAME = _requestServices.GetApplicationSetting("op_org_name");
+                string ORG_ADDR = _requestServices.GetApplicationSetting("op_org_addr");
+
+
+
+                // --- build HTML table like Classic ASP ---
+                var sb = new StringBuilder();
+                sb.AppendLine("<table border=0 cellspacing=0 cellpadding=1 width='95%' bgcolor='#ffffff' align='center'>");
+                sb.AppendLine("<tr><td>&nbsp;</td></tr>");
+                sb.AppendLine($"<tr><td><b>{ORG_NAME}, {ORG_ADDR}</b></td></tr>");
+                sb.AppendLine("</table>");
+
+                sb.AppendLine("<table border=0 cellspacing=0 cellpadding=1 width='95%' bgcolor='#ffffff' align='center'>");
+                sb.AppendLine($"<tr><td width='15%' align='left'><b>Employee:</b></td><td width='85%'>{_employeeServices.GetEmployeeName(empId)}</td></tr>");
+                sb.AppendLine($"<tr><td align='left'><b>Pay slip of  : </b></td><td>{sal_fiscal_year}</td></tr>");
+                sb.AppendLine("<tr><td colspan='2'>&nbsp;</td></tr>");
+                sb.AppendLine("</table>");
+
+                sb.AppendLine("<table border=0 cellspacing=0 cellpadding=1 width='95%' bgcolor='#ffffff' align='center'><tr><td>");
+                sb.AppendLine("<table border=0 cellspacing=0 cellpadding=5 width='100%' bgcolor='#ffffff'>");
+                sb.AppendLine("<tr bgcolor='#e1e1e1'><td align=left><b>Description</b></td><td align=right><b>Amount [ " + _requestServices.GetApplicationSetting("op_currency_symbol") + " ]</b></td></tr>");
+
+                // Earnings
+                sb.AppendLine($"<tr bgcolor='#eeeeee'><td align=left><b>Your Earnings ( A )</b></td><td align=right>{total_earnings:N2}</td></tr>");
+                sb.AppendLine($"<tr><td align=left>Basic salary</td><td align=right>{basic_salary:N2}</td></tr>");
+                sb.AppendLine($"<tr><td align=left>PF Contributions by Employer</td><td align=right>{pf_a:N2}</td></tr>");
+                if (gratuity != 0) sb.AppendLine($"<tr><td align=left>Gratuity</td><td align=right>{gratuity:N2}</td></tr>");
+                if (ssf != 0) sb.AppendLine("<tr><td align=left>Health & Medical Insurance</td><td align=right>" + ssf.ToString("N2") + "</td></tr>");
+                if (children_edu_all != 0) sb.AppendLine($"<tr><td align=left>Children Edu. Allowance</td><td align=right>{children_edu_all:N2}</td></tr>");
+                if (insurance != 0) sb.AppendLine($"<tr><td align=left>LIP Reimbursement</td><td align=right>{insurance:N2}</td></tr>");
+                if (overtime != 0) sb.AppendLine($"<tr><td align=left>Overtime</td><td align=right>{overtime:N2}</td></tr>");
+                if (remote_area_all != 0) sb.AppendLine($"<tr><td align=left>Remote Area Allowance</td><td align=right>{remote_area_all:N2}</td></tr>");
+                if (dashain_a != 0) sb.AppendLine($"<tr><td align=left>Dashain Bonus</td><td align=right>{dashain_a:N2}</td></tr>");
+                if (performance_all != 0) sb.AppendLine($"<tr><td align=left>Performance Bonus</td><td align=right>{performance_all:N2}</td></tr>");
+                if (medical_expense_reimburse_total != 0) sb.AppendLine($"<tr><td align=left>Medical/Insurance</td><td align=right>{medical_expense_reimburse_total:N2}</td></tr>");
+                if (leave_encash != 0) sb.AppendLine($"<tr><td align=left>Leave Encashment</td><td align=right>{leave_encash:N2}</td></tr>");
+                if (others != 0) sb.AppendLine($"<tr><td align=left>Others</td><td align=right>{others:N2}</td></tr>");
+
+                // Deductions
+                sb.AppendLine($"<tr bgcolor='#eeeeee'><td align=left><b>Your Deductions ( B )</b></td><td align=right>{total_deduction:N2}</td></tr>");
+                sb.AppendLine($"<tr><td align=left>Citizen Investment Trust (CIT)</td><td align=right>{cit_d:N2}</td></tr>");
+                if (gratuity_ded != 0) sb.AppendLine($"<tr><td align=left>Gratuity</td><td align=right>{gratuity_ded:N2}</td></tr>");
+                if (ssf_ded != 0) sb.AppendLine("<tr><td align=left>Health & Medical Insurance</td><td align=right>" + ssf_ded.ToString("N2") + "</td></tr>");
+                sb.AppendLine($"<tr><td align=left>Provident Fund (PF)</td><td align=right>{pf_d:N2}</td></tr>");
+                if (pre_access_tax != 0)
+                    sb.AppendLine($"<tr><td align=left>Yearly Tax + Prev. Year Excess/(Less) Tax = Tax on remuneration</td><td align=right>{actual_tax_d:N2} + {pre_access_tax:N2} = {incometax_d:N2}</td></tr>");
+                else
+                    sb.AppendLine($"<tr><td align=left>Tax on remuneration</td><td align=right>{incometax_d:N2}</td></tr>");
+                if (betalibi_d != 0) sb.AppendLine($"<tr><td align=left>Betalabi Deduction</td><td align=right>{betalibi_d:N2}</td></tr>");
+                if (tel_per_adv != 0) sb.AppendLine($"<tr><td align=left>Personal Advance</td><td align=right>{tel_per_adv:N2}</td></tr>");
+                if (pr_adv != 0) sb.AppendLine($"<tr><td align=left>Program Advance</td><td align=right>{pr_adv:N2}</td></tr>");
+                if (travel_prog_adv != 0) sb.AppendLine($"<tr><td align=left>Travel Advance</td><td align=right>{travel_prog_adv:N2}</td></tr>");
+                if (fd_adv != 0) sb.AppendLine($"<tr><td align=left>Field Drawing</td><td align=right>{fd_adv:N2}</td></tr>");
+                if (wl_adv != 0) sb.AppendLine($"<tr><td align=left>Welfare Advance</td><td align=right>{wl_adv:N2}</td></tr>");
+                if (adv_pf_loan != 0) sb.AppendLine($"<tr><td align=left>PF Loan</td><td align=right>{adv_pf_loan:N2}</td></tr>");
+                if (adv_cit_loan != 0) sb.AppendLine($"<tr><td align=left>CIT Loan</td><td align=right>{adv_cit_loan:N2}</td></tr>");
+                if (welfare_fund != 0) sb.AppendLine($"<tr><td align=left>Welfare Contribution</td><td align=right>{welfare_fund:N2}</td></tr>");
+
+                // Net take home
+                sb.AppendLine($"<tr bgcolor='#eeeeee'><td align=left><b>Net take home earning ( A - B )</b></td><td align=right>{net_in_hand:N2}</td></tr>");
+
+                sb.AppendLine("</table>");
+                sb.AppendLine("</td></tr></table>");
+
+            // --- return as Excel file ---
+            // Convert to base64
+            byte[] fileBytes = Encoding.UTF8.GetBytes(sb.ToString());
+            string base64 = Convert.ToBase64String(fileBytes);
+
+            return Json(new{status = "success",fileContent = base64,fileName = $"PaySlip-SingleYear-{sal_fiscal_year.Replace("/", "")}-{empId}.xls"});
+
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult ExportPaySlipMultiPeriod(int empId, int startMonth, int startYear, int endMonth, int endYear)
+        {
+            var calculator = new PaySlipMultiPeriod(_context)
+                .GetMultiMonthPaySlip(empId, startMonth, startYear, endMonth, endYear, "user");
+
+            if (calculator.ary_total_earnings.Count == 0)
+            {
+                return Json(new { success = false, message = "No payslip data found for this period." });
+            }
+
+            var sb = new StringBuilder();
+
+            // Header
+            sb.AppendLine("<table border=0 cellspacing=0 cellpadding=1 width='95%' bgcolor='#ffffff' align='center'>");
+            sb.AppendLine("<tr><td>&nbsp;</td></tr>");
+            sb.AppendLine($"<tr><td><b>{_requestServices.GetApplicationSetting("op_org_name")}, {_requestServices.GetApplicationSetting("op_org_addr")}</b></td></tr>");
+            sb.AppendLine("</table>");
+
+            // Employee details
+            sb.AppendLine("<table border=0 cellspacing=0 cellpadding=1 width='95%' bgcolor='#ffffff' align='center'>");
+            sb.AppendLine($"<tr><td width='15%'>Employee:</td><td width='85%'>{ _employeeServices.GetEmployeeName(empId)}</td></tr>");
+            sb.AppendLine($"<tr><td>Pay slip of  : </td><td>{CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(startMonth)} / {startYear} to {CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(endMonth)} / {endYear}</td></tr>");
+            sb.AppendLine("</table>");
+
+            // Table header
+            sb.AppendLine("<table border=0 cellspacing=1 cellpadding=5 width='100%' bgcolor='#ffffff'>");
+            sb.AppendLine("<tr bgcolor='#e1e1e1'><td><b>Description</b></td>");
+            foreach (var m in calculator.arrSession)
+                sb.AppendLine($"<td align='right'><b>{CultureInfo.CurrentCulture.DateTimeFormat.GetAbbreviatedMonthName((int)m)}/{startYear}</b></td>");
+            sb.AppendLine($"<td align='right'><b>Total</b></td></tr>");
+
+            // === Earnings Section ===
+            sb.AppendLine("<tr bgcolor='#eeeeee'><td><b>Your Earnings ( A )</b></td>");
+            for (int i = 0; i < calculator.arrSession.Count; i++)
+                sb.AppendLine($"<td align='right'>{calculator.ary_total_earnings[i]}</td>");
+            sb.AppendLine($"<td align='right'>{calculator.gr_total_earnings}</td></tr>");
+
+            if (calculator.gr_basic_salary != 0) { sb.AppendLine("<tr><td>Basic Salary</td>"); for (int i = 0; i < calculator.arrSession.Count; i++) sb.AppendLine($"<td align='right'>{calculator.ary_basic_salary[i]}</td>"); sb.AppendLine($"<td align='right'>{calculator.gr_basic_salary}</td></tr>"); }
+            if (calculator.gr_diff_act_basic_salary != 0) { sb.AppendLine("<tr><td>Differential Salary</td>"); for (int i = 0; i < calculator.arrSession.Count; i++) sb.AppendLine($"<td align='right'>{calculator.ary_diff_act_basic_salary[i]}</td>"); sb.AppendLine($"<td align='right'>{calculator.gr_diff_act_basic_salary}</td></tr>"); }
+            if (calculator.gr_pf_a != 0) { sb.AppendLine("<tr><td>PF Contributions by Employer</td>"); for (int i = 0; i < calculator.arrSession.Count; i++) sb.AppendLine($"<td align='right'>{calculator.ary_pf_a[i]}</td>"); sb.AppendLine($"<td align='right'>{calculator.gr_pf_a}</td></tr>"); }
+            if (calculator.gr_diff_act_pf_a != 0) { sb.AppendLine("<tr><td>Differential PF Contributions by Employer</td>"); for (int i = 0; i < calculator.arrSession.Count; i++) sb.AppendLine($"<td align='right'>{calculator.ary_diff_act_pf_a[i]}</td>"); sb.AppendLine($"<td align='right'>{calculator.gr_diff_act_pf_a}</td></tr>"); }
+            if (calculator.gr_children_edu_all_ != 0) { sb.AppendLine("<tr><td>Children Edu. Allowance</td>"); for (int i = 0; i < calculator.arrSession.Count; i++) sb.AppendLine($"<td align='right'>{calculator.ary_children_edu_all_[i]}</td>"); sb.AppendLine($"<td align='right'>{calculator.gr_children_edu_all_}</td></tr>"); }
+            if (calculator.gr_insurance_ != 0) { sb.AppendLine("<tr><td>LIP Reimbursement</td>"); for (int i = 0; i < calculator.arrSession.Count; i++) sb.AppendLine($"<td align='right'>{calculator.ary_insurance_[i]}</td>"); sb.AppendLine($"<td align='right'>{calculator.gr_insurance_}</td></tr>"); }
+            if (calculator.gr_overtime != 0) { sb.AppendLine("<tr><td>Overtime</td>"); for (int i = 0; i < calculator.arrSession.Count; i++) sb.AppendLine($"<td align='right'>{calculator.ary_overtime[i]}</td>"); sb.AppendLine($"<td align='right'>{calculator.gr_overtime}</td></tr>"); }
+            if (calculator.gr_ot_diff != 0) { sb.AppendLine("<tr><td>Differential Overtime</td>"); for (int i = 0; i < calculator.arrSession.Count; i++) sb.AppendLine($"<td align='right'>{calculator.ary_ot_diff[i]}</td>"); sb.AppendLine($"<td align='right'>{calculator.gr_ot_diff}</td></tr>"); }
+            if (calculator.gr_remote_area_all != 0) { sb.AppendLine("<tr><td>Remote Area Allowance</td>"); for (int i = 0; i < calculator.arrSession.Count; i++) sb.AppendLine($"<td align='right'>{calculator.ary_remote_area_all[i]}</td>"); sb.AppendLine($"<td align='right'>{calculator.gr_remote_area_all}</td></tr>"); }
+            if (calculator.gr_dashain_a != 0) { sb.AppendLine("<tr><td>Dashain Bonus</td>"); for (int i = 0; i < calculator.arrSession.Count; i++) sb.AppendLine($"<td align='right'>{calculator.ary_dashain_a[i]}</td>"); sb.AppendLine($"<td align='right'>{calculator.gr_dashain_a}</td></tr>"); }
+            if (calculator.gr_performance_all != 0) { sb.AppendLine("<tr><td>Performance Bonus</td>"); for (int i = 0; i < calculator.arrSession.Count; i++) sb.AppendLine($"<td align='right'>{calculator.ary_performance_all[i]}</td>"); sb.AppendLine($"<td align='right'>{calculator.gr_performance_all}</td></tr>"); }
+            if (calculator.gr_gratuity != 0) { sb.AppendLine("<tr><td>Gratuity</td>"); for (int i = 0; i < calculator.arrSession.Count; i++) sb.AppendLine($"<td align='right'>{calculator.ary_gratuity[i]}</td>"); sb.AppendLine($"<td align='right'>{calculator.gr_gratuity}</td></tr>"); }
+            if (calculator.gr_ssf != 0) { sb.AppendLine("<tr><td>Health & Medical Insurance</td>"); for (int i = 0; i < calculator.arrSession.Count; i++) sb.AppendLine($"<td align='right'>{calculator.ary_ssf[i]}</td>"); sb.AppendLine($"<td align='right'>{calculator.gr_ssf}</td></tr>"); }
+            if (calculator.gr_medical_expense_reimburse_total != 0) { sb.AppendLine("<tr><td>Medical/Insurance</td>"); for (int i = 0; i < calculator.arrSession.Count; i++) sb.AppendLine($"<td align='right'>{calculator.ary_medical_expense_reimburse_total[i]}</td>"); sb.AppendLine($"<td align='right'>{calculator.gr_medical_expense_reimburse_total}</td></tr>"); }
+            if (calculator.gr_leave_encash != 0) { sb.AppendLine("<tr><td>Leave Encashment</td>"); for (int i = 0; i < calculator.arrSession.Count; i++) sb.AppendLine($"<td align='right'>{calculator.ary_leave_encash[i]}</td>"); sb.AppendLine($"<td align='right'>{calculator.gr_leave_encash}</td></tr>"); }
+            if (calculator.gr_others != 0) { sb.AppendLine("<tr><td>Other</td>"); for (int i = 0; i < calculator.arrSession.Count; i++) sb.AppendLine($"<td align='right'>{calculator.ary_others[i]}</td>"); sb.AppendLine($"<td align='right'>{calculator.gr_others}</td></tr>"); }
+
+            // === Deductions Section ===
+            sb.AppendLine("<tr bgcolor='#eeeeee'><td><b>Your Deductions ( B )</b></td>");
+            for (int i = 0; i < calculator.arrSession.Count; i++)
+                sb.AppendLine($"<td align='right'>{calculator.ary_total_deduction[i]}</td>");
+            sb.AppendLine($"<td align='right'>{calculator.gr_total_deduction}</td></tr>");
+
+            if (calculator.gr_cit_d != 0) { sb.AppendLine("<tr><td>Citizen Investment Trust (CIT)</td>"); for (int i = 0; i < calculator.arrSession.Count; i++) sb.AppendLine($"<td align='right'>{calculator.ary_cit_d[i]}</td>"); sb.AppendLine($"<td align='right'>{calculator.gr_cit_d}</td></tr>"); }
+            if (calculator.gr_gratuity_ded != 0) { sb.AppendLine("<tr><td>Gratuity</td>"); for (int i = 0; i < calculator.arrSession.Count; i++) sb.AppendLine($"<td align='right'>{calculator.ary_gratuity_ded[i]}</td>"); sb.AppendLine($"<td align='right'>{calculator.gr_gratuity_ded}</td></tr>"); }
+            if (calculator.gr_ssf_ded != 0) { sb.AppendLine("<tr><td>Health & Medical Insurance</td>"); for (int i = 0; i < calculator.arrSession.Count; i++) sb.AppendLine($"<td align='right'>{calculator.ary_ssf_ded[i]}</td>"); sb.AppendLine($"<td align='right'>{calculator.gr_ssf_ded}</td></tr>"); }
+            if (calculator.gr_pf_d != 0) { sb.AppendLine("<tr><td>Provident Fund (PF)</td>"); for (int i = 0; i < calculator.arrSession.Count; i++) sb.AppendLine($"<td align='right'>{calculator.ary_pf_d[i]}</td>"); sb.AppendLine($"<td align='right'>{calculator.gr_pf_d}</td></tr>"); }
+            if (calculator.gr_diff_act_pf_d != 0) { sb.AppendLine("<tr><td>Differential Provident Fund (PF)</td>"); for (int i = 0; i < calculator.arrSession.Count; i++) sb.AppendLine($"<td align='right'>{calculator.ary_diff_act_pf_d[i]}</td>"); sb.AppendLine($"<td align='right'>{calculator.gr_diff_act_pf_d}</td></tr>"); }
+            if (calculator.gr_tax_d != 0) { sb.AppendLine("<tr><td>Tax on remuneration</td>"); for (int i = 0; i < calculator.arrSession.Count; i++) sb.AppendLine($"<td align='right'>{calculator.ary_tax_d[i]}</td>"); sb.AppendLine($"<td align='right'>{calculator.gr_tax_d}</td></tr>"); }
+            if (calculator.gr_betalibi_d != 0) { sb.AppendLine("<tr><td>Betalabi Deduction</td>"); for (int i = 0; i < calculator.arrSession.Count; i++) sb.AppendLine($"<td align='right'>{calculator.ary_betalibi_d[i]}</td>"); sb.AppendLine($"<td align='right'>{calculator.gr_betalibi_d}</td></tr>"); }
+
+            // === Advances Section ===
+            if (calculator.gr_tel_per_adv != 0) { sb.AppendLine("<tr><td>Personal Advance</td>"); for (int i = 0; i < calculator.arrSession.Count; i++) sb.AppendLine($"<td align='right'>{calculator.ary_tel_per_adv[i]}</td>"); sb.AppendLine($"<td align='right'>{calculator.gr_tel_per_adv}</td></tr>"); }
+            if (calculator.gr_pr_adv != 0) { sb.AppendLine("<tr><td>Program Advance</td>"); for (int i = 0; i < calculator.arrSession.Count; i++) sb.AppendLine($"<td align='right'>{calculator.ary_pr_adv[i]}</td>"); sb.AppendLine($"<td align='right'>{calculator.gr_pr_adv}</td></tr>"); }
+            if (calculator.gr_travel_prog_adv != 0) { sb.AppendLine("<tr><td>Travel Advance</td>"); for (int i = 0; i < calculator.arrSession.Count; i++) sb.AppendLine($"<td align='right'>{calculator.ary_travel_prog_adv[i]}</td>"); sb.AppendLine($"<td align='right'>{calculator.gr_travel_prog_adv}</td></tr>"); }
+            if (calculator.gr_fd_adv != 0) { sb.AppendLine("<tr><td>Field Drawing</td>"); for (int i = 0; i < calculator.arrSession.Count; i++) sb.AppendLine($"<td align='right'>{calculator.ary_fd_adv[i]}</td>"); sb.AppendLine($"<td align='right'>{calculator.gr_fd_adv}</td></tr>"); }
+            if (calculator.gr_wl_adv != 0) { sb.AppendLine("<tr><td>Welfare Advance</td>"); for (int i = 0; i < calculator.arrSession.Count; i++) sb.AppendLine($"<td align='right'>{calculator.ary_wl_adv[i]}</td>"); sb.AppendLine($"<td align='right'>{calculator.gr_wl_adv}</td></tr>"); }
+            if (calculator.gr_adv_pf_loan != 0) { sb.AppendLine("<tr><td>PF Loan</td>"); for (int i = 0; i < calculator.arrSession.Count; i++) sb.AppendLine($"<td align='right'>{calculator.ary_adv_pf_loan[i]}</td>"); sb.AppendLine($"<td align='right'>{calculator.gr_adv_pf_loan}</td></tr>"); }
+            if (calculator.gr_adv_cit_loan != 0) { sb.AppendLine("<tr><td>CIT Loan</td>"); for (int i = 0; i < calculator.arrSession.Count; i++) sb.AppendLine($"<td align='right'>{calculator.ary_adv_cit_loan[i]}</td>"); sb.AppendLine($"<td align='right'>{calculator.gr_adv_cit_loan}</td></tr>"); }
+            if (calculator.gr_welfare_fund != 0) { sb.AppendLine("<tr><td>Welfare Contribution</td>"); for (int i = 0; i < calculator.arrSession.Count; i++) sb.AppendLine($"<td align='right'>{calculator.ary_welfare_fund[i]}</td>"); sb.AppendLine($"<td align='right'>{calculator.gr_welfare_fund}</td></tr>"); }
+
+            // === Net Take Home ===
+            sb.AppendLine("<tr bgcolor='#eeeeee'><td><b>Net take home earning ( A - B )</b></td>");
+            for (int i = 0; i < calculator.arrSession.Count; i++)
+                sb.AppendLine($"<td align='right'>{calculator.ary_net_in_hand[i]}</td>");
+            sb.AppendLine($"<td align='right'>{calculator.gr_net_in_hand}</td></tr>");
+
+            sb.AppendLine("</table>");
+
+            byte[] fileBytes = Encoding.UTF8.GetBytes(sb.ToString());
+            string base64 = Convert.ToBase64String(fileBytes);
+
+            return Json(new { status = "success", fileContent = base64, fileName = $"PaySlip-MultiPeriod-{empId}.xls" });
+        }
+
         #endregion
 
     }
