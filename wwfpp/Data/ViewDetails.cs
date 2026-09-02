@@ -312,7 +312,7 @@ namespace wwfpp.Data
         public DateTime? fiscal { get; set; }
         public string month_fiscal { get; set; }
     }
-    public class vw_year_salary
+    public class que_year_salary
     {
         public float? salary_id { get; set; }
         public int? emp_id { get; set; }
@@ -409,7 +409,7 @@ namespace wwfpp.Data
         public DateTime? fiscal { get; set; }
     }
 
-    public class vw_year_salary_a_field
+    public class que_year_salary_a_field
     {
         public string? salary_id { get; set; }
         public int? emp_id { get; set; }
@@ -467,7 +467,7 @@ namespace wwfpp.Data
         public string ?actual_fiscal { get; set; }
     }
 
-    public class vw_year_salary_sum_fiscalwise
+    public class que_year_salary_sum_fiscalwise
     {
         public int? emp_id { get; set; }
         public string? fullname { get; set; }
@@ -507,7 +507,7 @@ namespace wwfpp.Data
         public decimal? ssf_ded { get; set; }
     }
 
-    public class vw_year_salary_sum_fiscalwise_all
+    public class que_year_salary_sum_fiscalwise_all
     {
         public int? emp_id { get; set; }
         public string? fullname { get; set; }

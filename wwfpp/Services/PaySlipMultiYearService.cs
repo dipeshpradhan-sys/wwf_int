@@ -70,7 +70,7 @@ namespace wwfpp.Services
             {
                 arrFiscal[i] = (start_ + i) + "/" + (start_ + i + 1);
 
-                var record = _context.vw_year_salary_sum_fiscalwise_all
+                var record = _context.que_year_salary_sum_fiscalwise_all
                     .FirstOrDefault(s => s.emp_id == empId && s.actual_fiscal == arrFiscal[i]);
 
                 if (record != null)

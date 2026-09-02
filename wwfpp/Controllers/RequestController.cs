@@ -4317,7 +4317,7 @@ namespace wwfpp.Controllers
         [ValidateAntiForgeryToken]
         public IActionResult ExportPaySlipSingleYear(int empId, string sal_fiscal_year)
         {
-            var record = _context.vw_year_salary_sum_fiscalwise_all.FirstOrDefault(s => s.emp_id == empId && s.actual_fiscal == sal_fiscal_year);
+            var record = _context.que_year_salary_sum_fiscalwise_all.FirstOrDefault(s => s.emp_id == empId && s.actual_fiscal == sal_fiscal_year);
             if (record == null)
             {
                 // Only send status flag, no message
