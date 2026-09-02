@@ -6116,7 +6116,7 @@ namespace wwfpp.Controllers
                     .FirstOrDefault();
 
                 var fiscal_date = new DateTime(salYear, salMonth, 1);
-                var thisOfficeSalary = _context.vw_year_salary
+                var thisOfficeSalary = _context.que_year_salary
                    .Where(q => q.emp_id == e.emp_id
                             && q.fiscal >= fiscal_from
                             //&& q.fiscal <= fiscal_to

@@ -421,18 +421,18 @@ namespace wwfpp.Data
                 .HasKey(e => e.sal_id);                  // use sal_id as the primary key
             _ = modelBuilder.Entity<que_year_salary>()
                 .HasNoKey()
-                .ToView("vw_year_salary");
+                .ToView("que_year_salary");
 
             _ = modelBuilder.Entity<que_year_salary_sum_fiscalwise>()
                 .HasNoKey()
-                .ToView("vw_year_salary_sum_fiscalwise");
+                .ToView("que_year_salary_sum_fiscalwise");
             _ = modelBuilder.Entity<que_year_salary_sum_fiscalwise>()
                 .HasNoKey()
-                .ToView("vw_year_salary_sum_fiscalwise");
+                .ToView("que_year_salary_sum_fiscalwise");
 
             _ = modelBuilder.Entity<que_year_salary_sum_fiscalwise_all>()
                 .HasNoKey()   // <-- tells EF Core it's a keyless entity
-                .ToView("vw_year_salary_sum_fiscalwise_all")   // <-- tells EF Core to query the View
+                .ToView("que_year_salary_sum_fiscalwise_all")   // <-- tells EF Core to query the View
                 .Property(e => e.actual_fiscal)
                 .HasColumnName("actual_fiscal");
 
