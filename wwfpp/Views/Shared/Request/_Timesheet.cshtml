@@ -61,7 +61,7 @@
     <partial name="_ValidationScriptsPartial.cshtml" />
     <script>
         $(document).off("click", "#btnLoadDays").on("click", "#btnLoadDays", async function() {
-
+            $('#message').removeClass().html("").hide();
             const year = document.getElementById("year").value;
             const month = document.getElementById("month").value;
             const EmployeeID = document.getElementById("EmployeeList").value;
@@ -85,6 +85,11 @@
                 $('#message').removeClass().addClass('error')
                     .html(msg_no_employee_approver)
                     .show();
+                // 🔹 Clear out any old data
+                const tableDiv = document.getElementById("daysTable");
+                tableDiv.innerHTML = "";
+                tableDiv.style.display = "none";
+
                 return; // stop here
             }
 

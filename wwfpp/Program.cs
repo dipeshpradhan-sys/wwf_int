@@ -142,6 +142,7 @@ builder.Services.AddScoped<AdministrationEmailService>();
 builder.Services.AddScoped<TravelApprovalService>();
 builder.Services.AddScoped<DashboardService>();
 builder.Services.AddScoped<PaySlipMultiYearService>();
+builder.Services.AddScoped<TimesheetMessageService>();
 
 #endregion
 
