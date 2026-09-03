@@ -2996,8 +2996,8 @@ namespace wwfpp.Controllers
             var data = rawData.Select(x => new EmployeeOvertimeViewModel
             {
                 OtReqId = x.o.ot_req_id,
-                OtDate = x.o.ot_date?.ToString("dd/MM/yyyy") ?? "",
-                SubmitDate = x.o.submit_date?.ToString("dd/MM/yyyy") ?? "",
+                OtDate = x.o.ot_date ?? "",
+                SubmitDate = x.o.submit_date ?? "",
                 TotalHours = x.o.total_hours ?? 0,
                 RequestedBy = x.e?.employeename ?? string.Empty,
                 OtDesc = !string.IsNullOrEmpty(x.o.ot_desc) && x.o.ot_desc.Length > 65
@@ -3387,9 +3387,9 @@ namespace wwfpp.Controllers
                     foreach (var r in requests)
                     {
                         ws.Cell(row, 1).Value = serial++;
-                        ws.Cell(row, 2).Value = r.ot_date?.ToString("dddd"); // Day name
-                        ws.Cell(row, 3).Value = r.ot_date?.ToString("dd/MM/yyyy");
-                        ws.Cell(row, 4).Value = r.submit_date?.ToString("dd/MM/yyyy");
+                        ws.Cell(row, 2).Value = r.ot_date; // Day name
+                        ws.Cell(row, 3).Value = r.ot_date;
+                        ws.Cell(row, 4).Value = r.submit_date;
                         ws.Cell(row, 5).Value = r.total_hours;
                         ws.Cell(row, 6).Value = _employeeServices.GetEmployeeName(Convert.ToInt32(r.requested_by)); // helper method
                         ws.Cell(row, 7).Value = r.ot_desc;
@@ -3535,9 +3535,9 @@ namespace wwfpp.Controllers
                         string travelType = row.travel_type;
                         string employeenameWithCode = _employeeServices.GetEmployeeName(Convert.ToInt32(row.emp_id),"code");
 
-                        string dateFromStr = df.ToString("dd/MM/yyyy");
-                        string dateToStr = dt.ToString("dd/MM/yyyy");
-                        string submitDateStr = sd.ToString("dd/MM/yyyy");
+                        string dateFromStr = df.ToString("yyyy/MM/dd");
+                        string dateToStr = dt.ToString("yyyy/MM/dd");
+                        string submitDateStr = sd.ToString("yyyy/MM/dd");
 
                         string printLink = "";
                         string docLink = "";
@@ -3716,9 +3716,9 @@ namespace wwfpp.Controllers
                         string appStatus = row.app_status;
                         string travelType = row.travel_type;
 
-                        string dateFromStr = df.ToString("dd/MM/yyyy");
-                        string dateToStr = dt.ToString("dd/MM/yyyy");
-                        string submitDateStr = sd.ToString("dd/MM/yyyy");
+                        string dateFromStr = df.ToString("yyyy/MM/dd");
+                        string dateToStr = dt.ToString("yyyy/MM/dd");
+                        string submitDateStr = sd.ToString("yyyy/MM/dd");
 
                         //string printLink = "";
                         //string docLink = "";

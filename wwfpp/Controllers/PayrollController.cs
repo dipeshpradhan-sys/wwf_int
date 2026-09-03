@@ -4,6 +4,7 @@ using DocumentFormat.OpenXml.Bibliography;
 using DocumentFormat.OpenXml.Drawing.Charts;
 using DocumentFormat.OpenXml.Office2010.Excel;
 using DocumentFormat.OpenXml.Office2016.Drawing.ChartDrawing;
+using DocumentFormat.OpenXml.Office2016.Excel;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
@@ -5334,12 +5335,41 @@ namespace wwfpp.Controllers
             ViewBag.epern = perm.epern;
             ViewBag.dpern = perm.dpern;
             #endregion FOR END PERMISSION
-            string? FiscalYearActive = HttpContext.Session.GetString("FiscalYear");
+            string? FiscalYearActive = HttpContext.Session.GetString("fiscal_year");
             ViewBag.FiscalYearActive = FiscalYearActive;
             ViewBag.FiscalYearList = _settingsServices.GetFiscalYears(HttpContext.Session.GetString("fiscal_year"));
             ViewBag.DateFrom = Convert.ToDateTime(HttpContext.Session.GetString("date_from"));
 
             ViewBag.PeriodList = _payrollServices.PeriodFilter();
+
+            string[] fiscal_year_break = FiscalYearActive.Split('/');
+            int period = 1;
+            /*TO GET VALUE FOR NOTES
+            int cur_date_diff = ((DateTime.Now.Year - Convert.ToDateTime(HttpContext.Session.GetString("date_from")).Year) * 12 +
+                                 DateTime.Now.Month - Convert.ToDateTime(HttpContext.Session.GetString("date_from")).Month) + 1;
+
+            if (cur_date_diff <= 3) period = 1;
+            else if (cur_date_diff <= 6) period = 2;
+            else if (cur_date_diff <= 9) period = 3;
+            else period = 4;
+
+            var fiscal_year_break_prev = "";
+            var str_prev_period = "";
+            var str_post_period = "";
+            var fiscal_year_break_post = "";
+            if (period == 1)
+            {
+                ViewBag.str_prev_period = "[ Period : " + (period + 3) + " ]";
+                ViewBag.fiscal_year_break_prev = fiscal_year_break[0];
+            }
+            else
+            {
+                ViewBag.str_prev_period = "[ Period : " + (period - 1) + " ]";
+                ViewBag.fiscal_year_break_prev = fiscal_year_break[1];
+            }
+            ViewBag.str_post_period = "[ Period : " + (period) + " ]";
+            ViewBag.fiscal_year_break_post = fiscal_year_break[1];
+            //END*/
 
             return PartialView("Payroll/_GratuityAccrual", "");
         }
@@ -5352,6 +5382,11 @@ namespace wwfpp.Controllers
 
             string periodInput = request.PeriodFilter ?? "";
             int period = 1;
+
+            var fiscal_year_break_prev = "";
+            var str_prev_period = "";
+            var str_post_period = "";
+            var fiscal_year_break_post = "";
 
             // Classic ASP logic for period calculation
             if (int.Parse(fiscal_year.Substring(0, 4)) < 2015)
@@ -5370,10 +5405,25 @@ namespace wwfpp.Controllers
                     int cur_date_diff = ((DateTime.Now.Year - start_fiscal_date.Year) * 12 +
                                          DateTime.Now.Month - start_fiscal_date.Month) + 1;
 
+                    //TO GET VALUE FOR NOTES
                     if (cur_date_diff <= 3) period = 1;
                     else if (cur_date_diff <= 6) period = 2;
                     else if (cur_date_diff <= 9) period = 3;
                     else period = 4;
+
+                    if (period == 1)
+                    {
+                        str_prev_period = "[ Period : " + (period + 3) + " ]";
+                        fiscal_year_break_prev = fiscal_year_break[0];
+                    }
+                    else
+                    {
+                        str_prev_period = "[ Period : " + (period - 1) + " ]";
+                        fiscal_year_break_prev = fiscal_year_break[1];
+                    }
+                    str_post_period = "[ Period : " + (period) + " ]";
+                    fiscal_year_break_post = fiscal_year_break[1];
+                    //END
                 }
                 else
                 {
@@ -5435,8 +5485,13 @@ namespace wwfpp.Controllers
                         .Select(s => s.gratuity_date)
                         .FirstOrDefault();
 
-                    double service_year = ((fy_end_fiscal_date - (gratuity_date ?? DateTime.Now)).TotalDays + 1) / 365.0;
-                    service_year = Math.Round(service_year, 2);
+                    double service_year = 0;
+                    if (gratuity_date != null)
+                    {
+                        var diff = fy_end_fiscal_date - gratuity_date.Value; // this is a TimeSpan
+                        service_year = (diff.TotalDays + 1) / 365.0;
+                        service_year = Math.Round(service_year, 2);
+                    }
                     if (service_year < 0) service_year = 0;
 
                     // Gratuity encash
@@ -5529,14 +5584,18 @@ namespace wwfpp.Controllers
                     ? _context.tbl_employee_gratuity_accrual.Count(h => h.fiscal_year == fiscal_year && h.counter == period)
                     : 0,
                 blnShow = blnShow,
+                str_prev_period = str_prev_period,
+                fiscal_year_break_prev = fiscal_year_break_prev,
+                str_post_period = str_post_period,
+                fiscal_year_break_post = fiscal_year_break_post,
                 data = cData.Select(x => new
                 {
                     x.emp_id,
                     x.full_name,
                     x.emp_code,
-                    join_date = x.join_date?.ToString("dd/MM/yyyy"),
-                    gratuity_date = x.gratuity_date?.ToString("dd/MM/yyyy"),
-                    fy_end_fiscal_date = x.fy_end_fiscal_date?.ToString("dd/MM/yyyy"),
+                    join_date = x.join_date,
+                    gratuity_date = x.gratuity_date,
+                    fy_end_fiscal_date = x.fy_end_fiscal_date,
                     base_salary = Math.Round(x.base_salary ?? 0, 2),
                     emp_status = x.emp_status,
                     service_year = Math.Round(x.service_year ?? 0, 2),
@@ -5719,9 +5778,9 @@ namespace wwfpp.Controllers
                     ws.Cell(row, 1).Value = serial++;
                     ws.Cell(row, 2).Value = r.FullName;
                     ws.Cell(row, 3).Value = r.emp_code;
-                    ws.Cell(row, 4).Value = r.join_date?.ToString("dd/MM/yyyy");
-                    ws.Cell(row, 5).Value = r.gratuity_date?.ToString("dd/MM/yyyy");
-                    ws.Cell(row, 6).Value = r.fy_end_date?.ToString("dd/MM/yyyy");
+                    ws.Cell(row, 4).Value = r.join_date;
+                    ws.Cell(row, 5).Value = r.gratuity_date;
+                    ws.Cell(row, 6).Value = r.fy_end_date;
                     ws.Cell(row, 7).Value = r.service_year;
                     ws.Cell(row, 8).Value = r.basic_salary;
                     ws.Cell(row, 9).Value = r.gratuity_encash;

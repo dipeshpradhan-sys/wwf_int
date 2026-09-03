@@ -36,7 +36,7 @@
 </div>
 
 <!-- Controls row under the header -->
-@if (ViewBag.apern == "true" || ViewBag.dpern == "true")
+@if (ViewBag.apern == "true" || ViewBag.epern == "true")
 {
     <div id="saveSection" class="p-0 bg-white rounded mb-3" style="display:none;">
         <div class="row align-items-center">
@@ -46,17 +46,20 @@
             </div>
         </div>
     </div>
-    <div id="deleteSection" class="p-0 bg-white rounded mb-3" style="display:none;">
+}
+<div id="deleteSection" class="p-0 bg-white rounded mb-3" style="display:none;">
         <div class="row align-items-center">
             <!-- Right side: Buttons -->
             <div class="col-auto ms-auto">
                 <button type="button" name="btnExport" id="btnExport" class="button btn-primary">Export</button>
                 <button type="button" name="btnCCD" id="btnCCD" class="button btn-primary">Cost Center Distribution</button>
-                <button type="button" name="btnClear" id="btnClear" class="button btn-primary">Clear</button>
+                @if(ViewBag.dpern == "true"){
+                    <button type="button" name="btnClear" id="btnClear" class="button btn-primary">Clear</button>
+                }
             </div>
         </div>
     </div>
-}
+
 <!-- DataTable -->
 @if (Model == null)
 {
@@ -69,15 +72,20 @@ else
         <table id="tblData" class="display compact nowrap" style="width:100%">
             <thead>
                 <tr class="bg-secondary bg-opacity-27" style="color:darkblue;">
-                    Note :<br> 
+                    Note :<br>
                     A = Date of Employment<br>
                     B = Date effective for gratuity<br>
                     C = Date to<br>
                     D = Number of service year(s)<br>
                     E = Base Salary<br>
                     F = Total gratuity entitled for encashment<br>
-                    G = Gratuity provisioned till FY 2027 [ Period : 2 ]<br>
-                    H = Net gratuity to be provisioned in FY 2027 [ Period : 3 ]
+                    G = Gratuity provisioned till FY&nbsp;
+                    <span id="fiscal_year_break_prev"></span>&nbsp;
+                    <span id="str_prev_period"></span>
+                    <br>
+                    H = Net gratuity to be provisioned in FY&nbsp;
+                    <span id="fiscal_year_break_post"></span>&nbsp;
+                    <span id="str_post_period"></span>
                     <br>
                     <br>
                 </tr>
@@ -117,9 +125,9 @@ else
                 GetAllDataSN(ilaka, "emp_id", [
                     { data: "full_name", name: "full_name", autoWidth: false },
                     { data: "emp_code", name: "emp_code", autoWidth: false },
-                    { data: "join_date", name: "join_date", autoWidth: false, render: function(data, type, row, meta) { return '<input type="text" name="join_date_' + row.emp_id + '" id="join_date_' + row.emp_id + '" value="' + data + '" class="form-control rate-input" style="width:90px;" readonly>'; } },
-                    { data: "gratuity_date", name: "gratuity_date", autoWidth: false, render: function(data, type, row, meta) { return '<input type="text" name="gratuity_date_' + row.emp_id + '" id="gratuity_date_' + row.emp_id + '" value="' + data + '" class="form-control rate-input" style="width:90px;" readonly>'; } },
-                    { data: "fy_end_fiscal_date", name: "fy_end_fiscal_date", autoWidth: false, render: function(data, type, row, meta) { return '<input type="text" name="fy_end_fiscal_date_' + row.emp_id + '" id="fy_end_fiscal_date_' + row.emp_id + '" value="' + data + '" class="form-control rate-input" style="width:90px;" readonly>'; } },
+                    { data: "join_date", name: "join_date", autoWidth: false, render: function(data, type, row, meta) { return '<input type="text" name="join_date_' + row.emp_id + '" id="join_date_' + row.emp_id + '" value="' + data + '" class="form-control join-date-input" style="width:90px;" readonly>'; } },
+                    { data: "gratuity_date", name: "gratuity_date", autoWidth: false, render: function(data, type, row, meta) { return '<input type="text" name="gratuity_date_' + row.emp_id + '" id="gratuity_date_' + row.emp_id + '" value="' + data + '" class="form-control gratuity-date-input" style="width:90px;" readonly>'; } },
+                    { data: "fy_end_fiscal_date", name: "fy_end_fiscal_date", autoWidth: false, render: function(data, type, row, meta) { return '<input type="text" name="fy_end_fiscal_date_' + row.emp_id + '" id="fy_end_fiscal_date_' + row.emp_id + '" value="' + data + '" class="form-control fy_end_fiscal_date-input" style="width:90px;" readonly>'; } },
                     { data: "service_year", name: "service_year", autoWidth: false, render: function(data, type, row, meta) { return '<input type="text" name="service_year_' + row.emp_id + '" id="service_year_' + row.emp_id + '" value="' + data + '" class="form-control rate-input" style="width:90px;" readonly>'; } },
                     { data: "base_salary", name: "base_salary", autoWidth: false, render: function(data, type, row, meta) { return '<input type="text" name="base_salary_' + row.emp_id + '" id="base_salary_' + row.emp_id + '" value="' + data + '" class="form-control rate-input" style="width:90px;" readonly>'; } },
                     { data: "gratuity_encash", name: "gratuity_encash", autoWidth: false, render: function(data, type, row, meta) { return '<input type="text" name="gratuity_encash_' + row.emp_id + '" id="gratuity_encash_' + row.emp_id + '" value="' + data + '" class="form-control rate-input" style="width:90px;" readonly>'; } },
@@ -128,9 +136,8 @@ else
                         name: "pre_gratuity_encash",
                         autoWidth: false,
                         render: function(data, type, row, meta) {
-                            return '<input type="text" name="pre_gratuity_encash_' + row.emp_id + '" id="pre_gratuity_encash_' + row.emp_id + '" ' +
-                                'value="' + data + '" class="form-control rate-input" style="width:115px;" ' +
-                                'onkeyup="calculate_net_gratuity_encashment(' + row.emp_id + ')">'
+                            return '<input type="number" name="pre_gratuity_encash_' + row.emp_id + '" id="pre_gratuity_encash_' + row.emp_id + '" ' +
+                                'value="' + data + '" class="form-control rate-input" style="width:115px;">';
                         }
                     },
                     { data: "net_gratuity_encash", name: "net_gratuity_encash", autoWidth: false, render: function(data, type, row, meta) { return '<input type="text" name="net_gratuity_encash_' + row.emp_id + '" id="net_gratuity_encash_' + row.emp_id + '" value="' + data + '" class="form-control rate-input" style="width:115px;" readonly>'; } },
@@ -166,6 +173,12 @@ else
                     } else {
                         showError("Gratuity Accrual for the fiscal year has not processed yet", "process-message");
                     }
+
+                    $("#fiscal_year_break_prev").text(table.ajax.json().fiscal_year_break_prev);
+                    $("#str_prev_period").text(table.ajax.json().str_prev_period);
+
+                    $("#fiscal_year_break_post").text(table.ajax.json().fiscal_year_break_post);
+                    $("#str_post_period").text(table.ajax.json().str_post_period);
                 });
 
             });
@@ -173,35 +186,31 @@ else
                 var extraSettings = [];
                 $("#tblData tbody tr").each(function() {
                     var row = $(this);
+                    //alert(parseInt(row.find("input[name^='emp_id']").val(), 10) + '--' + $("#FiscalYearFilter").val() + '--' + formatDateToISO(row.find("input[name^='join_date_']").val()) + '--' + formatDateToISO(row.find("input[name^='gratuity_date_']").val())+ '--' + formatDateToISO(row.find("input[name^='fy_end_fiscal_date_']").val()) + '--' + parseFloat(row.find("input[name^='service_year_']").val())+ '--' + parseFloat(row.find("input[name^='base_salary_']").val()) + '--' + parseFloat(row.find("input[name^='gratuity_encash_']").val())+ '--' + parseFloat(row.find("input[name^='pre_gratuity_encash_']").val()) + '--' + parseFloat(row.find("input[name^='net_gratuity_encash_']").val())+ '--' + row.find("input[name^='remarks_']").val() + '--' + $("#PeriodFilter").val());
                     extraSettings.push({
-                        emp_id: parseInt(row.find("input[name^='emp_id']").val(), 10) || null,
+                        emp_id: parseInt(row.find("input[name^='emp_id']").val(), 10),
                         fiscal_year: $("#FiscalYearFilter").val(),
-                        join_date: formatDateToISO(row.find("input[name^='join_date_']").val()),
-                        gratuity_date: formatDateToISO(row.find("input[name^='gratuity_date_']").val()),
-                        fy_end_fiscal_date: formatDateToISO(row.find("input[name^='fy_end_fiscal_date_']").val()),
-                        service_year: parseFloat(row.find("input[name^='service_year_']").val()) || null,
-                        base_salary: parseFloat(row.find("input[name^='base_salary_']").val()) || null,
-                        gratuity_encash: parseFloat(row.find("input[name^='gratuity_encash_']").val()) || null,
-                        pre_gratuity_encash: parseFloat(row.find("input[name^='pre_gratuity_encash_']").val()) || null,
-                        net_gratuity_encash: parseFloat(row.find("input[name^='net_gratuity_encash_']").val()) || null,
-                        remarks: row.find("input[name^='remarks_']").val() || null,
-                        period: $("#PeriodFilter").val(),
+                        join_date: row.find("input[name^='join_date_']").val(),
+                        gratuity_date: row.find("input[name^='gratuity_date_']").val(),
+                        fy_end_fiscal_date: row.find("input[name^='fy_end_fiscal_date_']").val(),
+                        service_year: parseFloat(row.find("input[name^='service_year_']").val()),
+                        base_salary: parseFloat(row.find("input[name^='base_salary_']").val()),
+                        gratuity_encash: parseFloat(row.find("input[name^='gratuity_encash_']").val()),
+                        pre_gratuity_encash: parseFloat(row.find("input[name^='pre_gratuity_encash_']").val()),
+                        net_gratuity_encash: parseFloat(row.find("input[name^='net_gratuity_encash_']").val()),
+                        remarks: row.find("input[name^='remarks_']").val(),
+                        period: $("#PeriodFilter").val()
                     });
                 });
                 return extraSettings;
             }
 
-            // helper to convert "dd/MM/yyyy" into ISO string
-            /*function formatDate(val) {
-                if (!val) return null;
-                var parts = val.split("/");
-                if (parts.length === 3) {
-                    // assumes dd/MM/yyyy
-                    var d = new Date(parts[2], parts[1] - 1, parts[0]);
-                    return d.toISOString();
-                }
-                return null;
-            }*/
+            $(document).off('blur', 'input[id^="pre_gratuity_encash_"]').on('blur', 'input[id^="pre_gratuity_encash_"]', function() { calculate_net_gratuity_encashment(this.id.replace('pre_gratuity_encash_', '')); });
+            $(document).off('keyup', 'input[id^="pre_gratuity_encash_"]').on('keyup', 'input[id^="pre_gratuity_encash_"]', function() { calculate_net_gratuity_encashment(this.id.replace('pre_gratuity_encash_', '')); });
+
+            $(document).on('blur', '.join-date-input', function () { convert_date(this); });
+            $(document).on('blur', '.gratuity-date-input', function () { convert_date(this); });
+            $(document).on('blur', '.gratuity-date-input', function () { convert_date(this); });
 
             $(document).off("click", "#btnSave").on("click", "#btnSave", function () { $("#mode").val("update"); updateDataNoChk(ilaka + "Save"); });
 

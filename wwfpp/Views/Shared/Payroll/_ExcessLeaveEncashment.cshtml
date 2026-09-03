@@ -31,7 +31,7 @@
 </div>
 
 <!-- Controls row under the header -->
-@if (ViewBag.apern == "true" || ViewBag.dpern == "true")
+@if (ViewBag.apern == "true" || ViewBag.epern == "true")
 {
     <div id="saveSection" class="p-0 bg-white rounded mb-3" style="display:none;">
         <div class="row align-items-center">
@@ -41,17 +41,21 @@
             </div>
         </div>
     </div>
+}
     <div id="deleteSection" class="p-0 bg-white rounded mb-3" style="display:none;">
         <div class="row align-items-center">
             <!-- Right side: Buttons -->
             <div class="col-auto ms-auto">
                 <button type="button" name="btnExport" id="btnExport" class="button btn-primary">Export</button>
                 <button type="button" name="btnCCD" id="btnCCD" class="button btn-primary">Cost Center Distribution</button>
-                <button type="button" name="btnClear" id="btnClear" class="button btn-primary">Clear</button>
-            </div>
+                @if (ViewBag.dpern == "true")
+                {
+                    <button type="button" name="btnClear" id="btnClear" class="button btn-primary">Clear</button>
+                }
+        </div>
         </div>
     </div>
-}
+
 <!-- DataTable -->
 @if (Model == null)
 {

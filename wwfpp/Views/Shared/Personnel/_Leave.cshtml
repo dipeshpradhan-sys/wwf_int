@@ -12,6 +12,8 @@
     /*success|fail|error'*/
     string ShowMsg = GblUtilities.MsgDisplay(Context.Request.Query["msg"].ToString());
     int emp_id = int.TryParse(HttpContextAccessor.HttpContext.Session.GetString("emp_id"), out int EmpId) ? EmpId : 0;
+    string CurrentFiscalYear = Context.Session.GetString("fiscal_year");
+    int? curEmployeeID = Convert.ToInt32(Context.Session.GetString("emp_id"));
 }
 @if (emp_id < 1)
 {
@@ -104,12 +106,19 @@ else
                     { data: "leave_in_days", name: "leave_in_days", autoWidth: false },
                     { data: "app_status", name: "app_status", autoWidth: false },
                     { data: "showBtnCan", name: "showBtnCan", autoWidth: false,orderable: false,
-			            render: function (data, type, row) {
-                            if (data === "Y"){
-				                return '<button type="button" name="btnCan" id="btnCan" class="button" data-id="'
-					            + row.id + '"><img src="/images/delete.png" title="Cancel" width="16" height="16" border="0"></button>';
-                            } else {return "";}
-			            }
+                        render: function (data, type, row) {
+                            var comboFiscalYear = $("#FiscalYearFilter").val();
+                            var currentFiscalYear = '@CurrentFiscalYear';
+                            var curEmployeeID = '@curEmployeeID';
+
+                            if (data === "Y" && currentFiscalYear == comboFiscalYear && row.emp_id == curEmployeeID) {
+                                return '<button type="button" name="btnCancel" id="btnCancel" class="btnCancel" data-id="' + row.id + '">' +
+                                    '<img src="/images/delete.png" title="Cancel" width="16" height="16">' +
+                                    '</button>';
+                            } else {
+                                return "";
+                            }
+                        }
                     }
                     ],
                     {
@@ -131,6 +140,22 @@ else
                     mode: "bal"
                 });
                 ShowData(ilaka+"Balance", balSettings, "Leave Balance");
+            });
+
+            $("#tblData").on("click", ".btnCancel", function () {
+                var id = $(this).data("id");
+                alert(btnCancel);
+                $.ajax({
+                    url: '/Request/LeaveCancel',
+                    type: 'GET',
+                    data: { id: id },
+                    success: function (result) {
+                        $("#ModalBody").html(result);
+                        $("#ModalID .modal-title").text("Leave [Cancel]");
+                        var modal = new bootstrap.Modal(document.getElementById("ModalID"));
+                        modal.show();
+                    }
+                });
             });
         </script>
     }
