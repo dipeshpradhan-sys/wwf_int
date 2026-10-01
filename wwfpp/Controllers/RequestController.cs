@@ -2791,8 +2791,8 @@ namespace wwfpp.Controllers
             var data = rawData.Select(x => new EmployeeOvertimeViewModel
             {
                 OtReqId = x.o.ot_req_id,
-                OtDate = x.o.ot_date ?? "",
-                SubmitDate = x.o.submit_date ?? "",
+                OtDate = x.o.ot_date.ToString() ?? "",
+                SubmitDate = x.o.submit_date.ToString() ?? "",
                 TotalHours = x.o.total_hours ?? 0,
                 RequestedBy = x.e?.employeename ?? string.Empty,
                 OtDesc = !string.IsNullOrEmpty(x.o.ot_desc) && x.o.ot_desc.Length > 65
@@ -3403,27 +3403,13 @@ namespace wwfpp.Controllers
         }
         public IActionResult TravelSettlementPendingAllList(int? empId, string? fiscalYear, string? status = null)
         {
-            //var StatusFilter = status == "D" ? "Inactive" : "Active";
-
-            //var Employees = _context.vw_Employee
-            //    .Where(e => e.emp_status == StatusFilter)
-            //    .OrderBy(c => c.employeename)
-            //    .ToList();
-
-            //ViewBag.Status = status;
-            //ViewBag.EmployeeList = new SelectList(Employees, "emp_id", "employeenameWithCode", empId);
 
             DateTime dateFrom = Convert.ToDateTime(HttpContext.Session.GetString("date_from"));
             DateTime dateTo = Convert.ToDateTime(HttpContext.Session.GetString("date_to"));
 
-
-
-            //ViewBag.Status = status;
-            //ViewBag.EmployeeList = new SelectList(Employees, "emp_id", "employeenameWithCode", empId);
             ViewBag.DateFrom = dateFrom.ToShortDateString();
             ViewBag.DateTo = dateTo.ToShortDateString();
 
-            //return Json(new { status = "success",DateFrom = dateFrom,DateTo = dateTo });
             return PartialView("Request/_TravelSettlementPendingList");
         }
         [HttpPost]

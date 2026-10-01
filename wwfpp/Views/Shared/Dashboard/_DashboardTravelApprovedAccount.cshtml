@@ -1,0 +1,71 @@
+﻿@model IEnumerable<DashboardTravelApprovedAccountViewModel>
+@{
+    var cmbMark = ViewBag.CmbMark as string;
+    var cmbMeEmployee = (int)ViewBag.CmbMeEmployee;
+}
+
+<table class="table table-bordered">
+    <thead class="table-danger">
+        <tr>
+            <th>Serial Number</th>
+            <th>Employee</th>
+            <th>Travel Type</th>
+            <th>Destinations</th>
+            <th>Start Date</th>
+            <th>End Date</th>
+            <th>Submit Date</th>
+            <th>Action</th>
+            <th>Print</th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (Model.Any())
+        {
+            var i = 1;
+            foreach (var travel in Model)
+            {
+                <tr>
+                    <td>@i</td>
+                    <td>@travel.EmployeeName</td>
+                    <td>@travel.travel_type</td>
+                    <td>@travel.destinations</td>
+                    <td>@travel.date_from?.ToShortDateString()</td>
+                    <td>@travel.date_to?.ToShortDateString()</td>
+                    <td>@travel.submit_date?.ToShortDateString()</td>
+                    <td>
+                        @if (cmbMark == "markonly")
+                        {
+                            //if (string.IsNullOrEmpty(travel.ActionByID))
+                            if (travel.ActionByID > 0)
+                            {
+                                <a href="javascript:void(0);" onclick="setChecked('@travel.emp_travel_id','unchecked')">Set as Unchecked</a>
+                            }
+                            else
+                            {
+                                @travel.ActionByID
+                            }
+                        }
+                        else
+                        {
+                            <a href="javascript:void(0);" onclick="setChecked('@travel.emp_travel_id','checked')">Set as Checked</a>
+                        }
+                    </td>
+                    <td>
+                        <a asp-controller="DashboardTravelApprovedAccount" asp-action="Print" asp-route-id="@travel.emp_travel_id">
+                            <img src="~/images/print.png" alt="Print" width="16" height="16" />
+                        </a>
+                    </td>
+                </tr>
+                i++;
+            }
+        }
+        else
+        {
+            <tr>
+                <td colspan="9" class="text-center">
+                    No new approved travel records found.
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>

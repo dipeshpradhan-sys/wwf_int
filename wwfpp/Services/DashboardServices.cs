@@ -1,4 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Azure.Core;
+using DocumentFormat.OpenXml.InkML;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Linq;
 using System.Security.Cryptography;
@@ -655,6 +657,34 @@ namespace wwf_pp.Services
                         };
 
             return query.ToList();
+        }
+
+        public void GetSaveChecked(int? emp_travel_id, int? acc_app_by, int? adv_app_by, string? acc_app_by_post, string? adv_app_by_post)
+        {
+            var DataSave = new tbl_employee_travel_printed
+            {
+                emp_travel_id = Convert.ToInt32(emp_travel_id),
+                acc_app_by = acc_app_by,
+                adv_app_by = adv_app_by,
+                acc_app_by_post = acc_app_by_post,
+                adv_app_by_post = adv_app_by_post
+            };
+            _context.tbl_employee_travel_printed.Add(DataSave);
+            _context.SaveChanges();
+        }
+        public void GetDeleteChecked(int? emp_travel_id)
+        {
+            if (emp_travel_id == null) return;
+
+            var recordsToDelete = _context.tbl_employee_travel_printed
+                .Where(r => r.emp_travel_id == emp_travel_id)   // use == for comparison
+                .ToList();
+
+            if (recordsToDelete.Any())
+            {
+                _context.tbl_employee_travel_printed.RemoveRange(recordsToDelete);
+                _context.SaveChanges();
+            }
         }
     }
 }

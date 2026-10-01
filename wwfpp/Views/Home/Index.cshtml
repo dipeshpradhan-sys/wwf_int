@@ -120,6 +120,38 @@ else
                 </div>
             </div>
         }
+    <div>
+        <!-- Dashboard columns -->
+        <div class="row">
+            <div class="col-md-12">
+                <!-- Header bar -->
+                <div class="form-group p-2 d-flex justify-content-between align-items-center timesheet-header mb-0 text-black">
+                    <!-- Left side header -->
+                    <h5 class="timesheet-header mb-0">All approved travel request(s)</h5>
+
+                    <!-- Right side dropdowns -->
+                    <div class="d-flex">
+                        <div id="cmbMarkOnly" style="display:none" class="me-2">
+                            <select id="cmbMeEmployee" name="cmbMeEmployee" class="form-select form-select-sm"
+                                    onchange="toggleDiv();">
+                                <option value="0">All</option>
+                                <option value="@Context.Session.GetString("emp_id")">By Me</option>
+                            </select>
+                        </div>
+
+                        <select id="cmbMark" name="cmbMark" class="form-select form-select-sm"
+                                onchange="toggleDiv();">
+                            <option value="unmarkonly">New and not set checked</option>
+                            <option value="markonly">Set as checked</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Content -->
+                <div id="DashboardTravelApprovedAccount"></div>
+            </div>
+        </div>
+    </div>
 
         <!-- 🔹 New overlay for Submit actions -->
         <div id="submitOverlay"
@@ -260,6 +292,10 @@ else
                     loadWithSpinner("#overtimeSupervisor", "/Dashboard/OvertimeToSupervisior");
                     loadWithSpinner("#futureLeaveMe", "/Dashboard/FutureLeaveToMe");
                     loadWithSpinner("#futureLeaveSupervisor", "/Dashboard/FutureLeaveToSupervisior");
+
+                    loadWithSpinner("#DashboardTravelApprovedAccount", "/Dashboard/DashboardTravelApprovedAccount");
+
+                
 
                     // Send timesheet to supervisor from Dashboard
                     $(document).on("click", ".send-timesheet", async function (e) {
@@ -435,8 +471,30 @@ else
                             }
                         });
                     }
-                });             
+                });            
+            
+                function toggleDiv() {
+                    var value = document.getElementById("cmbMark").value;
+                    var markonlyval = document.getElementById("cmbMeEmployee").value;
+                    var div = document.getElementById("cmbMarkOnly");
 
+                    if (value === "markonly") {
+                        div.style.display = "block";   // show
+                        loadWithSpinner("#DashboardTravelApprovedAccount", "/Dashboard/DashboardTravelApprovedAccount/?cmbMark=markonly&cmbMeEmployee="+markonlyval);
+                    } else {
+                        div.style.display = "none";    // hide
+                        loadWithSpinner("#DashboardTravelApprovedAccount", "/Dashboard/DashboardTravelApprovedAccount/?cmbMark=unmarkonly&cmbMeEmployee="+markonlyval);
+                    }
+                }
+
+            function setChecked(emp_travel_id, saveValue) {
+                if (saveValue === "checked") {
+                    loadWithSpinner("#DashboardTravelApprovedAccount", "/Dashboard/DashboardTravelApprovedAccount/?saveValue=checked&emp_travel_id=" + emp_travel_id);
+                } else if (saveValue === "unchecked") {
+                    loadWithSpinner("#DashboardTravelApprovedAccount", "/Dashboard/DashboardTravelApprovedAccount/?saveValue=unchecked&emp_travel_id=" + emp_travel_id);
+                }
+
+            }
         </script>
     }
 
