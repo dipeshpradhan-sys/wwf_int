@@ -286,12 +286,12 @@ public class DashboardController : Controller
                 : "<div class=\"f-left w-100\">\n";
 
             fnStrStart = @" <table width=""100%"" border=""0"" cellspacing=""0"" cellpadding=""0"" bgcolor=""#ffffff"" style=""text-align:left;"">
-              <tr bgcolor=""#cccccc"">
-                 <td width=""30%"" class=""title"" style=""padding-left:5px;""><b>Contract Subject</b></td>
-                 <td width=""15%"" class=""title"" style=""padding-left:5px;""><b>Issue Date</b></td>
-                 <td width=""15%"" class=""title"" style=""padding-left:5px;""><b>End Date</b></td>
-                 <td width=""10%"" class=""title"" style=""padding-left:5px;""><b>Status</b></td>
-              </tr>";
+          <tr bgcolor=""#cccccc"">
+             <td width=""30%"" class=""title"" style=""padding-left:5px;""><b>Contract Subject</b></td>
+             <td width=""15%"" class=""title"" style=""padding-left:5px;""><b>Issue Date</b></td>
+             <td width=""15%"" class=""title"" style=""padding-left:5px;""><b>End Date</b></td>
+             <td width=""10%"" class=""title"" style=""padding-left:5px;""><b>Status</b></td>
+          </tr>";
 
             int? fnOldEmpId = null;
 
@@ -382,22 +382,31 @@ public class DashboardController : Controller
                         .Replace("<[SITE-TITLE]>", _appSettings.SITE_TITLE)
                         .Replace("<[SITE-ADMIN-NAME]>", Lang.SITE_ADMIN_NAME);
 
-                    // Send email
                     _emailService.SendEmail(str_from, str_to, str_subject, strMessage, null, str_cc, null, null, null);
                     return strMessage;
+                }
+                else
+                {
+                    // No records found for email mode
+                    return "<div class=\"normal\">No records found</div>";
                 }
             }
             else
             {
                 string strMessageArea1 = fnStrLoop.Length > 0
                     ? fnStrStart + fnStrLoop + "</table></div>\n"
-                    : "";
+                    : "<div class=\"normal\">No records found</div>";
 
                 return strMessageArea1;
             }
         }
-        return string.Empty;
+        else
+        {
+            // No contracts at all
+            return "<div class=\"normal\">No records found</div>";
+        }
     }
+
 
     public string GetApprovedTravelSettlementSubmitedList()
     {
