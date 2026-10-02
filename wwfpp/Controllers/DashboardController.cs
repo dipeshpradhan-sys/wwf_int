@@ -15,6 +15,7 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using System.Linq.Dynamic.Core.Tokenizer;
 using System.Net.NetworkInformation;
+using System.Web;
 using wwf_pp.Services;
 using wwfpp.Data;
 using wwfpp.EmailServices;
@@ -395,8 +396,114 @@ public class DashboardController : Controller
                 return strMessageArea1;
             }
         }
-
         return string.Empty;
     }
+
+    public string GetApprovedTravelSettlementSubmitedList()
+    {
+        DateTime parm_date_from = Convert.ToDateTime(HttpContext.Session.GetString("date_from"));
+        DateTime parm_date_to = Convert.ToDateTime(HttpContext.Session.GetString("date_to"));
+
+        var fnStr = new System.Text.StringBuilder();
+
+        // Query: top 100 pending settlements
+        var settlements = _context.que_employee_travel_settlement_main
+            .Where(s => s.app_status == "P")
+            .OrderByDescending(s => s.trav_set_id)
+            .Take(100)
+            .ToList();
+
+        if (settlements.Any())
+        {
+            fnStr.AppendLine("<div class=\"f-left w-100\">");
+            fnStr.AppendLine("<table width=\"100%\" border=\"0\" cellspacing=\"1\" cellpadding=\"1\" bgcolor=\"#B1B1B1\">");
+            fnStr.AppendLine("<tr>");
+            fnStr.AppendLine("<td bgcolor=\"#FFFFFF\" align=\"center\" class=\"normal\">");
+            fnStr.AppendLine("<table width=\"100%\" border=\"0\" cellpadding=\"4\" cellspacing=\"2\" class=\"normal\">");
+            fnStr.AppendLine("<tr bgcolor=\"#CCCCCC\">");
+            fnStr.AppendLine($"<td width=\"5%\" class=\"title center\" height=\"25\">S.N</td>");
+            fnStr.AppendLine($"<td width=\"20%\" class=\"title\">Employee Name</td>");
+            fnStr.AppendLine($"<td width=\"8%\" class=\"title\">Travel Type</td>");
+            fnStr.AppendLine($"<td width=\"20%\" class=\"title\">Destinations</td>");
+            fnStr.AppendLine($"<td width=\"9%\" class=\"title\">Travel Date</td>");
+            fnStr.AppendLine($"<td width=\"9%\" class=\"title\">Return Date</td>");
+            fnStr.AppendLine($"<td width=\"10%\" class=\"title\">Submitted Date</td>");
+            fnStr.AppendLine($"<td width=\"7%\" class=\"title\">Status</td>");
+            fnStr.AppendLine($"<td width=\"5%\" class=\"title\">Set As</td>");
+            fnStr.AppendLine($"<td width=\"7%\" class=\"title\">Action</td>");
+            fnStr.AppendLine("</tr>");
+
+            int f = 0;
+            foreach (var row in settlements)
+            {
+                f++;
+                int empId = row.emp_id;
+                string employeeName = _employeeServices.GetEmployeeName(empId);
+                string travSetId = row.trav_set_id;
+                int empTravelId = row.emp_travel_id;
+                string destinations = row.destinations ?? string.Empty;
+                string travelType = row.travel_type ?? string.Empty;
+
+                string travelDate = row.travel_date.HasValue ? row.travel_date.Value.ToString("dd/MM/yyyy") : string.Empty;
+                string returnDate = row.return_date.HasValue ? row.return_date.Value.ToString("dd/MM/yyyy") : string.Empty;
+                string submitDate = row.submit_date.HasValue ? row.submit_date.Value.ToString("dd/MM/yyyy") : string.Empty;
+
+                string appStatus = row.app_status == "P" ? "Pending" : row.app_status;
+                string isForSet = row.is_for_set ?? string.Empty;
+
+                fnStr.AppendLine("<tr bgcolor=\"#EEEEEE\" onMouseOver=\"this.style.backgroundColor='#E1EAFE'\" onMouseOut=\"this.style.backgroundColor='#EEEEEE'\">");
+                fnStr.AppendLine($"<td align=\"center\">{f}</td>");
+                fnStr.AppendLine($"<td class=\"normal left\">{System.Net.WebUtility.HtmlEncode(employeeName)}</td>");
+                fnStr.AppendLine($"<td class=\"normal left\">{System.Net.WebUtility.HtmlEncode(travelType)}</td>");
+                fnStr.AppendLine($"<td class=\"normal left\">{System.Net.WebUtility.HtmlEncode(destinations)}</td>");
+                fnStr.AppendLine($"<td class=\"normal left\">{travelDate}</td>");
+                fnStr.AppendLine($"<td class=\"normal left\">{returnDate}</td>");
+                fnStr.AppendLine($"<td class=\"normal left\">{submitDate}</td>");
+                fnStr.AppendLine($"<td class=\"normal left\">{appStatus}</td>");
+                fnStr.AppendLine(
+                    $"<td class=\"normal left\">" +
+                    $"<a href=\"javascript:postdata('request/employee_travel_settlement_app.asp?mode=verify" +
+                    $"&travsettleid={HttpUtility.UrlEncode(travSetId.ToString())}" +
+                    $"&emp_travel_id={HttpUtility.UrlEncode(empTravelId.ToString())}" +
+                    $"&emp_id={HttpUtility.UrlEncode(empId.ToString())}')\">Verified</a></td>"
+                );
+                fnStr.AppendLine("<td class=\"normal center\">");
+                fnStr.AppendLine($"<a href=\"javascript:postdata('request/employee_travel_settlement_add_edit.asp?mode=edit&emp_id={empId}&emp_travel_id={empTravelId}')\"><img src=\"/images/edit.png\" width=\"16\" height=\"16\" border=\"0\"></a>&nbsp;");
+
+                if (isForSet == "Y")
+                {
+                    fnStr.AppendLine($"<a href=\"javascript:PopUpW('request/employee_travel_settlement_print.asp?mode=print&travsettleid={travSetId}&emp_id={empId}&emp_travel_id={empTravelId}')\"><img src=\"/images/print.png\" alt=\"Print\" title=\"Print\" width=\"16\" height=\"16\" border=\"0\"></a>");
+                }
+
+                // Check if any document uploaded
+                bool hasDoc = _context.tbl_employee_travel_settlement_sub_doc.Any(d => d.trav_set_id == travSetId);
+                if (hasDoc)
+                {
+                    fnStr.AppendLine($"<a href=\"javascript:PopUpW('request/employee_travel_settlement_document.asp?mode=doc&travsettleid={travSetId}&emp_id={empId}&emp_travel_id={empTravelId}')\"><img src=\"/images/doc.png\" alt=\"Document\" title=\"Document\" width=\"12\" height=\"16\" border=\"0\"></a>");
+                }
+                else
+                {
+                    fnStr.AppendLine($"<img src=\"/images/no-doc.png\" alt=\"Document\" title=\"Document\" width=\"12\" height=\"16\" border=\"0\">");
+                }
+
+                fnStr.AppendLine("</td>");
+                fnStr.AppendLine("</tr>");
+            }
+
+            fnStr.AppendLine("</table>");
+            fnStr.AppendLine("</td>");
+            fnStr.AppendLine("</tr>");
+            fnStr.AppendLine("</table>");
+            fnStr.AppendLine("</div>");
+        }
+
+        fnStr.AppendLine("<div id=\"page-box\">");
+        fnStr.AppendLine($"<div id=\"page-box-left\"><h5>{settlements.Count} Records Found</h5></div>");
+        fnStr.AppendLine("<div id=\"page-box-right\"><h5>&nbsp;</h5></div>");
+        fnStr.AppendLine("</div>");
+
+        return fnStr.ToString();
+    }
+
 
 }

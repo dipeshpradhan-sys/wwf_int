@@ -248,7 +248,7 @@ namespace wwfpp.Data
         // public DbSet<que_employee_timesheet_app> que_employee_timesheet_app	 { get; set; }
         public DbSet<que_timesheet_sub> que_timesheet_sub { get; set; }
 
-        // public DbSet<que_employee_travel_settlement_main> que_employee_travel_settlement_main	 { get; set; }
+        public DbSet<que_employee_travel_settlement_main> que_employee_travel_settlement_main	 { get; set; }
 
 
         // public DbSet<que_employee_overtime_request> que_employee_overtime_request	 { get; set; }
@@ -485,6 +485,11 @@ namespace wwfpp.Data
                 _ = entity.Property(e => e.emp_week).HasColumnName("emp_week");
                 _ = entity.Property(e => e.fiscal).HasColumnName("fiscal");
             });
+
+            // Map the view with emp_id as the key
+            _ = modelBuilder.Entity<que_employee_travel_settlement_main>()
+                            .ToView("que_employee_travel_settlement_main")       // map to SQL view
+                            .HasKey(e => e.emp_travel_id);
         }
     }
 }

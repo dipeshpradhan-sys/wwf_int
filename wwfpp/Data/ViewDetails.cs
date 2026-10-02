@@ -588,5 +588,33 @@ namespace wwfpp.Data
         public decimal? annual_health_checkup_ded { get; set; }
     }
 
+    public class que_employee_travel_settlement_main
+    {
+        // Columns from tbl_employee_travel_settlement_main
+        public string? trav_set_id { get; set; }
+        public int emp_travel_id { get; set; }
+        public int emp_id { get; set; }
+        public string? app_status { get; set; }
+        public DateTime? app_date { get; set; }
+        public int? app_by { get; set; }
+        public string? is_for_set { get; set; }
+        // ... include all other columns from tsm as needed
 
+        // Extra columns from tbl_employee_travel_main
+        public string? trip_purpose { get; set; }
+        public string? destinations { get; set; }
+        public DateTime? date_from { get; set; }
+        public DateTime? date_to { get; set; }
+        public DateTime? t_submit_date { get; set; }
+        public string? t_app_status { get; set; }
+        public int? t_app_by { get; set; }
+        public DateTime? t_app_date { get; set; }
+        public string? denomination { get; set; }
+        public string? t_remarks { get; set; }
+        public string? travel_type { get; set; }
+
+        public DateTime? travel_date { get; set; }
+        public DateTime? return_date { get; set; }
+        public DateTime? submit_date { get; set; }
+    }
 }

@@ -49,6 +49,18 @@
                 }
             });
             $.ajax({
+                url: "/Dashboard/GetApprovedTravelSettlementSubmitedList",
+                type: 'POST',
+                data: {  },
+                success: function(data) {
+                    // Inject the HTML returned by your action
+                    $("#TravelSubmittedforSettlement").html(data);
+                },
+                error: function() {
+                    alert("Error loading travel settlement list.");
+                }
+            });
+            $.ajax({
             url: "/Dashboard/ListContractAlert",
                 type: 'POST',
                 data: { },
@@ -57,7 +69,7 @@
                     $("#EmployeeContractExpiry").html(data);
                 },
                 error: function() {
-                    alert("Error loading travel settlement list.");
+                    alert("Error expired contract list.");
                 }
             });
         }
