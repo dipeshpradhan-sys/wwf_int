@@ -686,5 +686,70 @@ namespace wwf_pp.Services
                 _context.SaveChanges();
             }
         }
+
+        /*public async Task<List<UnsettledTravelViewModel>> GetUnsettledTravelsListing(int parm_emp_id,DateTime parm_date_from,DateTime parm_date_to,DateTime parm_date_up_to,string parm_settle_type,string parm_order_field,string parm_order_type)
+        {
+            // Base query: approved travels within date range
+            var query = _context.tbl_employee_travel_main
+                .Where(a => a.date_from >= parm_date_from &&
+                            a.date_from <= parm_date_to &&
+                            a.date_to < parm_date_up_to &&
+                            a.app_status == "Approved" &&
+                            (a.can_by == null || a.can_by == 0))
+                .Join(_context.tbl_employee,
+                      a => a.emp_id,
+                      b => b.emp_id,
+                      (a, b) => new { a, b });
+
+            // Settlement filter
+            if (parm_settle_type == "T")
+            {
+                query = query.Where(x =>
+                    _context.tbl_employee_travel_settlement_main
+                        .Where(s => s.app_status == "T")
+                        .Select(s => s.emp_travel_id)
+                        .Contains(x.a.emp_travel_id));
+            }
+            else
+            {
+                query = query.Where(x =>
+                    !_context.tbl_employee_travel_settlement_main
+                        .Select(s => s.emp_travel_id)
+                        .Contains(x.a.emp_travel_id));
+            }
+
+            // Employee filter
+            if (parm_emp_id > 0)
+            {
+                query = query.Where(x => x.a.emp_id == parm_emp_id);
+            }
+
+            // Projection
+            var result = query.Select(x => new UnsettledTravelViewModel
+            {
+                emp_travel_id = x.a.emp_travel_id,
+                destinations = x.a.destinations,
+                date_from = x.a.date_from,
+                date_to = x.a.date_to,
+                submit_date = x.a.submit_date,
+                app_status = x.a.app_status,
+                travel_type = x.a.travel_type,
+                emp_id = x.a.emp_id,
+                FullName = x.b.firstname + " " + (x.b.middlename ?? "") + " " + x.b.lastname
+            });
+
+            // Dynamic ordering
+            if (parm_order_type.ToLower() == "desc")
+            {
+                result = result.OrderByDescending(e => EF.Property<object>(e, parm_order_field));
+            }
+            else
+            {
+                result = result.OrderBy(e => EF.Property<object>(e, parm_order_field));
+            }
+
+            return await result.ToListAsync();
+        }*/
+
     }
 }

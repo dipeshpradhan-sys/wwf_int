@@ -12,6 +12,7 @@
         public DateTime? submit_date { get; set; }
         public bool IsMarked { get; set; }
         public int? ActionByID { get; set; }
+        public string? ActionByName { get; set; }
 
     }
 

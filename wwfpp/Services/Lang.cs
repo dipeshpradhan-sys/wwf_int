@@ -255,4 +255,12 @@ public static class Lang
     public static string EMAIL_EMPLOYEE_TRAVEL_CAN_SAVE_SUBJECT = "Travel cancellation request submitted by <[EMPLOYEE-NAME-ONLY]>";
     public static string EMAIL_EMPLOYEE_TRAVEL_CAN_SAVE_MESSAGE = "Dear Sir/Madam,<br/><br/>Please find my travel cancellation request below.<br/><br/><[STR-MESSAGE]><br/><br/>Regards<br/><[EMPLOYEE-NAME-ONLY]><br/><br/>";
     public static string NOT_FOUND = "Record not found.";
+
+    /*--------------------------------------------------------------------------------'
+    * CONTRACT ALERT
+    *--------------------------------------------------------------------------------'
+    */
+    public static string EMAIL_EMPLOYEE_CONTRACT_NTR_SUBJECT = "Employee contract expiry notification from <[SITE-TITLE]>";
+    public static string EMAIL_EMPLOYEE_CONTRACT_NTR_MESSAGE = "Dear Sir/Madam,<br/><br/>Following employee's contract are going to expire or has been expired.<br/><br/><[STR-MESSAGE]>Please visit to the <[SITE-TITLE]> and update as required and appropriate.<br/><br/><b>Regards</b>,<br/><[SITE-ADMIN-NAME]><br/><[SITE-TITLE]><br/><br/>";
+
 }

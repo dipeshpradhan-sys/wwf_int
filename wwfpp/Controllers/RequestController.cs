@@ -3233,7 +3233,7 @@ namespace wwfpp.Controllers
             return PartialView("Request/_TravelSettlementList");
         }
         [HttpPost]
-        public string GetApprovedTravelList(string? fiscalYear, string? settleType)
+        public string GetApprovedTravelList(string? fiscalYear, string? settleType, string? pageType = "")
         {
             string fnStr = "";
             string fnNotIn = "";
@@ -3301,21 +3301,24 @@ namespace wwfpp.Controllers
                 if (rsfn.Any())
                 {
                     fnStr = @"<div class=""f-left w-100"">
-                <table width=""100%"" border=""0"" cellspacing=""1"" cellpadding=""1"" bgcolor=""#B1B1B1"">
-                <tr>
-                <td Bgcolor=""#FFFFFF"" align=""center"" class=""normal"">
-                <table width=""100%"" border=""0"" cellpadding=""4"" cellspacing=""2"" class=""normal"">
-                <tr bgcolor=""#CCCCCC"">
-                    <td width=""3%"" class=""title center"" height=""25"">S.N</td>
-                    <td width=""20%"" class=""title"">Employee Name</td>
-                    <td width=""10%"" class=""title"">Travel Type</td>
-                    <td width=""15%"" class=""title"">Destination/s</td>
-                    <td width=""15%"" class=""title"">Start Date</td>
-                    <td width=""10%"" class=""title"">End Date</td>
-                    <td width=""10%"" class=""title"">Submitted Date</td>
-                    <td width=""10%"" class=""title"">Status</td>
-                    <td width=""8%"" class=""title"">Action</td>
-                </tr>";
+                        <table width=""100%"" border=""0"" cellspacing=""1"" cellpadding=""1"" bgcolor=""#B1B1B1"">
+                        <tr>
+                        <td Bgcolor=""#FFFFFF"" align=""center"" class=""normal"">
+                        <table width=""100%"" border=""0"" cellpadding=""4"" cellspacing=""2"" class=""normal"">
+                        <tr bgcolor=""#CCCCCC"">
+                            <td width=""3%"" class=""title center"" height=""25"">S.N</td>
+                            <td width=""20%"" class=""title"">Employee Name</td>
+                            <td width=""10%"" class=""title"">Travel Type</td>
+                            <td width=""15%"" class=""title"">Destination/s</td>
+                            <td width=""15%"" class=""title"">Start Date</td>
+                            <td width=""10%"" class=""title"">End Date</td>
+                            <td width=""10%"" class=""title"">Submitted Date</td>
+                            <td width=""10%"" class=""title"">Status</td>";
+                            if (string.IsNullOrEmpty(pageType))
+                            {
+                                fnStr += @"<td width=""8%"" class=""title"">Action</td>";
+                            }
+                            fnStr += @"</tr>";
 
                     int f = 0;
                     foreach (var row in rsfn)
@@ -3377,13 +3380,16 @@ namespace wwfpp.Controllers
                             <td class=""normal left"">{dateFromStr}</td>
                             <td class=""normal left"">{dateToStr}</td>
                             <td class=""normal left"">{submitDateStr}</td>
-                            <td class=""normal left"">{appStatus}</td>
-                            <td class=""normal center"">
-                        <a href=""javascript:postdata('TravelSettlementAddEdit.asp?mode=edit&emp_travel_id={empTravelId}')""><img src=""/images/edit.png"" width=""16"" height=""16"" border=""0""></a>&nbsp;
-                        {printLink}
-                        {docLink}
-                    </td>
-                </tr>";
+                            <td class=""normal left"">{appStatus}</td>";
+                            if (string.IsNullOrEmpty(pageType))
+                            {
+                                fnStr += $@"<td class=""normal center"">
+                                <a href=""javascript:postdata('TravelSettlementAddEdit.asp?mode=edit&emp_travel_id={empTravelId}')""><img src=""/images/edit.png"" width=""16"" height=""16"" border=""0""></a>&nbsp;
+                                {printLink}
+                                {docLink}
+                            </td>";
+                        }
+                        fnStr += "</tr>";
                     }
 
                     fnStr += @"</table>
@@ -3392,11 +3398,13 @@ namespace wwfpp.Controllers
                 </table>
                 </div>";
                 }
-
-                fnStr += $@"<div id=""page-box"">
+                if (string.IsNullOrEmpty(pageType) || rsfn.Count() == 0)
+                {
+                    fnStr += $@"<div id=""page-box"">
                     <div id=""page-box-left""><h5>{rsfn.Count()} record(s) found!</h5></div>
                     <div id=""page-box-right""><h5>&nbsp;</h5></div>
-                </div>";
+                    </div>";
+                }
             }
 
             return fnStr;

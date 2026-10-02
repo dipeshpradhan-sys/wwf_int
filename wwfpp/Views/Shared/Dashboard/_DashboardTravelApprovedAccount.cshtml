@@ -35,14 +35,13 @@
                     <td>
                         @if (cmbMark == "markonly")
                         {
-                            //if (string.IsNullOrEmpty(travel.ActionByID))
-                            if (travel.ActionByID > 0)
+                            if (travel.ActionByID > 0 && travel.ActionByID == Convert.ToInt32(Context.Session.GetString("emp_id")))
                             {
                                 <a href="javascript:void(0);" onclick="setChecked('@travel.emp_travel_id','unchecked')">Set as Unchecked</a>
                             }
                             else
                             {
-                                @travel.ActionByID
+                                @travel.ActionByName
                             }
                         }
                         else

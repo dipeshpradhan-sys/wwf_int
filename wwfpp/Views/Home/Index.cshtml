@@ -120,6 +120,7 @@ else
                 </div>
             </div>
         }
+    <!--  All approved travel request(s) -->
     <div>
         <!-- Dashboard columns -->
         <div class="row">
@@ -149,6 +150,38 @@ else
 
                 <!-- Content -->
                 <div id="DashboardTravelApprovedAccount"></div>
+            </div>
+        </div>
+    </div>
+        <!--   Unsettled Travel(s) -->
+    <div>
+        <!-- Dashboard columns -->
+        <div class="row">
+            <div class="col-md-12">
+                <!-- Header bar -->
+                <div class="form-group p-2 d-flex justify-content-between align-items-center timesheet-header mb-0 text-black">
+                    <h5 class="timesheet-header mb-0">Unsettled Travel(s)</h5>
+                </div>
+                <!-- Content -->
+                <div id="UnsettledContainer"></div>
+            </div>
+
+            <div class="col-md-12">
+                <!-- Header bar -->
+                <div class="form-group p-2 d-flex justify-content-between align-items-center timesheet-header mb-0 text-black">
+                        <h5 class="timesheet-header mb-0">Travel Saved for Settlement</h5>
+                </div>
+                <!-- Content -->
+                    <div id="TravelSavedforSettlement"></div>
+            </div>
+
+            <div class="col-md-12">
+                <!-- Header bar -->
+                <div class="form-group p-2 d-flex justify-content-between align-items-center timesheet-header mb-0 text-black">
+                        <h5 class="timesheet-header mb-0">Employee contract expiry notification</h5>
+                </div>
+                <!-- Content -->
+                <div id="EmployeeContractExpiry"></div>
             </div>
         </div>
     </div>
@@ -294,6 +327,10 @@ else
                     loadWithSpinner("#futureLeaveSupervisor", "/Dashboard/FutureLeaveToSupervisior");
 
                     loadWithSpinner("#DashboardTravelApprovedAccount", "/Dashboard/DashboardTravelApprovedAccount");
+                    loadWithSpinner("#UnsettledContainer", "/Dashboard/DashboardUnsettledTravels");
+                    loadWithSpinner("#TravelSavedforSettlement", "/Dashboard/DashboardUnsettledTravels");
+                    loadWithSpinner("#EmployeeContractExpiry", "/Dashboard/DashboardUnsettledTravels");
+
 
                 
 
@@ -488,10 +525,12 @@ else
                 }
 
             function setChecked(emp_travel_id, saveValue) {
+                var value = document.getElementById("cmbMark").value;
+                var markonlyval = document.getElementById("cmbMeEmployee").value;
                 if (saveValue === "checked") {
-                    loadWithSpinner("#DashboardTravelApprovedAccount", "/Dashboard/DashboardTravelApprovedAccount/?saveValue=checked&emp_travel_id=" + emp_travel_id);
+                    loadWithSpinner("#DashboardTravelApprovedAccount", "/Dashboard/DashboardTravelApprovedAccount/?cmbMark=" + value + "&cmbMeEmployee=" + markonlyval + "&saveValue=checked&emp_travel_id=" + emp_travel_id);
                 } else if (saveValue === "unchecked") {
-                    loadWithSpinner("#DashboardTravelApprovedAccount", "/Dashboard/DashboardTravelApprovedAccount/?saveValue=unchecked&emp_travel_id=" + emp_travel_id);
+                    loadWithSpinner("#DashboardTravelApprovedAccount", "/Dashboard/DashboardTravelApprovedAccount/?cmbMark=" + value + "&cmbMeEmployee=" + markonlyval + "&saveValue=unchecked&emp_travel_id=" + emp_travel_id);
                 }
 
             }
