@@ -506,11 +506,14 @@ public class DashboardController : Controller
             fnStr.AppendLine("</div>");
         }
 
-        fnStr.AppendLine("<div id=\"page-box\">");
-        fnStr.AppendLine($"<div id=\"page-box-left\"><h5>{settlements.Count} Records Found</h5></div>");
-        fnStr.AppendLine("<div id=\"page-box-right\"><h5>&nbsp;</h5></div>");
-        fnStr.AppendLine("</div>");
-
+        if (settlements.Count == 0)
+        {
+            fnStr.AppendLine("<div id=\"page-box\">");
+            // Only show the left side message
+            fnStr.AppendLine($"<div id=\"page-box-left\"><h5>{settlements.Count} Records Found</h5></div>");
+            fnStr.AppendLine("<div id=\"page-box-right\"><h5>&nbsp;</h5></div>");
+            fnStr.AppendLine("</div>");
+        }
         return fnStr.ToString();
     }
 
