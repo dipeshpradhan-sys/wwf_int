@@ -246,36 +246,8 @@ public class DashboardController : Controller
     }
     public IActionResult DashboardTravelSettlement(string ? travelStatus = null)
     {
-        int emp_id = int.TryParse(HttpContext.Session.GetString("emp_id"), out int EmpId) ? EmpId : 0;
-        string emp_status = _employeeServices.GetEmployeeStatus(emp_id);
-        string employee = _employeeServices.GetEmployeeName(emp_id);
-        string FiscalYearActive = HttpContext.Session.GetString("fiscal_year") ?? "";
-        string SelectedFiscalYear = FiscalYearActive;
-        string start_fiscal_date = _settingsServices.GetFiscalYearValue(SelectedFiscalYear, "date_from") ?? "";
-        string end_fiscal_date = _settingsServices.GetFiscalYearValue(SelectedFiscalYear, "date_to") ?? "";
-        var startFiscalDate = DateTime.TryParse(start_fiscal_date, out var DF) ? DF : DateTime.MinValue;
-        var endFiscalDate = DateTime.TryParse(end_fiscal_date, out var DE) ? DE : DateTime.MinValue;
-        var Records = (from main in _context.tbl_employee_travel_main
-                       where main.emp_id == emp_id &&
-                       main.date_from >= startFiscalDate && main.date_to <= endFiscalDate &&
-                       main.app_status == "Approved"
-                       orderby main.date_from descending
-                       select new TravelSettlementListViewModel
-                       {
-                           EmpTravelId = main.emp_travel_id,
-                           TravelType = main.travel_type,
-                           Destinations = main.destinations,
-                           DateFrom = main.date_from,
-                           DateTo = main.date_to,
-                           SubmitDate = main.submit_date,
-                           AppStatus = main.app_status,
-                           ShowPrint = "N"
-                       }).ToList();
-
-
-
         ViewBag.travelStatus = travelStatus ?? "U";
-        return PartialView("Dashboard/_DashboardTravelSettlement", Records);
+        return PartialView("Dashboard/_DashboardTravelSettlement", "");
     }
     [HttpPost]
     [ValidateAntiForgeryToken]
@@ -291,8 +263,8 @@ public class DashboardController : Controller
         string start_fiscal_date = _settingsServices.GetFiscalYearValue(FiscalYearActive, "date_from") ?? "";
         string end_fiscal_date = _settingsServices.GetFiscalYearValue(FiscalYearActive, "date_to") ?? "";
         string emp_status = _employeeServices.GetEmployeeStatus(emp_id);
-        var startFiscalDate = DateTime.TryParse(start_fiscal_date, out var DF) ? DF : DateTime.MinValue; ;
-        var endFiscalDate = DateTime.TryParse(end_fiscal_date, out var DE) ? DE : DateTime.MinValue; ;
+        var startFiscalDate = DateTime.TryParse(start_fiscal_date, out var DF) ? DF : DateTime.MinValue;
+        var endFiscalDate = DateTime.TryParse(end_fiscal_date, out var DE) ? DE : DateTime.MinValue;
 
         var query =
             from main in _context.tbl_employee_travel_main

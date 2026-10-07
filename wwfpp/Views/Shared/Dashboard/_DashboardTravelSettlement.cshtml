@@ -1,9 +1,5 @@
 ﻿@using Microsoft.AspNetCore.Http;
 @inject IHttpContextAccessor HttpContextAccessor;
-@{
-    Layout = "~/Views/Shared/_LayoutWithoutNav.cshtml";
-    //Layout = "~/Views/Shared/_Layout.cshtml";
-}    
     <style>
         #tblDataList td, #tblDataList th {
             padding: 15px 10px;
@@ -12,6 +8,7 @@
         }
     </style>
     @Html.AntiForgeryToken()
+    @Html.Hidden("mode", "")
     @Html.Hidden("travelStatus", (string)ViewBag.travelStatus)
     @Html.Hidden("ilaka", "/Dashboard/DashboardTravelSettlement")
 
@@ -38,12 +35,14 @@
 
     @await Html.PartialAsync("_SharedModal", new wwfpp.Models.ModalViewModel { ModalId = "ModalID", DialogClass = "modal-lg", BodyId = "ModalBody" })
 
-    @section scripts
-    {
         <script>
             var ilaka = document.getElementById("ilaka").value;
             var travelStatus = document.getElementById("travelStatus").value;
             var table;
+            var hideviewaction = "";
+            if(travelStatus == "U" || travelStatus == "T"){
+                var hideviewaction = travelStatus;
+            }
             $(document).ready(function() {
                 GetAllDataSN(ilaka, "empTravelId", [
                     { data: "travelType", name: "TravelType", autoWidth: false },
@@ -57,13 +56,15 @@
                         data: "showPrint", name: "ShowPrint", autoWidth: false, orderable: false,
                         render: function(data, type, row) {
                             if (data === "Y") {
-                                if(settlementTypeDetail != "Submitted"){
+                                if (row.settlementTypeDetail !== "Submitted") {
                                     return '<button type="button" name="btnPrint" id="btnPrint" class="button-print" data-id="' + row.empTravelId + '">' +
                                         '<img src="/images/print.png" title="Print" width="16" height="16">' +
                                         '</button>';
-                                }else{
 
-                                   return "";
+                                } else {
+
+                                    return "";
+
                                 }
                             } else {
                                 return "";
@@ -77,27 +78,5 @@
                     }
                 );
             });
-
-            //$(document).on("click", "#tblData .button", function() { ViewData($(this).data("id")); });
-            //$(document).off('click', '#btnC').on('click', '#btnC', function() { modalCloseCancel($(this)); });
-
-            /*$(document).on("click", "#tblData .button-print", function() {
-                var payload = {
-                    id: $(this).data("id"),
-                    mode: "print"
-                };
-                $("#ModalBody").html("");
-                document.getElementById("mode").value = "print";
-                $.get(ilaka + "Print", payload, function(data) {
-                    $("#ModalBody").html(data);
-                    $("#ModalID .modal-title").text("Preview");
-                    var modal = new bootstrap.Modal(document.getElementById("ModalID"));
-                    modal.show();
-                }).fail(function(xhr) {
-                    showError("Error occured while loading record(s): " + xhr.responseText);
-                });
-            });*/
-
-
+            $(document).on("click", "#tblData .button", function() { ViewData($(this).data("id")); });
         </script>
-    }
