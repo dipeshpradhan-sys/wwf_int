@@ -347,6 +347,18 @@ public static class GblUtilities
         return !string.IsNullOrWhiteSpace(Input) && Input.Length > Len ? string.Concat(Input.AsSpan(0, Len), "...") : Input;
     }
     /***************************************************************************************************
+        * get string section part. string source, index = 0 or 1, spliter = ' '
+        *  
+        * Since : 2026-Jun-01
+        ****************************************************************************************************/
+    public static string GetSplitPart(string source, int index, string spliter)
+    {
+        if (string.IsNullOrEmpty(source)) return source;
+
+        var parts = source.Split(spliter);
+        return parts.Length > 0 ? parts[index] : source;
+    }
+    /***************************************************************************************************
     * format date with given format by adding 0 before single digit'
     *  
     * Since : 2026-Jun-01
@@ -726,5 +738,6 @@ public static class GblUtilities
         };
         return BuildSelectList(options, selvalue);
     }
+
 }
 

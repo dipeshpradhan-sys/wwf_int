@@ -160,37 +160,19 @@ else
             <div class="col-md-12">
                 <!-- Header bar -->
                 <div class="form-group p-2 d-flex justify-content-between align-items-center timesheet-header mb-0 text-black">
-                    <h5 class="timesheet-header mb-0">Unsettled Travel(s)</h5>
+                    <h5 class="timesheet-header mb-0"><div id="TravelSettlementContainerHeading">Unsettled Travel(s)</div></h5>
+                        <div class="d-flex">
+                            <div id="divTravelStatus" class="me-2">
+                                <select id="cmbTravelStatus" name="cmbTravelStatus" class="form-select form-select-sm" onchange="toggleTravelDiv();">
+                                    <option value="U">Unsettled</option>
+                                    <option value="I">Saved</option>
+                                    <option value="R">Submitted</option>
+                                </select>
+                            </div>
+                        </div>
                 </div>
                 <!-- Content -->
-                <div id="UnsettledContainer"></div>
-            </div>
-
-            <div class="col-md-12">
-                <!-- Header bar -->
-                <div class="form-group p-2 d-flex justify-content-between align-items-center timesheet-header mb-0 text-black">
-                        <h5 class="timesheet-header mb-0">Travel Saved for Settlement</h5>
-                </div>
-                <!-- Content -->
-                    <div id="TravelSavedforSettlement"></div>
-            </div>
-
-                <div class="col-md-12">
-                    <!-- Header bar -->
-                    <div class="form-group p-2 d-flex justify-content-between align-items-center timesheet-header mb-0 text-black">
-                        <h5 class="timesheet-header mb-0">Travel Submitted for Settlement.</h5>
-                    </div>
-                    <!-- Content -->
-                    <div id="TravelSubmittedforSettlement"></div>
-                </div>
-
-            <div class="col-md-12">
-                <!-- Header bar -->
-                <div class="form-group p-2 d-flex justify-content-between align-items-center timesheet-header mb-0 text-black">
-                        <h5 class="timesheet-header mb-0">Employee contract expiry notification</h5>
-                </div>
-                <!-- Content -->
-                <div id="EmployeeContractExpiry"></div>
+                <div id="TravelSettlementContainer"></div>
             </div>
         </div>
     </div>
@@ -255,12 +237,27 @@ else
                 }
 
                 // 🔹 Make loadWithSpinner global so it can be reused
-                function loadWithSpinner(selector, url) {
+                /*function loadWithSpinner(selector, url) {
                     $(selector).html("<div class='spinner'></div>");
                     $(selector).load(url, function (response, status) {
                         if (status === "error") $(selector).html("Failed to load data.");
                     });
+                }*/
+                function loadWithSpinner(selector, url, postData) {
+                    $(selector).html("<div class='spinner'></div>");
+                    $.ajax({
+                        url: url,
+                        type: "POST",
+                        data: postData,
+                        success: function (response) {
+                            $(selector).html(response);
+                        },
+                        error: function () {
+                            $(selector).html("Failed to load data.");
+                        }
+                    });
                 }
+
                 // *****************************************************************************
                 // 🔹 Approval or Decline Mode initializer Auto Pop when clicked from Email Link
             // *****************************************************************************
@@ -336,10 +333,13 @@ else
                     loadWithSpinner("#futureLeaveSupervisor", "/Dashboard/FutureLeaveToSupervisior");
 
                     loadWithSpinner("#DashboardTravelApprovedAccount", "/Dashboard/DashboardTravelApprovedAccount");
-                    loadWithSpinner("#UnsettledContainer", "/Dashboard/DashboardUnsettledTravels");
-                    loadWithSpinner("#TravelSavedforSettlement", "/Dashboard/DashboardUnsettledTravels");
-                    loadWithSpinner("#TravelSubmittedforSettlement", "/Dashboard/DashboardUnsettledTravels");
-                    loadWithSpinner("#EmployeeContractExpiry", "/Dashboard/DashboardUnsettledTravels");
+
+                    //loadWithSpinner("#UnsettledContainer", "/Dashboard/DashboardUnsettledTravels");
+                    loadWithSpinner("#TravelSettlementContainer", "/Dashboard/DashboardTravelSettlement");
+                    //loadWithSpinner("#TravelSavedforSettlement", "/Dashboard/DashboardUnsettledTravels");
+                    //loadWithSpinner("#TravelSubmittedforSettlement", "/Dashboard/DashboardUnsettledTravels");
+
+                    //loadWithSpinner("#EmployeeContractExpiry", "/Dashboard/DashboardUnsettledTravels");
                     
 
 
@@ -543,7 +543,21 @@ else
                 } else if (saveValue === "unchecked") {
                     loadWithSpinner("#DashboardTravelApprovedAccount", "/Dashboard/DashboardTravelApprovedAccount/?cmbMark=" + value + "&cmbMeEmployee=" + markonlyval + "&saveValue=unchecked&emp_travel_id=" + emp_travel_id);
                 }
+            }
 
+            function toggleTravelDiv() {
+                var value = document.getElementById("cmbTravelStatus").value;
+                if(value == "U"){
+                    data = "Unsettled Travel(s)";
+                    $("#TravelSettlementContainerHeading").html(data);
+                }else if(value == "I"){
+                    data = "Travel Saved for Settlement";
+                    $("#TravelSettlementContainerHeading").html(data);
+                }else if(value == "R"){
+                    data = "Travel Submitted for Settlement";
+                    $("#TravelSettlementContainerHeading").html(data);
+                }                
+                loadWithSpinner("#TravelSettlementContainer", "/Dashboard/DashboardTravelSettlement/?travelStatus="+value);
             }
         </script>
     }

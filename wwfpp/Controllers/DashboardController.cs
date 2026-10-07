@@ -1,4 +1,5 @@
-﻿using DocumentFormat.OpenXml.Wordprocessing;
+﻿using DocumentFormat.OpenXml.Bibliography;
+using DocumentFormat.OpenXml.Wordprocessing;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
@@ -13,6 +14,7 @@ using System.Collections.Generic;
 using System.Diagnostics.Eventing.Reader;
 using System.Drawing;
 using System.Drawing.Imaging;
+using System.Linq.Dynamic.Core;
 using System.Linq.Dynamic.Core.Tokenizer;
 using System.Net.NetworkInformation;
 using System.Web;
@@ -20,7 +22,9 @@ using wwf_pp.Services;
 using wwfpp.Data;
 using wwfpp.EmailServices;
 using wwfpp.Models;
+using wwfpp.Models.Personnel;
 using wwfpp.Services;
+using static GblUtilities;
 using static System.Net.Mime.MediaTypeNames;
 
 namespace wwfpp.Controllers;
@@ -35,8 +39,9 @@ public class DashboardController : Controller
     private readonly RequestServices _requestServices;
     private readonly AdministrationEmailService _administrationEmailService;
     private readonly EmailService _emailService;
+    private readonly SettingsServices _settingsServices;
 
-    public DashboardController(AppDbContext context, EmailService emailSender, DashboardService dashboardService, EmployeeServices employeeServices, IOptions<AppSettings> appSettings, RequestServices requestServices, AdministrationEmailService administrationEmailService, EmailService emailService)
+    public DashboardController(AppDbContext context, EmailService emailSender, DashboardService dashboardService, EmployeeServices employeeServices, IOptions<AppSettings> appSettings, RequestServices requestServices, AdministrationEmailService administrationEmailService, EmailService emailService, SettingsServices settingsServices)
     {
         _context = context;
         _emailSender = emailSender;
@@ -46,6 +51,7 @@ public class DashboardController : Controller
         _requestServices = requestServices;
         _administrationEmailService = administrationEmailService;
         _emailService = emailService;
+        _settingsServices = settingsServices;
     }
 
     public IActionResult TimesheetToSupervisor()
@@ -238,9 +244,121 @@ public class DashboardController : Controller
 
         return PartialView("Dashboard/_DashboardTravelApprovedAccount", travels);
     }
-    public IActionResult DashboardUnsettledTravels(int emp_id, string? fiscalYear = null, string? status = null)
+    public IActionResult DashboardTravelSettlement(string ? travelStatus = null)
     {
-        return PartialView("Dashboard/_DashboardUnsettledTravels");
+        int emp_id = int.TryParse(HttpContext.Session.GetString("emp_id"), out int EmpId) ? EmpId : 0;
+        string emp_status = _employeeServices.GetEmployeeStatus(emp_id);
+        string employee = _employeeServices.GetEmployeeName(emp_id);
+        string FiscalYearActive = HttpContext.Session.GetString("fiscal_year") ?? "";
+        string SelectedFiscalYear = FiscalYearActive;
+        string start_fiscal_date = _settingsServices.GetFiscalYearValue(SelectedFiscalYear, "date_from") ?? "";
+        string end_fiscal_date = _settingsServices.GetFiscalYearValue(SelectedFiscalYear, "date_to") ?? "";
+        var startFiscalDate = DateTime.TryParse(start_fiscal_date, out var DF) ? DF : DateTime.MinValue;
+        var endFiscalDate = DateTime.TryParse(end_fiscal_date, out var DE) ? DE : DateTime.MinValue;
+        var Records = (from main in _context.tbl_employee_travel_main
+                       where main.emp_id == emp_id &&
+                       main.date_from >= startFiscalDate && main.date_to <= endFiscalDate &&
+                       main.app_status == "Approved"
+                       orderby main.date_from descending
+                       select new TravelSettlementListViewModel
+                       {
+                           EmpTravelId = main.emp_travel_id,
+                           TravelType = main.travel_type,
+                           Destinations = main.destinations,
+                           DateFrom = main.date_from,
+                           DateTo = main.date_to,
+                           SubmitDate = main.submit_date,
+                           AppStatus = main.app_status,
+                           ShowPrint = "N"
+                       }).ToList();
+
+
+
+        ViewBag.travelStatus = travelStatus ?? "U";
+        return PartialView("Dashboard/_DashboardTravelSettlement", Records);
+    }
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DashboardTravelSettlementList([FromForm] MultipleCostumFilterRequest request)
+    {
+        var (pageSize, skip, draw, sortColumn, sortColumnDir, searchValue) = DataTableHelper.GetParameters(Request);
+
+        //string travelType= request.FilterValue2;
+        string SettlementStatusFilter = request.FilterValue1 ?? "";
+
+        string FiscalYearActive = HttpContext.Session.GetString("fiscal_year") ?? "";
+        int emp_id = int.TryParse(HttpContext.Session.GetString("emp_id"), out int EmpId) ? EmpId : 0;
+        string start_fiscal_date = _settingsServices.GetFiscalYearValue(FiscalYearActive, "date_from") ?? "";
+        string end_fiscal_date = _settingsServices.GetFiscalYearValue(FiscalYearActive, "date_to") ?? "";
+        string emp_status = _employeeServices.GetEmployeeStatus(emp_id);
+        var startFiscalDate = DateTime.TryParse(start_fiscal_date, out var DF) ? DF : DateTime.MinValue; ;
+        var endFiscalDate = DateTime.TryParse(end_fiscal_date, out var DE) ? DE : DateTime.MinValue; ;
+
+        var query =
+            from main in _context.tbl_employee_travel_main
+            where main.emp_id == emp_id
+                  && main.date_from >= startFiscalDate
+                  && main.date_to <= endFiscalDate
+                  && main.app_status == "Approved"
+                  && (main.can_by == null || main.can_by == 0)
+            orderby main.date_from descending
+            let settlement = _context.tbl_employee_travel_settlement_main
+                .Where(s => s.emp_travel_id == main.emp_travel_id)
+                .FirstOrDefault()
+            select new TravelSettlementListViewModel
+            {
+                EmpTravelId = main.emp_travel_id,
+                TravelType = main.travel_type,
+                Destinations = main.destinations,
+                DateFrom = main.date_from,
+                DateTo = main.date_to,
+                SubmitDate = main.submit_date,
+                AppStatus = main.app_status,
+                TravSetId = settlement != null ? settlement.trav_set_id : "0",
+                SettlementType =
+                    settlement == null ? "U" :
+                    settlement.app_status == "T" ? "T" :
+                    settlement.app_status == "P" && settlement.is_for_set == "Y" ? "R" :
+                    "U",
+                SettlementTypeDetail =
+                    settlement == null ? "Unsettled" :
+                    settlement.app_status == "T" ? "Saved" :
+                    settlement.app_status == "P" && settlement.is_for_set == "Y" ? "Submitted" :
+                    "Unsettled",
+                ShowPrint = (
+                    (settlement.app_status == "P" && settlement.is_for_set == "Y") ||
+                    (settlement.app_status == "A" && settlement.is_for_set == "Y")
+                    ) ? "Y" : "N"
+            };
+        if (!string.IsNullOrEmpty(SettlementStatusFilter))
+        {
+            query = query.Where(d => d.SettlementType == SettlementStatusFilter);
+        }
+        if (!string.IsNullOrEmpty(sortColumn) && !string.IsNullOrEmpty(sortColumnDir))
+        {
+            query = query.OrderBy($"{sortColumn} {sortColumnDir}");
+        }
+        if (!string.IsNullOrWhiteSpace(searchValue))
+        {
+            query = query.Where(a =>
+            (a.Destinations != null && a.Destinations.Contains(searchValue)) ||
+            (a.TravelType != null && a.TravelType.Contains(searchValue)) ||
+            (a.DateFrom != null && a.DateFrom.ToString().Contains(searchValue)) ||
+            (a.DateTo != null && a.DateTo.ToString().Contains(searchValue)) ||
+            (a.SubmitDate != null && a.SubmitDate.ToString().Contains(searchValue))
+            );
+        }
+        int totalRecord = query.Count();
+        if (pageSize == -1) { pageSize = totalRecord; }
+        var cData = query.Skip(skip).Take(pageSize).ToList();
+        var jsonData = new
+        {
+            draw,
+            recordsFiltered = totalRecord,
+            recordsTotal = totalRecord,
+            data = cData
+        };
+        return new JsonResult(jsonData);
     }
     public string ListContractAlert(string parm)
     {

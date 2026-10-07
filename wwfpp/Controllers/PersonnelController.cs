@@ -38,6 +38,9 @@ namespace wwfpp.Controllers
         private readonly AccountServices _accountServices;
         private readonly LeaveServices _leaveServices;
         private readonly IWebHostEnvironment _webHostEnvironment;
+        private readonly TravelServices _travelServices;
+        private readonly GeneralServices _generalServices;
+        private readonly RequestServices _requestServices;
         public PersonnelController(
             AppDbContext context,
             IOptions<AppSettings> appSettings,
@@ -48,7 +51,10 @@ namespace wwfpp.Controllers
             SettingsServices settingsServices,
             AccountServices accountServices,
             LeaveServices leaveServices,
-            IWebHostEnvironment webHostEnvironment
+            IWebHostEnvironment webHostEnvironment,
+            TravelServices travelServices,
+            GeneralServices generalServices,
+            RequestServices requestServices
         )
         {
             _context = context;
@@ -61,6 +67,9 @@ namespace wwfpp.Controllers
             _accountServices = accountServices;
             _leaveServices = leaveServices;
             _webHostEnvironment = webHostEnvironment;
+            _travelServices = travelServices;
+            _generalServices = generalServices;
+            _requestServices = requestServices;
         }
         /********************************************************************************************************************/
         /********************************************************************************************************************/
@@ -617,6 +626,171 @@ namespace wwfpp.Controllers
         }
         #endregion
         /********************************************************************************************************************/
+        #region 10805 TRAVEL SETTLEMENT
+        [HttpGet]
+        public IActionResult TravelSettlement()
+        {
+            string PageId = "10805";
+            #region FOR PERMISSION
+            var perm = _accountServices.GetMenuPermission(PageId);
+            if (perm.vpern == "false") { return RedirectToAction("PermissionDenied", "Home"); }
+            ViewBag.apern = perm.apern;
+            ViewBag.epern = perm.epern;
+            ViewBag.dpern = perm.dpern;
+            #endregion FOR END PERMISSION;
+
+            int emp_id = int.TryParse(HttpContext.Session.GetString("emp_id"), out int EmpId) ? EmpId : 0;
+            string emp_status = _employeeServices.GetEmployeeStatus(emp_id);
+            string employee = _employeeServices.GetEmployeeName(emp_id);
+            string FiscalYearActive = HttpContext.Session.GetString("fiscal_year") ?? "";
+            string SelectedFiscalYear = FiscalYearActive;
+            string start_fiscal_date = _settingsServices.GetFiscalYearValue(SelectedFiscalYear, "date_from") ?? "";
+            string end_fiscal_date = _settingsServices.GetFiscalYearValue(SelectedFiscalYear, "date_to") ?? "";
+            var startFiscalDate = DateTime.TryParse(start_fiscal_date, out var DF) ? DF : DateTime.MinValue;
+            var endFiscalDate = DateTime.TryParse(end_fiscal_date, out var DE) ? DE : DateTime.MinValue;
+            var Records = (from main in _context.tbl_employee_travel_main
+                           where main.emp_id == emp_id &&
+                           main.date_from >= startFiscalDate && main.date_to <= endFiscalDate &&
+                           main.app_status == "Approved"
+                           orderby main.date_from descending
+                           select new TravelSettlementListViewModel
+                           {
+                               EmpTravelId = main.emp_travel_id,
+                               TravelType = main.travel_type,
+                               Destinations = main.destinations,
+                               DateFrom = main.date_from,
+                               DateTo = main.date_to,
+                               SubmitDate = main.submit_date,
+                               AppStatus = main.app_status,
+                               ShowPrint = "N"
+                           }).ToList();
+
+            ViewBag.FiscalYearList = _settingsServices.GetFiscalYears(FiscalYearActive);
+            ViewBag.EmployeeStatus = emp_status == "A" ? "Active" : "Inactive";
+            ViewBag.SettlementStatusFilter = _travelServices.GetTravelStatus();
+            ViewBag.Employee = employee;
+            return PartialView("Personnel/_TravelSettlement", Records);
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> TravelSettlementList([FromForm] MultipleCostumFilterRequest request)
+        {
+            var (pageSize, skip, draw, sortColumn, sortColumnDir, searchValue) = DataTableHelper.GetParameters(Request);
+
+            string SelectedFiscalYear = request.FilterValue1;
+            string SettlementStatusFilter = request.FilterValue2 ?? "";
+
+            string FiscalYearActive = HttpContext.Session.GetString("fiscal_year") ?? "";
+            int emp_id = int.TryParse(HttpContext.Session.GetString("emp_id"), out int EmpId) ? EmpId : 0;
+            string start_fiscal_date = _settingsServices.GetFiscalYearValue(SelectedFiscalYear, "date_from") ?? "";
+            string end_fiscal_date = _settingsServices.GetFiscalYearValue(SelectedFiscalYear, "date_to") ?? "";
+            string emp_status = _employeeServices.GetEmployeeStatus(emp_id);
+            var startFiscalDate = DateTime.TryParse(start_fiscal_date, out var DF) ? DF : DateTime.MinValue; ;
+            var endFiscalDate = DateTime.TryParse(end_fiscal_date, out var DE) ? DE : DateTime.MinValue; ;
+
+            var query =
+                from main in _context.tbl_employee_travel_main
+                where main.emp_id == emp_id
+                      && main.date_from >= startFiscalDate
+                      && main.date_to <= endFiscalDate
+                      && main.app_status == "Approved"
+                      && (main.can_by == null || main.can_by == 0)
+                orderby main.date_from descending
+                let settlement = _context.tbl_employee_travel_settlement_main
+                    .Where(s => s.emp_travel_id == main.emp_travel_id)
+                    .FirstOrDefault()
+                select new TravelSettlementListViewModel
+                {
+                    EmpTravelId = main.emp_travel_id,
+                    TravelType = main.travel_type,
+                    Destinations = main.destinations,
+                    DateFrom = main.date_from,
+                    DateTo = main.date_to,
+                    SubmitDate = main.submit_date,
+                    AppStatus = main.app_status,
+                    TravSetId = settlement != null ? settlement.trav_set_id : "0",
+                    SettlementType =
+                        settlement == null ? "U" :
+                        settlement.app_status == "T" ? "T" :
+                        settlement.app_status == "P" && settlement.is_for_set == "Y" ? "R" :
+                        settlement.app_status == "A" && settlement.is_for_set == "Y" ? "S" :
+                        settlement.app_status == "P" && settlement.is_for_set == "N" ? "N" :
+                        settlement.app_status == "A" && settlement.is_for_set == "N" ? "M" :
+                        "U",
+                    SettlementTypeDetail =
+                        settlement == null ? "Unsettled" :
+                        settlement.app_status == "T" ? "Saved" :
+                        settlement.app_status == "P" && settlement.is_for_set == "Y" ? "Submitted" :
+                        settlement.app_status == "A" && settlement.is_for_set == "Y" ? "Selttled" :
+                        settlement.app_status == "P" && settlement.is_for_set == "N" ? "SNR [Pending]" :
+                        settlement.app_status == "A" && settlement.is_for_set == "N" ? "SNR [Verified]" :
+                        "Unsettled",
+                    ShowPrint = (
+                        (settlement.app_status == "P" && settlement.is_for_set == "Y") ||
+                        (settlement.app_status == "A" && settlement.is_for_set == "Y")
+                        ) ? "Y" : "N"
+                };
+            if (!string.IsNullOrEmpty(SettlementStatusFilter))
+            {
+                query = query.Where(d => d.SettlementType == SettlementStatusFilter);
+            }
+            if (!string.IsNullOrEmpty(sortColumn) && !string.IsNullOrEmpty(sortColumnDir))
+            {
+                query = query.OrderBy($"{sortColumn} {sortColumnDir}");
+            }
+            if (!string.IsNullOrWhiteSpace(searchValue))
+            {
+                query = query.Where(a =>
+                (a.Destinations != null && a.Destinations.Contains(searchValue)) ||
+                (a.TravelType != null && a.TravelType.Contains(searchValue)) ||
+                (a.DateFrom != null && a.DateFrom.ToString().Contains(searchValue)) ||
+                (a.DateTo != null && a.DateTo.ToString().Contains(searchValue)) ||
+                (a.SubmitDate != null && a.SubmitDate.ToString().Contains(searchValue))
+                );
+            }
+            int totalRecord = query.Count();
+            if (pageSize == -1) { pageSize = totalRecord; }
+            var cData = query.Skip(skip).Take(pageSize).ToList();
+            var jsonData = new
+            {
+                draw,
+                recordsFiltered = totalRecord,
+                recordsTotal = totalRecord,
+                data = cData
+            };
+            return new JsonResult(jsonData);
+        }
+        [HttpGet]
+        public async Task<IActionResult> TravelSettlementAddEditAsync(int? id, string mode)
+        {
+            string PageId = "10805";
+            #region FOR PERMISSION
+            var perm = _accountServices.GetMenuPermission(PageId);
+            if (perm.vpern == "false") { return RedirectToAction("PermissionDenied", "Home"); }
+            #endregion FOR END PERMISSION
+
+            if (id is < 1 or null) { return BadRequest(new { success = false, message = Lang.msg_error }); }
+
+            ViewBag.mode = mode;
+            ViewBag.DATE_FORMAT = _appSettings.DATE_FORMAT;
+            ViewBag.FundSource = _generalServices.GetFundSourceBoth();
+
+            TravelSettlementViewModel model;
+            model = new TravelSettlementViewModel();
+            model = await _travelServices.GetTravelSettlementDetailAsync(Convert.ToInt32(id)).ConfigureAwait(false);
+
+            if (mode == "add")
+            {
+                ViewBag.apern = _accountServices.GetSingleMenuPermission(PageId, "A") ?? "false";
+            }
+            else if (mode == "edit")
+            {
+                ViewBag.epern = _accountServices.GetSingleMenuPermission(PageId, "E") ?? "false";
+            }
+            ViewBag.ChargePerOrAmt = _requestServices.GetChargePerOrAmt(model.TravelSettlement.ChargePerOrAmt);
+            return PartialView("Personnel/_TravelSettlementAddEdit", model);
+        }
+        #endregion
 
         public IActionResult Index()
         {

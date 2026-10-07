@@ -708,5 +708,25 @@ namespace wwfpp.Services
             string flag = DateFlag.TryGetValue(SelDate, out string? value) ? value : string.Empty;
             return flag;
         }
+
+        /***************************************************************************************************
+        * Since : 2026-Sep-19
+        * This function only check if the CR is in International travel Today 
+        * Previouisly it was in reqmgr
+        ****************************************************************************************************/
+        public string GetCRAbsentStatus(int? empId)
+        {
+            string Status = "Absent"; //Default 
+            if (empId < 1) { return Status; }
+            bool exists = _context.tbl_employee_travel_main
+                .Where(z => z.emp_id == empId &&
+                            z.app_status == "Pending" &&
+                            z.travel_type == "International" &&
+                            DateTime.Today >= z.date_from &&
+                            DateTime.Today <= z.date_to
+                            )
+                .Any();
+            return exists ? "Present" : Status;
+        }
     }
 }

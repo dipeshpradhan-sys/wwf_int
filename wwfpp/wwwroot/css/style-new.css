@@ -1252,3 +1252,62 @@ body{
     padding: 6px; /* Optional: adds spacing inside the textbox */
     box-sizing: border-box;
 }
+/* Grid-like table styling */
+.leave-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+    .leave-table th, .leave-table td {
+        border: 1px solid #ccc;
+        padding: 6px;
+    }
+
+    .leave-table th {
+        background-color: #f2f2f2;
+        font-weight: bold;
+        text-align: left;
+    }
+
+/* Section header (Annual Leave, Sick Leave, etc.) */
+.leave-section {
+    background-color: #d9edf7; /* light blue */
+    font-weight: bold;
+}
+
+/* Highlight Total and Balance rows */
+.leave-total, .leave-balance {
+    font-weight: bold;
+    background-color: #f9f9f9;
+}
+
+
+
+/* Grid-like table styling */
+.table-section {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+    .table-section th, .table-section td {
+        border: 1px solid #ccc;
+        padding: 6px;
+    }
+
+    .table-section th {
+        background-color: #f2f2f2;
+        font-weight: bold;
+        text-align: left;
+    }
+
+/* Section header  */
+.tr-section {
+    background-color: #d9edf7; /* light blue */
+    font-weight: bold;
+}
+
+/* Highlight Total and Balance rows */
+.table-total, .table-balance {
+    font-weight: bold;
+    background-color: #f9f9f9;
+}

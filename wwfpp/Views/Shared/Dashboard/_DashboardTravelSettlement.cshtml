@@ -1,0 +1,103 @@
+﻿@using Microsoft.AspNetCore.Http;
+@inject IHttpContextAccessor HttpContextAccessor;
+@{
+    Layout = "~/Views/Shared/_LayoutWithoutNav.cshtml";
+    //Layout = "~/Views/Shared/_Layout.cshtml";
+}    
+    <style>
+        #tblDataList td, #tblDataList th {
+            padding: 15px 10px;
+            font-size: 15px;
+            height: 15px;
+        }
+    </style>
+    @Html.AntiForgeryToken()
+    @Html.Hidden("travelStatus", (string)ViewBag.travelStatus)
+    @Html.Hidden("ilaka", "/Dashboard/DashboardTravelSettlement")
+
+    <div class="form-group p-2">
+        <table id="tblData" class="display compact nowrap" style="width:100%">
+            <thead>
+                <tr style="height: 40px; align-items: center;color:white;" class="bg-secondary bg-opacity-27">
+                    <th width="1%">SN</th>
+                    <th width="10%">Travel Type</th>
+                    <th width="14%">Destination/s</th>
+                    <th width="10%">Start Date</th>
+                    <th width="10%">End Date</th>
+                    <th width="15%">Submit Date</th>
+                    <th width="10%">Travel Status</th>
+                    <th width="10%">Settled Status</th>
+                    <th width="10%"></th>
+                    <th width="10%">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
+    </div>
+
+    @await Html.PartialAsync("_SharedModal", new wwfpp.Models.ModalViewModel { ModalId = "ModalID", DialogClass = "modal-lg", BodyId = "ModalBody" })
+
+    @section scripts
+    {
+        <script>
+            var ilaka = document.getElementById("ilaka").value;
+            var travelStatus = document.getElementById("travelStatus").value;
+            var table;
+            $(document).ready(function() {
+                GetAllDataSN(ilaka, "empTravelId", [
+                    { data: "travelType", name: "TravelType", autoWidth: false },
+                    { data: "destinations", name: "Destinations", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                    { data: "dateFrom", name: "DateFrom", autoWidth: false, render: function(data, type, row) { if (type === 'display' || type === 'filter') { return moment(data).format(my_format); } return data; } },
+                    { data: "dateTo", name: "DateTo", autoWidth: false, render: function(data, type, row) { if (type === 'display' || type === 'filter') { return moment(data).format(my_format); } return data; } },
+                    { data: "submitDate", name: "SubmitDate", autoWidth: false, render: function(data, type, row) { if (type === 'display' || type === 'filter') { return moment(data).format(my_format); } return data; } },
+                    { data: "appStatus", name: "AppStatus", autoWidth: false },
+                    { data: "settlementTypeDetail", name: "settlementTypeDetail", autoWidth: false },
+                    {
+                        data: "showPrint", name: "ShowPrint", autoWidth: false, orderable: false,
+                        render: function(data, type, row) {
+                            if (data === "Y") {
+                                if(settlementTypeDetail != "Submitted"){
+                                    return '<button type="button" name="btnPrint" id="btnPrint" class="button-print" data-id="' + row.empTravelId + '">' +
+                                        '<img src="/images/print.png" title="Print" width="16" height="16">' +
+                                        '</button>';
+                                }else{
+
+                                   return "";
+                                }
+                            } else {
+                                return "";
+                            }
+                        }
+                    }
+                ],
+                    {
+                        FilterValue1: "travelStatus",
+                        FilterValue2: "SettlementStatusFilter",
+                    }
+                );
+            });
+
+            //$(document).on("click", "#tblData .button", function() { ViewData($(this).data("id")); });
+            //$(document).off('click', '#btnC').on('click', '#btnC', function() { modalCloseCancel($(this)); });
+
+            /*$(document).on("click", "#tblData .button-print", function() {
+                var payload = {
+                    id: $(this).data("id"),
+                    mode: "print"
+                };
+                $("#ModalBody").html("");
+                document.getElementById("mode").value = "print";
+                $.get(ilaka + "Print", payload, function(data) {
+                    $("#ModalBody").html(data);
+                    $("#ModalID .modal-title").text("Preview");
+                    var modal = new bootstrap.Modal(document.getElementById("ModalID"));
+                    modal.show();
+                }).fail(function(xhr) {
+                    showError("Error occured while loading record(s): " + xhr.responseText);
+                });
+            });*/
+
+
+        </script>
+    }

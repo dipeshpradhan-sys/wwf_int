@@ -516,5 +516,158 @@ namespace wwfpp.Services
             return _context.tbl_setting_limit_hrs.FirstOrDefault();
         }
 
+
+        public async Task<(int toEmpId, string post)> ResolveApproverAsync(int empId, bool useLineManager = false)
+        {
+            int toEmpId = 0;
+
+            // Pick manager field based on flag
+            int managerId = await _context.tbl_employee
+                .Where(e => e.emp_id == empId)
+                .Select(e => useLineManager ? (e.line_manager_id ?? 0) : (e.manager_id ?? 0))
+                .FirstOrDefaultAsync()
+                .ConfigureAwait(false);
+
+            toEmpId = managerId;
+            string byPost = useLineManager ? "Line Director" : "Immediate Supervisor";
+
+            string managerStatus = await GetEmployeePresentAbsentStatusAsync(managerId).ConfigureAwait(false);
+
+            if (managerStatus == "A") // manager absent
+            {
+                // Pick alternate manager field based on flag
+                int? altManagerId = await _context.tbl_employee
+                    .Where(e => e.emp_id == empId)
+                    .Select(e => useLineManager ? e.alt_line_manager_id : e.alt_manager_id)
+                    .FirstOrDefaultAsync()
+                    .ConfigureAwait(false);
+
+                if (altManagerId.HasValue)
+                {
+                    string altManagerStatus = await GetEmployeePresentAbsentStatusAsync(altManagerId.Value).ConfigureAwait(false);
+
+                    // manager absent and alt manager present
+                    if (altManagerStatus == "P")
+                    {
+                        toEmpId = altManagerId.Value;
+                        byPost = useLineManager ? "Alternate Line Director" : "Alternate Immediate Supervisor";
+                    }
+                }
+            }
+            return (toEmpId, byPost);
+        }
+        /********************************************************************************************************************/
+        public async Task<int> GetUserIdFromEmployeeIdAsync(int empid)
+        {
+            int toId = await _context.tbl_user
+                .Where(u => u.emp_id == empid)
+                .Select(u => u.user_id)
+                .FirstOrDefaultAsync().ConfigureAwait(false);
+            return toId;
+        }
+        /********************************************************************************************************************/
+        public async Task<string> GetEmployeePresentAbsentStatusAsync(int? empId, DateTime? curDate = null)
+        {
+            // P = Present, A = Absent
+            DateTime today = curDate ?? DateTime.Today;
+
+            if (empId is null or 0) { return "A"; /* No employee selected ? absent*/ }
+
+            //Check Day Off
+            bool onDayOff = await _context.tbl_employee_dayoff
+                .AnyAsync(d => d.emp_id == empId
+                && d.dayoff_date == today).ConfigureAwait(false);
+            if (onDayOff) { return "A"; }
+
+            // Check leave
+            bool onLeave = await _context.tbl_employee_leave
+                .AnyAsync(l => l.emp_id == empId
+                    && l.app_status == "Approved"
+                    && today >= l.leave_from_date
+                    && today <= l.leave_to_date).ConfigureAwait(false);
+            if (onLeave) { return "A"; }
+
+            // Check travel
+            bool onTravel = await _context.tbl_employee_travel_main
+                .AnyAsync(t => t.emp_id == empId
+                    && t.app_status == "Approved"
+                    && today >= t.date_from
+                    && today <= t.date_to).ConfigureAwait(false);
+
+            return onTravel ? "A" : "P";
+        }
+        /********************************************************************************************************************/
+        /********************************************************************************************************************/
+        /********************************************************************************************************************/
+        /********************************************************************************************************************/
+        /********************************************************************************************************************/
+        /***************************************************************************************************
+        * Since : 2026-Aug-31
+        ****************************************************************************************************/
+        public SelectList GetReimbursementType(string selvalue = "")
+        {
+            var options = new Dictionary<string, string>
+            {
+                { "Medical", "Medical" },
+                { "Life Insurance", "Life Insurance" },
+                { "Non Life Insurance", "Non Life Insurance" }
+            };
+            return GblUtilities.BuildSelectList(options, selvalue);
+        }
+        /***************************************************************************************************
+        * Since : 2026-Sep-27
+        ****************************************************************************************************/
+        public string GetFundSourceName(int fundId)
+        {
+            if (fundId < 1) { return ""; }
+            string FundName = _context.tbl_fund_source
+                .Where(f => f.fund_id == fundId)
+                .Select(f => f.fund_source)
+                .FirstOrDefault() ?? "";
+            return FundName;
+        }
+        /***************************************************************************************************
+        * Since : 2026-Sep-27
+        ****************************************************************************************************/
+        public string GetCurrencyName(int curId)
+        {
+            if (curId < 1) { return ""; }
+            string CurName = _context.tbl_currency
+                .Where(c => c.cur_id == curId)
+                .Select(c => c.cur_abbr)
+                .FirstOrDefault() ?? "";
+            return CurName;
+        }
+        /***************************************************************************************************
+        * Since : 2026-Sep-27
+        ****************************************************************************************************/
+        public async Task<string> GetSignatureAsync(int? empId)
+        {
+            if (empId is < 1 or null) { return string.Empty; }
+
+            // Query the signature column for the given employee
+            string signature = await _context.tbl_employee_signature
+                .Where(e => e.emp_id == empId)
+                .Select(e => e.signature)
+                .FirstOrDefaultAsync().ConfigureAwait(false) ?? "";
+
+            // If no signature or null, return empty string
+            return string.IsNullOrEmpty(signature) ? string.Empty : signature;
+        }
+        /***************************************************************************************************
+        * Since : 2026-Oct-01
+        ****************************************************************************************************/
+        public SelectList GetChargePerOrAmt(string selvalue = "")
+        {
+            var options = new Dictionary<string, string>
+            {
+                { "0", "Percentage" },
+                { "1", "Amount" }
+            };
+            return GblUtilities.BuildSelectList(options, selvalue);
+        }
+
+
+
     }
 }

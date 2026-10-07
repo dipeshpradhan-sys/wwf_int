@@ -1,0 +1,147 @@
+﻿@using Microsoft.AspNetCore.Http;
+@inject IHttpContextAccessor HttpContextAccessor;
+@model List<wwfpp.Models.Personnel.TravelSettlementListViewModel>
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var PageTitle = "Travel Settlement";
+    var Page_Tips = "";  //Tool tip message on right side
+    var msg_please_wait = "";
+    var Page_Mode = PageTitle;
+    ViewData["Title"] = "| " + PageTitle;
+    var Help_Tips = GblUtilities.HelpTips(Page_Tips);
+    /*success|fail|error'*/
+    string ShowMsg = GblUtilities.MsgDisplay(Context.Request.Query["msg"].ToString());
+    int emp_id = int.TryParse(HttpContextAccessor.HttpContext.Session.GetString("emp_id"), out int EmpId) ? EmpId : 0;
+}
+@if (emp_id < 1)
+{
+    <div id="message_header">
+        <p id="message" class="warning">
+            <b>NOTE:</b>
+            Your are not suppose to be here.
+        </p>
+    </div>
+}
+else
+{
+    <style>
+        #tblDataList td, #tblDataList th {
+            padding: 15px 10px;
+            font-size: 15px;
+            height: 15px;
+        }
+    </style>
+    @Html.AntiForgeryToken()
+    @Html.Hidden("mode", "")
+    @Html.Hidden("ilaka", "/Personnel/TravelSettlement")
+
+    <h2 class="titlebig"><span name="header" id="header">@Page_Mode</span> @Html.Raw(Help_Tips)</h2>
+    <div id="message_header"><p id="loading" class="loading displaynone">@msg_please_wait</p></div>
+    <div id="message_header">@Html.Raw(ShowMsg)</div>
+
+    <div class="row">
+        <div class="col-lg-11"><label class="col-lg-12 col-form-label-lg">Employee : @ViewBag.Employee [@ViewBag.EmployeeStatus] &nbsp;</label></div>
+        <div class="col-lg-1">&nbsp;@Html.Hidden("emp_id", emp_id)</div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-2"><label class="col-lg-12 col-form-label-lg">Fiscal Year: &nbsp;</label></div>
+        <div class="col-lg-10">
+            @Html.DropDownList("FiscalYearFilter", (SelectList)ViewBag.FiscalYearList, "-- Select --", new { @class = "form-select", style = "width:150px;" })
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-2"><label class="col-lg-12 col-form-label-lg">Settlement status: &nbsp;</label></div>
+        <div class="col-lg-10">
+            @Html.DropDownList("SettlementStatusFilter", (SelectList)ViewBag.SettlementStatusFilter, "--All--", new { @class = "form-select me-4", style = "width:150px;" })
+        </div>
+    </div>
+
+    <div class="p-0 bg-white rounded mb-3">
+        <div class="row align-items-center">
+            <div class="col-auto ms-auto">
+                @Html.Raw(ViewBag.ViewButtons)
+            </div>
+        </div>
+    </div>
+
+    <div class="form-group p-2">
+        <table id="tblData" class="display compact nowrap" style="width:100%">
+            <thead>
+                <tr style="height: 40px; align-items: center;color:white;" class="bg-secondary bg-opacity-27">
+                    <th width="1%">SN</th>
+                    <th width="10%">Travel Type</th>
+                    <th width="14%">Destination/s</th>
+                    <th width="10%">Start Date</th>
+                    <th width="10%">End Date</th>
+                    <th width="15%">Submit Date</th>
+                    <th width="10%">Travel Status</th>
+                    <th width="10%">Settled Status</th>
+                    <th width="10%"></th>
+                    <th width="10%">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
+    </div>
+
+    @await Html.PartialAsync("_SharedModal", new wwfpp.Models.ModalViewModel { ModalId = "ModalID", DialogClass = "modal-lg", BodyId = "ModalBody" })
+
+    @section scripts
+    {
+        <script>
+            var ilaka = document.getElementById("ilaka").value;
+            var table;
+            $(document).ready(function() {
+                GetAllDataSN(ilaka, "empTravelId", [
+                    { data: "travelType", name: "TravelType", autoWidth: false },
+                    { data: "destinations", name: "Destinations", autoWidth: false, render: function(data, type, row) { return '<span style="white-space:normal;">' + data + '</span>'; } },
+                    { data: "dateFrom", name: "DateFrom", autoWidth: false, render: function(data, type, row) { if (type === 'display' || type === 'filter') { return moment(data).format(my_format); } return data; } },
+                    { data: "dateTo", name: "DateTo", autoWidth: false, render: function(data, type, row) { if (type === 'display' || type === 'filter') { return moment(data).format(my_format); } return data; } },
+                    { data: "submitDate", name: "SubmitDate", autoWidth: false, render: function(data, type, row) { if (type === 'display' || type === 'filter') { return moment(data).format(my_format); } return data; } },
+                    { data: "appStatus", name: "AppStatus", autoWidth: false },
+                    { data: "settlementTypeDetail", name: "settlementTypeDetail", autoWidth: false },
+                    {
+                        data: "showPrint", name: "ShowPrint", autoWidth: false, orderable: false,
+                        render: function(data, type, row) {
+                            if (data === "Y") {
+                                return '<button type="button" name="btnPrint" id="btnPrint" class="button-print" data-id="' + row.empTravelId + '">' +
+                                    '<img src="/images/print.png" title="Print" width="16" height="16">' +
+                                    '</button>';
+                            } else {
+                                return "";
+                            }
+                        }
+                    }
+                ],
+                    {
+                        FilterValue1: "FiscalYearFilter",
+                        FilterValue2: "SettlementStatusFilter",
+                    }
+                );
+            });
+
+            $(document).on("click", "#tblData .button", function() { ViewData($(this).data("id")); });
+            $(document).off('click', '#btnC').on('click', '#btnC', function() { modalCloseCancel($(this)); });
+
+            $(document).on("click", "#tblData .button-print", function() {
+                var payload = {
+                    id: $(this).data("id"),
+                    mode: "print"
+                };
+                $("#ModalBody").html("");
+                document.getElementById("mode").value = "print";
+                $.get(ilaka + "Print", payload, function(data) {
+                    $("#ModalBody").html(data);
+                    $("#ModalID .modal-title").text("Preview");
+                    var modal = new bootstrap.Modal(document.getElementById("ModalID"));
+                    modal.show();
+                }).fail(function(xhr) {
+                    showError("Error occured while loading record(s): " + xhr.responseText);
+                });
+            });
+        </script>
+    }
+}

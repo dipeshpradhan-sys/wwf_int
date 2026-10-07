@@ -1403,3 +1403,388 @@ function renderModalDiscardButton(containerId) {
 /*----------------------------------------------------------------------------------------
 *
 *---------------------------------------------------------------------------------------*/
+/*----------------------------------------------------------------------------------------
+*
+*---------------------------------------------------------------------------------------*/
+function renderModalPrintButton(containerId) {
+	const container = document.getElementById(containerId);
+	container.textContent = "";
+
+	const printBtn = document.createElement("button");
+	printBtn.type = "button";
+	printBtn.name = "btnPrint";
+	printBtn.id = "btnPrint";
+	printBtn.className = "button btn-primary";
+	printBtn.textContent = "Print";
+
+	const closeBtn = document.createElement("button");
+	closeBtn.type = "button";
+	closeBtn.name = "btnC";
+	closeBtn.id = "btnC";
+	closeBtn.className = "button btn-secondary";
+	closeBtn.textContent = "Close";
+	container.append(printBtn, closeBtn);
+}
+/*----------------------------------------------------------------------------------------
+*
+*---------------------------------------------------------------------------------------*/
+function renderModalSaveSubmitButtons(containerId, setType) {
+	const container = document.getElementById(containerId);
+	container.textContent = "";
+
+	if (setType === "" || setType === "T") {
+		const saveBtn = document.createElement("button");
+		saveBtn.type = "button";
+		saveBtn.name = "btnSave";
+		saveBtn.id = "btnSave";
+		saveBtn.className = "button btn-primary";
+		saveBtn.textContent = "Save Only";
+		container.append(saveBtn);
+	}
+	const submitBtn = document.createElement("button");
+	submitBtn.type = "button";
+	submitBtn.name = "btnSubmit";
+	submitBtn.id = "btnSubmit";
+	submitBtn.className = "button btn-primary";
+	submitBtn.textContent = "Submit";
+	container.append(submitBtn);
+
+	const closeBtn = document.createElement("button");
+	closeBtn.type = "button";
+	closeBtn.name = "btnC";
+	closeBtn.id = "btnC";
+	closeBtn.className = "button btn-secondary";
+	closeBtn.textContent = "Close";
+	container.append(closeBtn);
+}
+/*----------------------------------------------------------------------------------------
+*
+*---------------------------------------------------------------------------------------*/
+function renderModalSaveSubmitButtons(containerId, setType) {
+	const container = document.getElementById(containerId);
+	container.textContent = "";
+
+	if (setType === "" || setType === "T") {
+		const saveBtn = document.createElement("button");
+		saveBtn.type = "button";
+		saveBtn.name = "btnSave";
+		saveBtn.id = "btnSave";
+		saveBtn.className = "button btn-primary";
+		saveBtn.textContent = "Save Only";
+		container.append(saveBtn);
+	}
+	const submitBtn = document.createElement("button");
+	submitBtn.type = "button";
+	submitBtn.name = "btnSubmit";
+	submitBtn.id = "btnSubmit";
+	submitBtn.className = "button btn-primary";
+	submitBtn.textContent = "Submit";
+	container.append(submitBtn);
+
+	const closeBtn = document.createElement("button");
+	closeBtn.type = "button";
+	closeBtn.name = "btnC";
+	closeBtn.id = "btnC";
+	closeBtn.className = "button btn-secondary";
+	closeBtn.textContent = "Close";
+	container.append(closeBtn);
+}
+/*----------------------------------------------------------------------------------------
+* show hide travel advance settlement block
+*---------------------------------------------------------------------------------------*/
+function showHideReqAdvSet() {
+	const chk = document.getElementById("chkReqAdvSet");
+	const div = document.getElementById("divReqAdvSet");
+	const btn = document.getElementById("btnSave");
+
+	if (chk && chk.checked) {
+		div.style.display = "none";
+		if (btn) btn.style.display = "none";
+	} else {
+		div.style.display = "block";
+		if (btn) btn.style.display = "block";
+	}
+}
+/*----------------------------------------------------------------------------------------
+* travel settlement - add new row
+*---------------------------------------------------------------------------------------*/
+
+/*----------------------------------------------------------------------------------------
+* Individual row calculate (international travel)
+*---------------------------------------------------------------------------------------*/
+function TravelSetDetailCalculateInt(iVal) {
+	var Rate = 0;
+	var IntAmount = 0;
+	var IntUsdAmount = 0;
+
+	Rate = $("#Rate" + iVal).val();
+	if (Rate === "") { Rate = 0; }
+	Rate = parseFloat(Rate);
+
+	IntAmount = $("#IntAmount" + iVal).val();
+	if (IntAmount === "") { IntAmount = 0; }
+	IntAmount = parseFloat(IntAmount);
+
+	if (Rate === 0) {
+		IntUsdAmount = 0;
+	} else {
+		IntUsdAmount = IntAmount / Rate;
+	}
+	$("#IntUSDAmount" + iVal).val(parseFloat(IntUsdAmount).toFixed(2));
+
+	TravelSetDetailCalculateIntTotal();
+}
+/*----------------------------------------------------------------------------------------
+* Individual row calculate (national travel)
+*---------------------------------------------------------------------------------------*/
+function TravelSetDetailCalculateNat(iVal) {
+	var AmtBill = 0;
+	var AmtVat = 0;
+	var AmtTds = 0;
+	var AmtTotal = 0;
+
+	AmtBill = $("#NatBillAmount" + iVal).val();
+	if (AmtBill === "") { AmtBill = 0; }
+	AmtBill = parseFloat(AmtBill);
+
+	AmtVat = $("#NatVAT" + iVal).val();
+	if (AmtVat === "") { AmtVat = 0; }
+	AmtVat = parseFloat(AmtVat);
+
+	AmtTds = $("#NatTDS" + iVal).val();
+	if (AmtTds === "") { AmtTds = 0; }
+	AmtTds = parseFloat(AmtTds);
+
+	AmtTotal = AmtBill + AmtVat - AmtTds;
+	$("#NatAmount" + iVal).val(parseFloat(AmtTotal).toFixed(2));
+	TravelSetDetailCalculateNatTotal();
+}
+/*----------------------------------------------------------------------------------------
+* calculate total international
+*---------------------------------------------------------------------------------------*/
+function TravelSetDetailCalculateIntTotal() {
+	var jj = $("#HidTravSetRowCount").val();
+	if (jj === "") { jj = 0; }
+
+	var AmtTotal = 0;
+	var TotalCash = 0;
+
+	for (i = 1; i <= jj; i++) {
+		AmtTotal = $("#IntUSDAmount" + i).val();
+		if (AmtTotal === "") { AmtTotal = 0; }
+		AmtTotal = parseFloat(AmtTotal);
+		TotalCash += AmtTotal;
+	}
+	$("#TotalCash").val(parseFloat(TotalCash).toFixed(2));
+	TravelSetDetailCalculateNet();
+}
+/*----------------------------------------------------------------------------------------
+* calculate total national
+*---------------------------------------------------------------------------------------*/
+function TravelSetDetailCalculateNatTotal() {
+	var jj = $("#HidTravSetRowCount").val();
+	if (jj === "") { jj = 0; }
+
+	var AmtBill = 0;
+	var AmtVat = 0;
+	var AmtTds = 0;
+	var AmtTotal = 0;
+
+	var TotalBill = 0;
+	var TotalVat = 0;
+	var TotalTds = 0;
+	var TotalCash = 0;
+
+	for (i = 1; i <= jj; i++) {
+		AmtBill = $("#NatBillAmount").val();
+		if (AmtBill === "") { AmtBill = 0; }
+		AmtBill = parseFloat(AmtBill);
+		TotalBill += AmtBill;
+
+		AmtVat = $("#NatVAT").val();
+		if (AmtVat === "") { AmtVat = 0; }
+		AmtVat = parseFloat(AmtVat);
+		TotalVat += AmtVat;
+
+		AmtTds = $("#NatTDS").val();
+		if (AmtTds === "") { AmtTds = 0; }
+		AmtTds = parseFloat(AmtTds);
+		TotalTds += AmtTds;
+
+		AmtTotal = $("#NatAmount").val();
+		if (AmtTotal === "") { AmtTotal = 0; }
+		AmtTotal = parseFloat(AmtTotal);
+		TotalCash += AmtTotal;
+	}
+
+	$("#TotalBill").val(parseFloat(TotalBill).toFixed(2));
+	$("#TotalVAT").val(parseFloat(TotalVat).toFixed(2));
+	$("#TotalTDS").val(parseFloat(TotalTds).toFixed(2));
+	$("#TotalCash").val(parseFloat(TotalCash).toFixed(2));
+
+	TravelSetDetailCalculateNet();
+}
+/*----------------------------------------------------------------------------------------
+* calculate net
+*---------------------------------------------------------------------------------------*/
+function TravelSetDetailCalculateNet() {
+	var TotalCash = $("#TotalCash").val();
+	if (TotalCash === "") { TotalCash = 0; }
+	TotalCash = parseFloat(TotalCash);
+
+	var AdvCashLess = $("#AdvCashLess").val();
+	if (AdvCashLess === "") { AdvCashLess = 0; }
+	AdvCashLess = parseFloat(AdvCashLess);
+
+	var NetCash = AdvCashLess - TotalCash;
+
+	$("#AdvCashLess").val(parseFloat(AdvCashLess).toFixed(2));
+	$("#NetCash").val(parseFloat(NetCash).toFixed(2));
+}
+/*----------------------------------------------------------------------------------------
+* charge % or amount
+*---------------------------------------------------------------------------------------*/
+function TravelSetPercentAmount() {
+	var cType = $("#ChargePerOrAmt").val();
+
+	$("#ChargeFundId1").prop("selectedIndex", 0);
+	$("#ChargeFundId2").prop("selectedIndex", 0);
+	$("#ChargeFundId3").prop("selectedIndex", 0);
+	$("#ChargeFundId4").prop("selectedIndex", 0);
+
+	$("#ChargeFundPer1").val(0);
+	$("#ChargeFundPer2").val(0);
+	$("#ChargeFundPer3").val(0);
+	$("#ChargeFundPer4").val(0);
+
+	$("#ChargeFundAmt1").val("0.00");
+	$("#ChargeFundAmt2").val("0.00");
+	$("#ChargeFundAmt3").val("0.00");
+	$("#ChargeFundAmt4").val("0.00");
+
+	$("#TChargeFundPer").val(0);
+	$("#TChargeFundAmt").val("0.00");
+
+	if (cType === "1") {
+		for (let ii = 1; ii <= 4; ii++) {
+			const per = document.getElementById('ChargeFundPer' + ii);
+			const amt = document.getElementById('ChargeFundAmt' + ii);
+
+			if (per) {
+				per.classList.add("textboxrightdisabled");
+				per.classList.remove("textboxright");
+				per.readOnly = true;
+			}
+
+			if (amt) {
+				amt.classList.add("textboxright");
+				amt.classList.remove("textboxrightdisabled");
+				amt.readOnly = false;
+			}
+		}
+	} else {
+		for (let ii = 1; ii <= 4; ii++) {
+			const per = document.getElementById('ChargeFundPer' + ii);
+			const amt = document.getElementById('ChargeFundAmt' + ii);
+
+			if (per) {
+				per.classList.add("textboxright");
+				per.classList.remove("textboxrightdisabled");
+				per.readOnly = false;
+			}
+
+			if (amt) {
+				amt.classList.add("textboxrightdisabled");
+				amt.classList.remove("textboxright");
+				amt.readOnly = true;
+			}
+		}
+	}
+}
+/*----------------------------------------------------------------------------------------
+* calculate total fund charge %
+*---------------------------------------------------------------------------------------*/
+function TravelSetCalculateNetPercent() {
+	var ChargeFundPer = 0;
+	var ChargeFundPer1 = 0;
+	var ChargeFundPer2 = 0;
+	var ChargeFundPer3 = 0;
+	var ChargeFundPer4 = 0;
+	var ChargeFundAmt = 0;
+	var ChargeFundAmt1 = 0;
+	var ChargeFundAmt2 = 0;
+	var ChargeFundAmt3 = 0;
+	var ChargeFundAmt4 = 0;
+	var TotalCash = 0;
+
+	var cType = $("#ChargePerOrAmt").val();
+	var TravelType = $("#TravelType").val();//On request changed on 2025-12-18 | 
+
+	if (TravelType === "International") {
+		TotalCash = $("#TotalCash").val();//On request changed on 2025-05-23 | 
+	} else {
+		TotalCash = $("#TotalBill").val();
+	}
+	if (TotalCash === "") { TotalCash = 0; }
+	TotalCash = parseFloat(TotalCash);
+
+	if (cType === "1") {
+		ChargeFundAmt1 = $("#ChargeFundAmt1").val();
+		if (ChargeFundAmt1 === "") { ChargeFundAmt1 = 0; }
+		ChargeFundAmt1 = parseFloat(ChargeFundAmt1);
+
+		ChargeFundAmt2 = $("#ChargeFundAmt2").val();
+		if (ChargeFundAmt2 === "") { ChargeFundAmt2 = 0; }
+		ChargeFundAmt2 = parseFloat(ChargeFundAmt2);
+
+		ChargeFundAmt3 = $("#ChargeFundAmt3").val();
+		if (ChargeFundAmt3 === "") { ChargeFundAmt3 = 0; }
+		ChargeFundAmt3 = parseFloat(ChargeFundAmt3);
+
+		ChargeFundAmt4 = $("#ChargeFundAmt4").val();
+		if (ChargeFundAmt4 === "") { ChargeFundAmt4 = 0; }
+		ChargeFundAmt4 = parseFloat(ChargeFundAmt4);
+
+		ChargeFundPer1 = (ChargeFundAmt1 / TotalCash) * 100;
+		ChargeFundPer2 = (ChargeFundAmt2 / TotalCash) * 100;
+		ChargeFundPer3 = (ChargeFundAmt3 / TotalCash) * 100;
+		ChargeFundPer4 = (ChargeFundAmt4 / TotalCash) * 100;
+	}
+	else {
+		ChargeFundPer1 = $("#ChargeFundPer1").val();
+		if (ChargeFundPer1 === "") { ChargeFundPer1 = 0; }
+		ChargeFundPer1 = parseFloat(ChargeFundPer1);
+
+		ChargeFundPer2 = $("#ChargeFundPer2").val();
+		if (ChargeFundPer2 === "") { ChargeFundPer2 = 0; }
+		ChargeFundPer2 = parseFloat(ChargeFundPer2);
+
+		ChargeFundPer3 = $("#ChargeFundPer3").val();
+		if (ChargeFundPer3 === "") { ChargeFundPer3 = 0; }
+		ChargeFundPer3 = parseFloat(ChargeFundPer3);
+
+		ChargeFundPer4 = $("#ChargeFundPer4").val();
+		if (ChargeFundPer4 === "") { ChargeFundPer4 = 0; }
+		ChargeFundPer4 = parseFloat(ChargeFundPer4);
+
+		ChargeFundAmt1 = (TotalCash * ChargeFundPer1) / 100;
+		ChargeFundAmt2 = (TotalCash * ChargeFundPer2) / 100;
+		ChargeFundAmt3 = (TotalCash * ChargeFundPer3) / 100;
+		ChargeFundAmt4 = (TotalCash * ChargeFundPer4) / 100;
+	}
+
+	ChargeFundPer = ChargeFundPer1 + ChargeFundPer2 + ChargeFundPer3 + ChargeFundPer4;
+	ChargeFundAmt = ChargeFundAmt1 + ChargeFundAmt2 + ChargeFundAmt3 + ChargeFundAmt4;
+
+	$("#ChargeFundPer1").val(parseFloat(ChargeFundPer1).toFixed(2));
+	$("#ChargeFundPer2").val(parseFloat(ChargeFundPer2).toFixed(2));
+	$("#ChargeFundPer3").val(parseFloat(ChargeFundPer3).toFixed(2));
+	$("#ChargeFundPer4").val(parseFloat(ChargeFundPer4).toFixed(2));
+	$("#TChargeFundPer").val(parseFloat(ChargeFundPer).toFixed(2));
+
+	$("#ChargeFundAmt1").val(parseFloat(ChargeFundAmt1).toFixed(2));
+	$("#ChargeFundAmt2").val(parseFloat(ChargeFundAmt2).toFixed(2));
+	$("#ChargeFundAmt3").val(parseFloat(ChargeFundAmt3).toFixed(2));
+	$("#ChargeFundAmt4").val(parseFloat(ChargeFundAmt4).toFixed(2));
+	$("#TChargeFundAmt").val(parseFloat(ChargeFundAmt).toFixed(2));
+}

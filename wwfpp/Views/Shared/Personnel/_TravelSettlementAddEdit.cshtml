@@ -1,0 +1,655 @@
+﻿@using Microsoft.AspNetCore.Http;
+@inject IHttpContextAccessor HttpContextAccessor;
+@model wwfpp.Models.Personnel.TravelSettlementViewModel
+@{
+    var today = DateTime.Today;
+    string? DATE_FORMAT = ViewBag.DATE_FORMAT;
+    string mode = ViewBag.mode;
+
+    string emp_status = Model.Travel.EmpStatus == "A" ? "Active" : "Inactive";
+
+    string cur_fiscal_year = ViewBag.CurFiscalYear ?? "";
+    string cur_emp_id = HttpContextAccessor.HttpContext.Session.GetString("emp_id") ?? "";
+    bool IsAbleToSubmit = false;
+
+    string SettlementType = Model.TravelSettlement.SettlementType;
+    string ChargePerOrAmt = Model.TravelSettlement.ChargePerOrAmt ?? "0";
+    string reqAdvSet = "block";
+    string chkReqAdvSet = "0";
+    if (Model.TravelSettlement.IsForSet == "N")
+    {
+        reqAdvSet = "displaynone";
+        chkReqAdvSet = "1";
+    }
+    int cnt = 0;
+
+    var per_readonly = ChargePerOrAmt == "1" ? "readonly" : null;
+    var amt_readonly = ChargePerOrAmt != "1" ? "readonly" : null;
+    string per_class = "textboxright";
+    string amt_class = "textboxrightdisabled";
+
+    if (ChargePerOrAmt == "1")
+    {
+        per_class = "textboxrightdisabled";
+        amt_class = "textboxright";
+    }
+}
+<partial name="_ConstantValues" view-data='new ViewDataDictionary(ViewData) { { "NoteKey", "RequiredField" } }' />
+@Html.HiddenFor(m => m.Travel.EmpTravelId, new { id = "EmpTravelId" })
+@Html.HiddenFor(m => m.TravelSettlement.TravSetId, new { id = "TravSetId" })
+@Html.HiddenFor(m => m.Travel.EmpId, new { id = "EmpId" })
+@Html.Hidden("chkSaveOnly", "")
+@Html.Hidden("Location", "")
+@Html.HiddenFor(m => m.Travel.TravelType, new { id = "TravelType" })
+@Html.HiddenFor(m => m.Travel.TripPurpose, new { id = "TripPurpose" })
+@Html.HiddenFor(m => m.Travel.Destinations, new { id = "Destinations" })
+
+<div class="form-group row p-1">
+    <table class="table-section">
+        <tbody>
+            <tr class="tr-section">
+                <td width="24%">Employee</td>
+                <td width="1%"> : </td>
+                <td width="75%">@Model.Travel.Employee</td>
+            </tr>
+            <tr>
+                <td width="24%" class="bold">Employee Status</td>
+                <td width="1%" class="bold"> : </td>
+                <td width="75%" class="bold">@emp_status</td>
+            </tr>
+            <tr class="tr-section">
+                <td width="24%">Fiscal Year</td>
+                <td width="1%"> : </td>
+                <td width="75%">@Model.Travel.FiscalYearAbb</td>
+            </tr>
+        </tbody>
+    </table>
+    <br>
+    <table class="table-section">
+        <tbody>
+            <tr class="tr-section">
+                <td width="100%" colspan="3">Travel Description</td>
+            </tr>
+            <tr>
+                <td width="24%" class="bold">Travel Type</td>
+                <td width="1%"> : </td>
+                <td width="75%">@Model.Travel.TravelType</td>
+            </tr>
+            <tr>
+                <td width="24%" class="bold">Purpose of Trip</td>
+                <td width="1%"> : </td>
+                <td width="75%">@Model.Travel.TripPurpose</td>
+            </tr>
+            <tr>
+                <td width="24%" class="bold">Destination/s</td>
+                <td width="1%"> : </td>
+                <td width="75%">@Model.Travel.Destinations</td>
+            </tr>
+            <tr>
+                <td width="24%" class="bold">Duration &nbsp;(@DATE_FORMAT)</td>
+                <td width="1%"> : </td>
+                <td width="75%">@string.Format("{0:" + DATE_FORMAT + "}", Model.Travel.DateFrom) - @string.Format("{0:" + DATE_FORMAT + "}", Model.Travel.DateTo)</td>
+            </tr>
+            <tr>
+                <td width="24%" class="bold">Status</td>
+                <td width="1%"> : </td>
+                <td width="75%">@Model.Travel.AppStatus - @Model.Travel.AppByName - @string.Format("{0:" + DATE_FORMAT + "}", Model.Travel.AppDate)</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<div class="right bg-lsky" id="divTravelDetailShow">
+    <table class="table-section">
+        <tr>
+            <td class="right bg-lsky" height="25">
+                <button type="button" class="bg-palewhite" id="btnTravelDetailShow">
+                    <span id="hide-travel-detail">Show more...</span>
+                </button>
+            </td>
+        </tr>
+    </table>
+</div>
+
+<div class="form-group row p-1" id="travel-detail" style="display:none;">
+    <table class="table-section">
+        <tbody>
+            <tr class="tr-section">
+                <td width="15%" rowspan="3">Particular</td>
+                <td width="15%" rowspan="3">Details</td>
+                <td width="70%" colspan="6">Amount</td>
+            </tr>
+            <tr class="tr-section">
+                <td width="10%">Unit</td>
+                <td width="10%">Currency</td>
+                <td width="10%">Nos.</td>
+                <td width="10%">Rate</td>
+                <td width="10%">Amount</td>
+            </tr>
+            <tr class="tr-section">
+                <td width="10%">&nbsp;</td>
+                <td width="10%">&nbsp;</td>
+                <td width="10%">A</td>
+                <td width="10%">B</td>
+                <td width="10%">C = A * B</td>
+            </tr>
+            @for (int i = 0; i < Model.Travel.TravelExpenses.Count; i++)
+            {
+                string cssClass = "bg-white";
+                if (i % 2 == 0) { cssClass = "bg-lsky"; }
+                <tr class="@cssClass">
+                    <td>@Model.Travel.TravelExpenses[i].Particular</td>
+                    <td>@Model.Travel.TravelExpenses[i].Detail</td>
+                    <td>@Model.Travel.TravelExpenses[i].Unit</td>
+                    <td>@Model.Travel.TravelExpenses[i].Currency</td>
+                    <td>@Model.Travel.TravelExpenses[i].Nos</td>
+                    <td>@Math.Round(Convert.ToDecimal(Model.Travel.TravelExpenses[i].Rate), 2)</td>
+                    <td>@Math.Round(Convert.ToDecimal(Model.Travel.TravelExpenses[i].Amount), 2)</td>
+                </tr>
+            }
+            <tr>
+                <td class="normal right"><b>Total:&nbsp;</b></td>
+                <td class="normal center" colspan="6">
+                    NRs : @Math.Round(Convert.ToDecimal(Model.Travel.TotalNRS), 2) |&nbsp;
+                    IC  : @Math.Round(Convert.ToDecimal(Model.Travel.TotalIC), 2) |&nbsp;
+                    USD : @Math.Round(Convert.ToDecimal(Model.Travel.TotalUSD), 2) |&nbsp;
+                    Euro: @Math.Round(Convert.ToDecimal(Model.Travel.TotalEuro), 2) |&nbsp;
+                    Pound:@Math.Round(Convert.ToDecimal(Model.Travel.TotalPound), 2) |&nbsp;
+                    CHF : @Math.Round(Convert.ToDecimal(Model.Travel.TotalCHF), 2)
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    <br />
+    <table class="table-section">
+        <tbody>
+            <tr class="tr-section">
+                <td width="100%">Funding Source</td>
+            </tr>
+            @for (int i = 0; i < Model.Travel.TravelFundSources.Count; i++)
+            {
+                <tr>
+                    <td>
+                        @Model.Travel.TravelFundSources[i].FundName<br />
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    <br />
+    <table class="table-section">
+        <tbody>
+            <tr>
+                <td width="25%" class="bold">Currency Denomination</td>
+                <td width="75%">@Model.Travel.Denomination</td>
+            </tr>
+            <tr>
+                <td width="25%" class="bold">Remarks</td>
+                <td width="75%">@Model.Travel.Remarks</td>
+            </tr>
+        </tbody>
+    </table>
+    <table class="table-section">
+        <tr>
+            <td class="right bg-lsky" height="25">
+                <button type="button" class="bg-lsky" id="btnTravelDetailHide">
+                    <span id="hide-travel-detail">Show less</span>
+                </button>
+            </td>
+        </tr>
+    </table>
+</div>
+<br />
+
+<div>
+    <h2>@Html.CheckBox("chkReqAdvSet", chkReqAdvSet == "1")<label for="chkReqAdvSet">&nbsp;This travel does not require settlement.</label></h3>
+    </div>
+
+    <div class="form-group row p-1" name="divReqAdvSet" id="divReqAdvSet" style="display:@reqAdvSet;">
+
+        <div>
+            <table class="table-section">
+                <tr>
+                    <td class="center bg-gray" height="25">
+                        <span class="bold">Expense Summary Form : Request for advance settlement / reimbursement</span>
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="left">
+            <table class="table-section">
+                @if (Model.TravelSettlement.SubmitDate != null)
+                {
+                    <tr>
+                        <td width="24%" class="bold">Submit Date</td>
+                        <td width="1%"> : </td>
+                        <td width="75%">@string.Format("{0:" + DATE_FORMAT + "}", Model.TravelSettlement.SubmitDate)</td>
+                    </tr>
+                }
+                <tr>
+                    <td width="24%" class="bold">Travel Date<span class="text-danger">*</span>&nbsp;&nbsp;<Button type="Button" name="btnStartDate" id="btnStartDate" class="button bg-sky">Date...</Button></td>
+                    <td width="1%"> : </td>
+                    <td width="75%">@Html.TextBoxFor(m => m.TravelSettlement.TravelDate, "{0:" + DATE_FORMAT + "}", new { @class = "form-control form-control-sm", style = "width:200px;", id="TravelDate", @ReadOnly = "readonly" })</td>
+                </tr>
+                <tr>
+                    <td width="24%" class="bold">Return Date<span class="text-danger">*</span>&nbsp;&nbsp;<Button type="Button" name="btnEndDate" id="btnEndDate" class="button bg-sky">Date...</Button></td>
+                    <td width="1%"> : </td>
+                    <td width="75%">@Html.TextBoxFor(m => m.TravelSettlement.ReturnDate, "{0:" + DATE_FORMAT + "}", new { @class = "form-control form-control-sm", style = "width:200px;", id="ReturnDate", @ReadOnly = "readonly" })</td>
+                </tr>
+                <tr>
+                    <td colspan="3">
+                        <div id="detail">
+                            <div id="main-table" class="w-100">
+                                <div id="main-table-1" class="normal center w-15"><h3 class="wordwarp">Date</h3></div>
+                                <div id="main-table-1" class="normal center w-10"><h3 class="wordwarp">Location</h3></div>
+                                <div id="main-table-1" class="normal center w-30"><h3 class="wordwarp">Description</h3></div>
+                                <div id="main-table-1" class="normal center w-5"><h3 class="wordwarp">Ref.</h3></div>
+                                @if (Model.Travel.TravelType == "International")
+                                {
+                                    <div id="main-table-1" class="normal center w-10"><h3 class="wordwarp">Name of Currency</h3></div>
+                                    <div id="main-table-1" class="normal center w-10"><h3 class="wordwarp">Exchange Rate</h3></div>
+                                    <div id="main-table-1" class="normal center w-10"><h3 class="wordwarp">In NRs or Other Currency</h3></div>
+                                    <div id="main-table-1" class="normal center w-10"><h3 class="wordwarp">In USD or Equivalent USD</h3></div>
+                                }
+                                else
+                                {
+                                    <div id="main-table-1" class="normal center w-10"><h3 class="wordwarp">Bill Amount</h3></div>
+                                    <div id="main-table-1" class="normal center w-10"><h3 class="wordwarp">VAT Amount</h3></div>
+                                    <div id="main-table-1" class="normal center w-10"><h3 class="wordwarp">TDS</h3></div>
+                                    <div id="main-table-1" class="head w-10"><h3 class="wordwarp">Total Claim @Model.TravelSettlement.SetExpenses.Count</h3></div>
+                                }
+                            </div>
+
+                            @if (Model.TravelSettlement.TravSetId != "")
+                            {
+                                @if (Model.TravelSettlement.SetExpenses != null)
+                                {
+                                    @for (cnt = 0; cnt < Model.TravelSettlement.SetExpenses.Count; cnt++)
+                                    {
+                                        <div id="main-table" class="w-100">
+                                            <div id="main-table-1" class="normal center w-15"><h5>@Html.TextBoxFor(m => m.TravelSettlement.SetExpenses[cnt].BillDate, "{0:" + DATE_FORMAT + "}", new { @class = "form-control form-control-sm", maxlength = "10", id = $"BillDate{cnt+1}" })</h5></div>
+                                            <div id="main-table-1" class="normal center w-10"><h5>@Html.TextBoxFor(m => m.TravelSettlement.SetExpenses[cnt].Location, new { @class = "form-control form-control-sm", maxlength = "255", id = $"Location{cnt+1}" })</h5></div>
+                                            <div id="main-table-1" class="normal center w-30"><h5>@Html.TextBoxFor(m => m.TravelSettlement.SetExpenses[cnt].Description, new { @class = "form-control form-control-sm", maxlength = "255", id = $"Description{cnt+1}" })</h5></div>
+                                            <div id="main-table-1" class="normal center w-5"><h5>@Html.TextBoxFor(m => m.TravelSettlement.SetExpenses[cnt].RefField, new { @class = "form-control form-control-sm", maxlength = "50", id = $"RefField{cnt+1}" })</h5></div>
+                                            @if (Model.Travel.TravelType == "International")
+                                            {
+                                                <div id="main-table-1" class="normal center w-10"><h5>@Html.TextBoxFor(m => m.TravelSettlement.SetExpenses[cnt].IntCurName, new { @class = "form-control form-control-sm", maxlength = "50", id = $"IntCurName{cnt+1}" })</h5></div>
+                                                <div id="main-table-1" class="normal center w-10"><h5>@Html.TextBoxFor(m => m.TravelSettlement.SetExpenses[cnt].IntRate, new { @class = "form-control form-control-sm textboxright", maxlength = "10", id = $"IntRate{cnt+1}" })</h5></div>
+                                                <div id="main-table-1" class="normal center w-10"><h5>@Html.TextBoxFor(m => m.TravelSettlement.SetExpenses[cnt].IntAmount, new { @class = "form-control form-control-sm textboxright", maxlength = "10", id = $"IntAmount{cnt+1}" })</h5></div>
+                                                <div id="main-table-1" class="normal center w-10"><h5>@Html.TextBoxFor(m => m.TravelSettlement.SetExpenses[cnt].IntUSDAmount, new { @class = "form-control form-control-sm textboxrightdisabled", maxlength = "50", @readonly="readonly", id = $"IntUSDAmount{cnt+1}" })</h5></div>
+                                            }
+                                            else
+                                            {
+                                                <div id="main-table-1" class="normal center w-10"><h5>@Html.TextBoxFor(m => m.TravelSettlement.SetExpenses[cnt].NatBillAmount, new { @class = "form-control form-control-sm textboxright", maxlength = "10", id = $"NatBillAmount{cnt+1}" })</h5></div>
+                                                <div id="main-table-1" class="normal center w-10"><h5>@Html.TextBoxFor(m => m.TravelSettlement.SetExpenses[cnt].NatVAT, new { @class = "form-control form-control-sm textboxright", maxlength = "10", id = $"NatVAT{cnt+1}" })</h5></div>
+                                                <div id="main-table-1" class="normal center w-10"><h5>@Html.TextBoxFor(m => m.TravelSettlement.SetExpenses[cnt].NatTDS, new { @class = "form-control form-control-sm textboxright", maxlength = "10", id = $"NatTDS{cnt+1}" })</h5></div>
+                                                <div id="main-table-1" class="normal center w-10"><h5>@Html.TextBoxFor(m => m.TravelSettlement.SetExpenses[cnt].NatAmount, new { @class = "form-control form-control-sm textboxright", maxlength = "15", id = $"NatAmount{cnt+1}" })</h5></div>
+                                            }
+                                        </div>
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                @for (cnt = 1; cnt <= 2; cnt++)
+                                {
+                                    <div id="main-table" class="w-100">
+                                        <div id="main-table-1" class="normal center w-15"><h5>@Html.TextBoxFor(m => m.TravelSettlement.SetExpenses[cnt].BillDate, "{0:" + DATE_FORMAT + "}", new { @class = "form-control form-control-sm", maxlength = "10", id = $"BillDate{cnt}" })</h5></div>
+                                        <div id="main-table-1" class="normal center w-10"><h5>@Html.TextBoxFor(m => m.TravelSettlement.SetExpenses[cnt].Location, new { @class = "form-control form-control-sm", maxlength = "255", id = $"Location{cnt}" })</h5></div>
+                                        <div id="main-table-1" class="normal center w-30"><h5>@Html.TextBoxFor(m => m.TravelSettlement.SetExpenses[cnt].Description, new { @class = "form-control form-control-sm", maxlength = "255", id = $"Description{cnt}" })</h5></div>
+                                        <div id="main-table-1" class="normal center w-5"><h5>@Html.TextBoxFor(m => m.TravelSettlement.SetExpenses[cnt].RefField, new { @class = "form-control form-control-sm", maxlength = "50", id = $"RefField{cnt}" })</h5></div>
+                                        @if (Model.Travel.TravelType == "International")
+                                        {
+                                            <div id="main-table-1" class="normal center w-10"><h5>@Html.TextBoxFor(m => m.TravelSettlement.SetExpenses[cnt].IntCurName, new { @class = "form-control form-control-sm", maxlength = "50", id = $"IntCurName{cnt}" })</h5></div>
+                                            <div id="main-table-1" class="normal center w-10"><h5>@Html.TextBoxFor(m => m.TravelSettlement.SetExpenses[cnt].IntRate, new { @class = "form-control form-control-sm textboxright", maxlength = "10", id = $"IntRate{cnt}" })</h5></div>
+                                            <div id="main-table-1" class="normal center w-10"><h5>@Html.TextBoxFor(m => m.TravelSettlement.SetExpenses[cnt].IntAmount, new { @class = "form-control form-control-sm textboxright", maxlength = "10", id = $"IntAmount{cnt}" })</h5></div>
+                                            <div id="main-table-1" class="normal center w-10"><h5>@Html.TextBoxFor(m => m.TravelSettlement.SetExpenses[cnt].IntUSDAmount, new { @class = "form-control form-control-sm textboxrightdisabled", maxlength = "50", @readonly="readonly", id = $"IntUSDAmount{cnt}" })</h5></div>
+                                        }
+                                        else
+                                        {
+                                            <div id="main-table-1" class="normal center w-10"><h5>@Html.TextBoxFor(m => m.TravelSettlement.SetExpenses[cnt].NatBillAmount, new { @class = "form-control form-control-sm textboxright", maxlength = "10", id = $"NatBillAmount{cnt}" })</h5></div>
+                                            <div id="main-table-1" class="normal center w-10"><h5>@Html.TextBoxFor(m => m.TravelSettlement.SetExpenses[cnt].NatVAT, new { @class = "form-control form-control-sm textboxright", maxlength = "10", id = $"NatVAT{cnt}" })</h5></div>
+                                            <div id="main-table-1" class="normal center w-10"><h5>@Html.TextBoxFor(m => m.TravelSettlement.SetExpenses[cnt].NatTDS, new { @class = "form-control form-control-sm textboxright", maxlength = "10", id = $"NatTDS{cnt}" })</h5></div>
+                                            <div id="main-table-1" class="normal center w-10"><h5>@Html.TextBoxFor(m => m.TravelSettlement.SetExpenses[cnt].NatAmount, new { @class = "form-control form-control-sm textboxright", maxlength = "15", id = $"NatAmount{cnt}" })</h5></div>
+                                        }
+                                    </div>
+                                }
+                            }
+                            @Html.Hidden("HidTravSetRowCount", cnt)
+                        </div><!-- div id="detail"-->
+
+                        <div id="main-table" class="w-100">
+                            <div id="main-table-1" class="normal left w-50"><h6>&nbsp;&nbsp;<input name="btnAddNewRow" type="button" class="button bg-dgray" value="Add New Row" onclick="javascript:add_edit_travel_settle_new_row('travel_type')" />&nbsp;</h6></div>
+                            @if (Model.Travel.TravelType == "International")
+                            {
+                                <div id="main-table-1" class="normal center w-10"><h6>&nbsp;</h6></div>
+                                <div id="main-table-1" class="normal center w-10"><h6>&nbsp;</h6></div>
+                                <div id="main-table-1" class="normal center w-10"><h6>&nbsp;</h6></div>
+                                <div id="main-table-1" class="normal center w-10"><h6>Total:</h6></div>
+                            }
+                            else
+                            {
+                                <div id="main-table-1" class="normal center w-10"><h6>Total:</h6></div>
+                                <div id="main-table-1" class="normal center w-10"><h6>@Html.TextBoxFor(m => m.TravelSettlement.TotalBill, new { @class = "form-control form-control-sm textboxrightdisabled", maxlength = "0", @readonly="readonly", id = "TotalBill" })</h6></div>
+                                <div id="main-table-1" class="normal center w-10"><h6>@Html.TextBoxFor(m => m.TravelSettlement.TotalVAT, new { @class = "form-control form-control-sm textboxrightdisabled", maxlength = "0", @readonly="readonly", id = "TotalVAT" })</h6></div>
+                                <div id="main-table-1" class="normal center w-10"><h6>@Html.TextBoxFor(m => m.TravelSettlement.TotalTDS, new { @class = "form-control form-control-sm textboxrightdisabled", maxlength = "0", @readonly="readonly", id = "TotalTDS" })</h6></div>
+                            }
+                            <div id="main-table-1" class="normal center w-10"><h6><b>@Html.TextBoxFor(m => m.TravelSettlement.TotalCash, new { @class = "form-control form-control-sm textboxrightdisabled", maxlength = "0", @readonly="readonly", id = "TotalCash" })</b></h6></div>
+                        </div>
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+        <br />
+        <div class="left">
+            <table class="table-section">
+                <tr>
+                    <td width="75%" class="bold right">Less cash advance</td>
+                    <td width="1%"> : </td>
+                    <td width="24%">@Html.TextBoxFor(m => m.TravelSettlement.AdvCashLess, "{0:F2}", new { @class = "form-control form-control-sm textboxright", style = "width:200px;", maxlength="10", id="AdvCashLess" })</td>
+                </tr>
+                <tr>
+                    <td width="75%" class="bold right">NET AMOUNT DUE TO (FORM)</td>
+                    <td width="1%"> : </td>
+                    <td width="24%">@Html.TextBoxFor(m => m.TravelSettlement.NetCash, "{0:F2}", new { @class = "form-control form-control-sm textboxrightdisabled", style = "width:200px;", maxlength="0", id="NetCash", @ReadOnly = "readonly" })</td>
+                </tr>
+                @if (Model.Travel.TravelType == "International")
+                {
+                    <tr>
+                        <td width="75%" class="bold">USD Rate</td>
+                        <td width="1%"> : </td>
+                        <td width="24%">@Html.TextBoxFor(m => m.TravelSettlement.USDRate, "{0:F2}", new { @class = "form-control form-control-sm textboxright", style = "width:200px;", maxlength="10", id="USDRate" })</td>
+                    </tr>
+                }
+            </table>
+        </div>
+
+        <br />
+        <div class="left">
+            <table class="table-section">
+                <tr class="bg-paleyellow">
+                    <td width="10%" colspan="2" class="bold">Charge in <span class="text-danger">*</span></td>
+                    <td width="90%" colspan="2">
+                        @Html.DropDownListFor(m => m.TravelSettlement.ChargePerOrAmt, (SelectList)ViewBag.ChargePerOrAmt, new { @class = "form-control-sm", id = "ChargePerOrAmt" })
+                    </td>
+                </tr>
+                <tr class="bg-gray bold">
+                    <td width="10%">SN</td>
+                    <td width="15%">Percentage</td>
+                    <td width="15%">Amount</td>
+                    <td width="60%">Fund Source</td>
+                </tr>
+                <tr class="tr-section">
+                    <td>1</td>
+                    <td>@Html.TextBoxFor(m => m.TravelSettlement.ChargeFundPer1, new { @class = $"form-control form-control-sm charge-input {per_class}", style = "width:100px;", maxlength = "6", id = "ChargeFundPer1", @per_readonly })</td>
+                    <td>@Html.TextBoxFor(m => m.TravelSettlement.ChargeFundAmt1, new { @class = $"form-control form-control-sm charge-input {amt_class}", style = "width:100px;", maxlength = "10", id = "ChargeFundAmt1", @amt_readonly})</td>
+                    <td>@Html.DropDownListFor(m => m.TravelSettlement.ChargeFundId1, (SelectList)ViewBag.FundSource, "-- Select Fund Source --", new { @class = "form-select travel-fund-source", style = "width:100%;" })</td>
+                </tr>
+                <tr class="tr-section">
+                    <td>2</td>
+                    <td>@Html.TextBoxFor(m => m.TravelSettlement.ChargeFundPer2, new { @class = $"form-control form-control-sm charge-input {per_class}", style = "width:100px;", maxlength = "6", id = "ChargeFundPer2", @per_readonly })</td>
+                    <td>@Html.TextBoxFor(m => m.TravelSettlement.ChargeFundAmt2, new { @class = $"form-control form-control-sm charge-input {amt_class}", style = "width:100px;", maxlength = "10", id = "ChargeFundAmt2", @amt_readonly })</td>
+                    <td>@Html.DropDownListFor(m => m.TravelSettlement.ChargeFundId2,(SelectList)ViewBag.FundSource, "-- Select Fund Source --", new { @class = "form-select travel-fund-source", style = "width:100%;" })</td>
+                </tr>
+                <tr class="tr-section">
+                    <td>3</td>
+                    <td>@Html.TextBoxFor(m => m.TravelSettlement.ChargeFundPer3, new { @class = $"form-control form-control-sm charge-input {per_class}", style = "width:100px;", maxlength = "6", id = "ChargeFundPer3", @per_readonly})</td>
+                    <td>@Html.TextBoxFor(m => m.TravelSettlement.ChargeFundAmt3, new { @class = $"form-control form-control-sm charge-input {amt_class}", style = "width:100px;", maxlength = "10", id = "ChargeFundAmt3", @amt_readonly })</td>
+                    <td>@Html.DropDownListFor(m => m.TravelSettlement.ChargeFundId3, (SelectList)ViewBag.FundSource, "-- Select Fund Source --", new { @class = "form-select travel-fund-source", style = "width:100%;" })</td>
+                </tr>
+                <tr class="tr-section">
+                    <td>4</td>
+                    <td>@Html.TextBoxFor(m => m.TravelSettlement.ChargeFundPer4, new { @class = $"form-control form-control-sm charge-input {per_class}", style = "width:100px;", maxlength = "6", id = "ChargeFundPer4", @per_readonly})</td>
+                    <td>@Html.TextBoxFor(m => m.TravelSettlement.ChargeFundAmt4, new { @class = $"form-control form-control-sm charge-input {amt_class}", style = "width:100px;", maxlength = "10", id = "ChargeFundAmt4", @amt_readonly })</td>
+                    <td>@Html.DropDownListFor(m => m.TravelSettlement.ChargeFundId4, (SelectList)ViewBag.FundSource, "-- Select Fund Source --", new { @class = "form-select travel-fund-source", style = "width:100%;" } )</td>
+                </tr>
+                <tr class="tr-section">
+                    <td>Total</td>
+                    <td>@Html.TextBoxFor(m => m.TravelSettlement.TChargeFundPer, new { @class = $"form-control form-control-sm charge-input textboxrightdisabled", style = "width:100px;", maxlength = "6", id = "TChargeFundPer", @readonly = "readonly"})</td>
+                    <td>@Html.TextBoxFor(m => m.TravelSettlement.TChargeFundAmt, new { @class = $"form-control form-control-sm charge-input textboxrightdisabled", style = "width:100px;", maxlength = "10", id = "TChargeFundAmt", @readonly = "reaonly"})</td>
+                    <td>&nbsp;</td>
+                </tr>
+            </table>
+        </div>
+    </div>
+
+    <div class="form-group row p-2">
+        <table class="table-section">
+            <tr>
+                <td width="25%" class="bold">Remarks</td>
+                <td width="75%">@Html.TextAreaFor(m => m.TravelSettlement.Remarks, new { @class = "form-control", rows = 2, maxlength = "255", id="Remarks" })</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="form-group row p-2">
+        @if (!string.IsNullOrWhiteSpace(Model.TravelSettlement.AppStatus))
+        {
+            string set_app_status = Model.TravelSettlement.AppStatus;
+            if (set_app_status == "A")
+            {
+                set_app_status = "Verified";
+            }
+            else if (set_app_status == "T")
+            {
+                set_app_status = "Saved";
+            }
+            else
+            {
+                set_app_status = "Pending";
+            }
+            <table class="table-section">
+                <tbody>
+                    <tr class="tr-section">
+                        <td width="100%" colspan="3">Status</td>
+                    </tr>
+                    <tr class="bold">
+                        <td width="24%">Status</td>
+                        <td width="1%"> : </td>
+                        <td width="75%">@set_app_status</td>
+                    </tr>
+                    @if (set_app_status != "Saved")
+                    {
+                        <tr class="bold">
+                            <td width="24%">Action By</td>
+                            <td width="1%"> : </td>
+                            <td width="75%">@Model.TravelSettlement.AppByName</td>
+                        </tr>
+                        @if (set_app_status == "Verified")
+                        {
+                            <tr class="bold">
+                                <td width="24%">Date</td>
+                                <td width="1%"> : </td>
+                                <td width="75%">@string.Format("{0:" + DATE_FORMAT + "}", Model.TravelSettlement.AppDate)</td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+
+    <div class="form-group row p-2">
+        <table class="table-section red">
+            <tr>
+                <td>
+                    <p class="bold">Note:</p>
+                    <ul>
+                        <li>Receipts must be attached sequentially</li>
+                        <li>Attach boarding pass in case of Air Travel.</li>
+                        <li>All advance & travel expenses must be settled/reimbursed within 15 days of completion of travel or incurring of the expenses.</li>
+                        <li>
+                            App expenses must be supported with receipts with stating the name & address of
+                            the person receiving the money (payee), the name of the Organization paying(payer),
+                            Date of payment, description, quantity & amound of the items and the signature/stamp
+                            of the payee
+                        </li>
+                    </ul>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+
+
+    @if (SettlementType != "A" && Model.Travel.EmpStatus == "A" &&
+            cur_fiscal_year == Model.Travel.FiscalYear &&
+            cur_emp_id == Model.Travel.EmpId.ToString()
+        )
+    {
+        if (today >= Model.Travel.DateTo) { IsAbleToSubmit = true; }
+    }
+    @if (IsAbleToSubmit == true && mode == "add" && ViewBag.apern == "true")
+    {
+        <script>renderModalSaveSubmitButtons("modal-button-list", @SettlementType);</script>
+    }
+    else if (IsAbleToSubmit == true && mode == "edit" && ViewBag.epern == "true")
+    {
+        <script>renderModalSaveSubmitButtons("modal-button-list",  @SettlementType);</script>
+    }
+    else
+    {
+        <script>renderModalCloseButton("modal-button-list")</script>
+    }
+    <script>
+
+        document.getElementById("btnTravelDetailShow").addEventListener("click", function() {
+            $("#travel-detail").show();
+            $("#divTravelDetailShow").hide();
+        });
+        document.getElementById("btnTravelDetailHide").addEventListener("click", function() {
+            $("#travel-detail").hide();
+            $("#divTravelDetailShow").show();
+        });
+
+        document.getElementById("chkReqAdvSet").addEventListener("click", function() { showHideReqAdvSet(); });
+        $(document).ready(function() {
+            $(".travel-fund-source").select2({ dropdownParent: $('#ModalID'), placeholder: "Select Fund Source", allowClear: true });
+        });
+        document.getElementById("ChargePerOrAmt").addEventListener("change", function() { TravelSetPercentAmount(); });
+        document.querySelectorAll(".charge-input").forEach(function(el) {
+            el.addEventListener("blur", function() {
+                OnlyNumeric(el.id, "modal-message");
+                TravelSetCalculateNetPercent();
+            });
+        });
+        $(document).off("click", "#btnSave, #btnSubmit").on("click", "#btnSave, #btnSubmit", function() {
+            var cnt = 0;
+            var msg_to_swtich_and_show = "Are you sure you want to Submit this travel settlement?";
+            document.getElementById("chkSaveOnly").value = "0";
+
+            if (this.id === "btnSave") {
+                msg_to_swtich_and_show = "Are you sure you want to Save this travel settlement?";
+                document.getElementById("chkSaveOnly").value = "1";
+            }
+
+            if (document.getElementById('ChkReqAdvSet').checked === false) {
+                if (checkInput('txt', 'TravelDate', 'Travel Date is required.', 'modal-message') == false) { return false; }
+                if (checkInput('txt', 'ReturnDate', 'Return Date is required.', 'modal-message') == false) { return false; }
+
+                var jj = $("#HidTravSetRowCount").val();
+                if (jj === "") { jj = 0; }
+
+                //check for all lines are khaali
+                for (i = 1; i <= jj; i++) {
+                    if (tType.toUpperCase() == "INTERNATIONAL") {
+                        if ($("#BillDate" + i).val().trim() === "" && $("#Location" + i).val().trim() === "" && $("#Description" + i).val().trim() === "" && $("#RefField" + i).val().trim() === "" && $("#IntCurName" + i).val().trim() === "") { cnt++; }
+                    }
+                    else {
+                        if ($("#BillDate" + i).val().trim() === "" && $("#Location" + i).val().trim() === "" && $("#Description" + i).val().trim() === "" && $("#RefField" + i).val().trim() === "") { cnt++; }
+                    }
+                }
+                if (jj === cnt) { showError("At least one detail information is required. ", "modal-message"); return false; }
+
+                if (tType.toUpperCase() === "INTERNATIONAL") {
+                    if ($("#TotalCash").val().trim() === "" || $("#TotalCash").val().trim() === "0" || $("#TotalCash").val().trim() === "0.00") {
+                        showError("Any amount on detail is required. ", "modal-message");
+                        return false;
+                    }
+                }
+                else {
+                    if ($("#TotalBill").val().trim() === "" || $("#TotalBill").val().trim() === "0" || $("#TotalBill").val().trim() === "0.00") {
+                        showError("Any bill amount on detail is required. ", "modal-message");
+                        return false;
+                    }
+                }
+
+                /*## Moved to below: 2023-Nov-11 */
+                if (this.id === "btnSubmit") {
+                    //----------------------------------------------------------------------------------------------
+                    /* On request it is moved from ## above*/
+                    //----------------------------------------------------------------------------------------------
+                    for (let i = 1; i <= 4; i++) {
+                        let ChargeFundPer = $("#ChargeFundPer" + i).val().trim();
+                        if (ChargeFundPer === "") { ChargeFundPer = 0; }
+                        ChargeFundPer = parseFloat(ChargeFundPer);
+                        if (ChargeFundPer != 0) {
+                            if ($("#ChargeFundId" + i).val().trim() === "") {
+                                showError("Select fund source for given value.", "modal-message");
+                                return false;
+                            }
+                        }
+                    }
+
+                    let TChargeFundPer = $("#TChargeFundPer").val().trim();
+                    if (TChargeFundPer === "") { TChargeFundPer = 0; }
+                    TChargeFundPer = parseFloat(TChargeFundPer);
+                    if (TChargeFundPer != 100) {
+                        showError("Charge to percentage is not equal to 100.", "modal-message");
+                        return false;
+                    }
+                }//end of submit
+            } //end of ChkReqAdvSet
+
+            submitTravelSettlement("/Personnel/TravelSettlementSave", msg_to_swtich_and_show);
+        });
+        function submitTravelSettlement(ilaka, parm_msg) {
+            if (confirm(parm_msg) == false) { return false; }
+            var formData = $("#frm").serialize();
+            $("#btnSave").prop("disabled", true);
+            $("#btnSubmit").prop("disabled", true);
+            $("#btnC").prop("disabled", true);
+            $.post(ilaka, formData).done(function(data) {
+                if (data.status === "success") {
+                    var table = $("#tblData").DataTable();
+                    table.ajax.reload(function() {
+                        setTimeout(function() { // ? wait for DOM to settle
+                            if (data.id) {
+                                // Find the row index by matching the data.id
+                                var rowIdx = table.rows().eq(0).filter(function(idx) { return String(table.row(idx).data().id) === String(data.id); });
+
+                                if (rowIdx.length) {
+                                    var rowNode = table.row(rowIdx[0]).nodes().to$();
+                                    rowNode.addClass("highlight-row");
+                                    setTimeout(function() { rowNode.removeClass("highlight-row"); }, 2000);
+                                } else {
+                                    //console.warn("Row not found for id:", data.id);
+                                }
+                            }
+                        }, 100);
+                    }, false); // ?? keep current page
+
+                    showSuccess(data.message);
+                    var modal = bootstrap.Modal.getInstance(document.getElementById("ModalID"));
+                    if (modal) modal.hide();
+                    $("#btnSave").prop("disabled", false);
+                    $("#btnSubmit").prop("disabled", false);
+                    $("#btnC").prop("disabled", false);
+                }
+                else {
+                    showError(data.message, "modal-message");
+                    $("#btnSave").prop("disabled", false);
+                    $("#btnSubmit").prop("disabled", false);
+                    $("#btnC").prop("disabled", false);
+                }
+            })
+                .fail(function(xhr) {
+                    showError(xhr.responseText, "modal-message");
+                    $("#btnSave").prop("disabled", false);
+                    $("#btnSubmit").prop("disabled", false);
+                    $("#btnC").prop("disabled", false);
+                });
+        }
+    </script>
