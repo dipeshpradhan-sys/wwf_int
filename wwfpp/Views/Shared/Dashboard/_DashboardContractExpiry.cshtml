@@ -11,7 +11,7 @@
     @Html.Hidden("ilakaContract", "/Dashboard/DashboardContractExpiry")
 
     <div class="form-group p-2">
-        <table id="tblData" class="display compact nowrap" style="width:100%">
+        <table id="tblDataContract" class="display compact nowrap" style="width:100%">
             <thead>
                 <tr style="height: 40px; align-items: center;color:white;" class="bg-secondary bg-opacity-27">
                     <th width="1%">SN</th>
@@ -30,28 +30,17 @@
     @await Html.PartialAsync("_SharedModal", new wwfpp.Models.ModalViewModel { ModalId = "ModalID", DialogClass = "modal-lg", BodyId = "ModalBody" })
 
         <script>
-
-
-            var ilaka = document.getElementById('ilakaContract').value;
             var table;
             var hideviewaction = "";
             $(document).ready(function() {
-                if ($.fn.dataTable.isDataTable('#tblData')) {
-                    $('#tblData').DataTable().clear().destroy();
-                }
-                GetAllDataSN(ilaka, "emp_contract_id", [
-                    { data: "employee", name: "employee", autoWidth: false },
-                    { data: "document_subject", name: "document_subject", autoWidth: false },
-                    { data: "issue_date", name: "issue_date", autoWidth: false, render: function(data, type, row) { if (type === 'display' || type === 'filter') { return moment(data).format(my_format); } return data; } },
-                    { data: "end_date", name: "end_date", autoWidth: false, render: function(data, type, row) { if (type === 'display' || type === 'filter') { return moment(data).format(my_format); } return data; } },
-                    { data: "contract_status", name: "contract_status", autoWidth: false, render: function(data, type, row) { if(data === "A") {return "Active";} else {return "Inactive";} }}
-                ],
-                    {
-                        FilterValue1: "ContractStatusFilter",
-                        FilterValue2: "EmployeeStatusFilter",
-                    }
+                var ilaka = document.getElementById('ilakaContract').value;
+                GetAllDataContractSN(ilaka, "emp_contract_id", [
+                    { data: "employee", name: "employee", className: "dt-left", autoWidth: false },
+                    { data: "document_subject", name: "document_subject", className: "dt-left", autoWidth: false },
+                    { data: "issue_date", name: "issue_date", className: "dt-left", autoWidth: false, render: function(data, type, row) { if (type === 'display' || type === 'filter') { return moment(data).format(my_format); } return data; } },
+                    { data: "end_date", name: "end_date", className: "dt-left", autoWidth: false, render: function(data, type, row) { if (type === 'display' || type === 'filter') { return moment(data).format(my_format); } return data; } },
+                    { data: "contract_status", name: "contract_status", className: "dt-left", autoWidth: false, render: function(data, type, row) { if(data === "A") {return "Active";} else {return "Inactive";} }}
+                ]
                 );
-                //$(document).on("click", "#tblData .button", function() { ViewData($(this).data("id")) });
-                //$(document).off('click', '#btnC').on('click', '#btnC', function() { modalCloseCancel($(this)); });
             });
         </script>

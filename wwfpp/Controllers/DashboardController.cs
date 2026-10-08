@@ -343,6 +343,8 @@ public class DashboardController : Controller
     {
         return PartialView("Dashboard/_DashboardContractExpiry", "");
     }
+    [HttpPost]
+    [ValidateAntiForgeryToken]
     public IActionResult DashboardContractExpiryList([FromForm] MultipleCostumFilterRequest request)
     {
         // Step 1: Update expired contracts
@@ -361,14 +363,13 @@ public class DashboardController : Controller
 
         var (pageSize, skip, draw, sortColumn, sortColumnDir, searchValue) = DataTableHelper.GetParameters(Request);
 
-        string ContractStatusFilter = "A";
-        string EmployeeStatusFilter = "A";
-
+        // Step 2: Get active contracts with employees
         var query = from con in _context.tbl_employee_contract
                     join cdt in _context.tbl_contract_document_template
                         on con.contract_document_id equals cdt.contract_document_id
                     join emp in _context.tbl_employee
                         on con.emp_id equals emp.emp_id
+                    where con.contract_status == "A" && emp.emp_status == "A"
                     select new EmployeeContractViewModel
                     {
                         emp_contract_id = con.emp_contract_id,
@@ -385,27 +386,15 @@ public class DashboardController : Controller
                         document_subject = cdt.document_subject,
                         emp_status = emp.emp_status
                     };
-        if (!string.IsNullOrEmpty(ContractStatusFilter))
-        {
-            query = query.Where(d => d.contract_status == ContractStatusFilter);
-        }
-        if (!string.IsNullOrEmpty(EmployeeStatusFilter))
-        {
-            query = query.Where(d => d.emp_status == EmployeeStatusFilter);
-        }
 
+        // Step 3: Apply sorting
         if (!string.IsNullOrEmpty(sortColumn) && !string.IsNullOrEmpty(sortColumnDir))
         {
             if (sortColumn == "employee")
             {
-                if (sortColumnDir == "asc")
-                {
-                    query = query.OrderBy(d => d.firstname).ThenBy(d => d.middlename).ThenBy(d => d.lastname);
-                }
-                else
-                {
-                    query = query.OrderByDescending(d => d.firstname).ThenByDescending(d => d.middlename).ThenByDescending(d => d.lastname);
-                }
+                query = sortColumnDir == "asc"
+                    ? query.OrderBy(d => d.firstname).ThenBy(d => d.middlename).ThenBy(d => d.lastname)
+                    : query.OrderByDescending(d => d.firstname).ThenByDescending(d => d.middlename).ThenByDescending(d => d.lastname);
             }
             else
             {
@@ -413,6 +402,7 @@ public class DashboardController : Controller
             }
         }
 
+        // Step 4: Apply search
         if (!string.IsNullOrWhiteSpace(searchValue))
         {
             query = query.Where(a =>
@@ -423,12 +413,43 @@ public class DashboardController : Controller
                 (a.lastname != null && a.lastname.Contains(searchValue))
             );
         }
+
+        // Step 5: Materialize and apply isShow logic
         var data = query.ToList();
 
-        int totalRecord = data.Count();
+        var filteredData = data.Where(contract =>
+        {
+            int isProvision = 0;
+            if (contract.end_date.HasValue && contract.issue_date.HasValue)
+            {
+                isProvision = (contract.end_date.Value - contract.issue_date.Value).Days + 1;
+            }
+
+            int? endDateDiff = contract.end_date.HasValue
+                ? (contract.end_date.Value - DateTime.Now).Days + 1
+                : null;
+
+            bool isShow = false;
+
+            if (isProvision < 33)
+            {
+                if (endDateDiff < 1 || (endDateDiff > 0 && endDateDiff < 15))
+                    isShow = true;
+            }
+            else
+            {
+                if (endDateDiff < 1 || (endDateDiff > 0 && endDateDiff < 45))
+                    isShow = true;
+            }
+
+            return isShow;
+        }).ToList();
+
+        // Step 6: Paging
+        int totalRecord = filteredData.Count();
         if (pageSize == -1)
             pageSize = totalRecord;
-        var cData = data.Skip(skip).Take(pageSize).ToList();
+        var cData = filteredData.Skip(skip).Take(pageSize).ToList();
 
         var jsonData = new
         {
@@ -439,8 +460,8 @@ public class DashboardController : Controller
         };
 
         return new JsonResult(jsonData);
-
     }
+
     #endregion
     /*public string ListContractAlert1(string parm)
     {

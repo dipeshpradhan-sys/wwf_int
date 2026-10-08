@@ -273,6 +273,94 @@ function GetAllDataSN(ilaka, chkValue, dynamicColumns, filters = "", groupBy = n
 		});
 	});
 }
+/*----------------------------------------------------------------------------------------*/
+function GetAllDataContractSN(ilaka, chkValue, dynamicColumns, filters = "", groupBy = null) {
+
+	var columns = [
+		{
+			data: null,
+			orderable: false,
+			searchable: false,
+			autoWidth: true
+		},
+		...dynamicColumns,
+	];
+	var groupCounter = 0;
+	if (typeof isFixedHeader === "undefined" || isFixedHeader === null || isFixedHeader === "") {isFixedHeader = false;}
+	var table = $("#tblDataContract").DataTable({
+		fixedHeader: isFixedHeader,
+		processing: true,
+		serverSide: true,
+		searching: true,
+		ordering: (groupBy === null) ? true : false, /* ordering: groupBy === null also work for disable ordering if grouping is enabled*/
+		lengthMenu: [
+			[5, 10, 15, 30, 50, 75, 100, -1],
+			[5, 10, 15, 30, 50, 75, 100, 'All'],
+		],
+		pageLength: 10,
+		language: {
+			lengthMenu: "Display _MENU_ records/page",
+			info: "Total <font class=\"red bold\">_TOTAL_</font> record(s) | Page <font class=\"green bold\">_PAGE_</font> of <font class=\"green bold\">_PAGES_</font> page(s)",
+			zeroRecords: "No record(s) found."
+		},
+		ajax: {
+			type: "POST",
+			url: ilaka + "List",
+			headers: {
+				RequestVerificationToken: $('input:hidden[name="__RequestVerificationToken"]').val()
+			},
+			dataType: "json",
+			data: function (d) {
+				$.each(filters, function (modelField, controlId) {
+					d[modelField] = $('#' + controlId).val();
+				});
+			}
+		},
+		columns: columns,
+		columnDefs: [
+			{
+				targets: 0,
+				searchable: false,
+				render: function (data, type, row, meta) {
+					if (groupBy !== null && row._groupIndex !== undefined && row._rowInGroup !== undefined) {
+						return row._groupIndex + '.' + row._rowInGroup;
+					}
+					return meta.row + 1; // fallback: simple SN
+				}
+			}
+		],
+		rowGroup: groupBy !== null ? {
+			dataSrc: groupBy, // group by column name
+			startRender: function (rows, group) {
+				groupCounter++;
+				var subCounter = 0;
+				rows.every(function (rowIdx) {
+					subCounter++;
+					var data = table.row(rowIdx).data();
+					data._groupIndex = groupCounter;
+					data._rowInGroup = subCounter;
+					table.row(rowIdx).data(data);
+				});
+				return groupCounter + '. ' + group;
+			}
+		} : false
+	});
+	// Reset groupCounter before each draw, it is also reseting on page switch
+	table.on('preDraw', function () { groupCounter = 0; });
+
+	// Resolve the column index by name and Only proceed if a valid groupBy column was found
+	var groupByIndex = groupBy ? table.column(groupBy + ':name').index() : null;
+	if (groupByIndex !== undefined && groupByIndex !== null) {
+		table.column(groupByIndex).visible(false); // hide the grouped column
+	}
+
+	$.each(filters, function (modelField, controlId) {
+		$('#' + controlId).on('change keyup', function () {
+			var groupCounter = 0;
+			table.draw();
+		});
+	});
+}
 /*----------------------------------------------------------------------------------------
  * 
  *---------------------------------------------------------------------------------------*/
