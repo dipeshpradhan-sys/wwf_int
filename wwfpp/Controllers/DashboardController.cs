@@ -1,4 +1,6 @@
-﻿using DocumentFormat.OpenXml.Bibliography;
+﻿using Azure.Core;
+using DocumentFormat.OpenXml.Bibliography;
+using DocumentFormat.OpenXml.Office2016.Excel;
 using DocumentFormat.OpenXml.Wordprocessing;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -22,6 +24,7 @@ using wwf_pp.Services;
 using wwfpp.Data;
 using wwfpp.EmailServices;
 using wwfpp.Models;
+using wwfpp.Models.Employee;
 using wwfpp.Models.Personnel;
 using wwfpp.Services;
 using static GblUtilities;
@@ -167,7 +170,7 @@ public class DashboardController : Controller
 
         return PartialView("Dashboard/_LeaveFutureToSupervisor", model);
     }
-
+    #region ALL APPROVED TRAVEL REQUEST(S)
     public async Task<IActionResult> DashboardTravelApprovedAccount(int? cmbMeEmployee, int? emp_travel_id, string cmbMark = "unmarkonly", string saveValue = "")
     {
         int empId = Convert.ToInt32(HttpContext.Session.GetString("emp_id"));
@@ -244,6 +247,8 @@ public class DashboardController : Controller
 
         return PartialView("Dashboard/_DashboardTravelApprovedAccount", travels);
     }
+    #endregion
+    #region UNSETTLED TRAVEL(S), TRAVEL SAVED FOR SETTLEMENT & TRAVEL SUBMITTED FOR SETTLEMENT
     public IActionResult DashboardTravelSettlement(string ? travelStatus = null)
     {
         ViewBag.travelStatus = travelStatus ?? "U";
@@ -332,7 +337,112 @@ public class DashboardController : Controller
         };
         return new JsonResult(jsonData);
     }
-    public string ListContractAlert(string parm)
+    #endregion
+    #region EMPLOYEE CONTRACT EXPIRY NOTIFICATION
+    public IActionResult DashboardContractExpiry()
+    {
+        return PartialView("Dashboard/_DashboardContractExpiry", "");
+    }
+    public IActionResult DashboardContractExpiryList([FromForm] MultipleCostumFilterRequest request)
+    {
+        // Step 1: Update expired contracts
+        var expiredContracts = _context.tbl_employee_contract
+            .Where(c => c.contract_status == "A" && c.end_date < DateTime.Now)
+            .ToList();
+
+        foreach (var contract in expiredContracts)
+        {
+            contract.contract_status = "D";
+        }
+        if (expiredContracts.Any())
+        {
+            _context.SaveChanges();
+        }
+
+        var (pageSize, skip, draw, sortColumn, sortColumnDir, searchValue) = DataTableHelper.GetParameters(Request);
+
+        string ContractStatusFilter = "A";
+        string EmployeeStatusFilter = "A";
+
+        var query = from con in _context.tbl_employee_contract
+                    join cdt in _context.tbl_contract_document_template
+                        on con.contract_document_id equals cdt.contract_document_id
+                    join emp in _context.tbl_employee
+                        on con.emp_id equals emp.emp_id
+                    select new EmployeeContractViewModel
+                    {
+                        emp_contract_id = con.emp_contract_id,
+                        contract_document_id = con.contract_document_id,
+                        contract_desc = con.contract_desc,
+                        issue_date = con.issue_date,
+                        end_date = con.end_date,
+                        emp_id = con.emp_id,
+                        firstname = emp.firstname,
+                        middlename = emp.middlename,
+                        lastname = emp.lastname,
+                        employee = $"{emp.firstname} {emp.middlename} {emp.lastname} ({emp.emp_code})",
+                        contract_status = con.contract_status,
+                        document_subject = cdt.document_subject,
+                        emp_status = emp.emp_status
+                    };
+        if (!string.IsNullOrEmpty(ContractStatusFilter))
+        {
+            query = query.Where(d => d.contract_status == ContractStatusFilter);
+        }
+        if (!string.IsNullOrEmpty(EmployeeStatusFilter))
+        {
+            query = query.Where(d => d.emp_status == EmployeeStatusFilter);
+        }
+
+        if (!string.IsNullOrEmpty(sortColumn) && !string.IsNullOrEmpty(sortColumnDir))
+        {
+            if (sortColumn == "employee")
+            {
+                if (sortColumnDir == "asc")
+                {
+                    query = query.OrderBy(d => d.firstname).ThenBy(d => d.middlename).ThenBy(d => d.lastname);
+                }
+                else
+                {
+                    query = query.OrderByDescending(d => d.firstname).ThenByDescending(d => d.middlename).ThenByDescending(d => d.lastname);
+                }
+            }
+            else
+            {
+                query = query.OrderBy(sortColumn + " " + sortColumnDir);
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(searchValue))
+        {
+            query = query.Where(a =>
+                (a.contract_desc != null && a.contract_desc.Contains(searchValue)) ||
+                (a.document_subject != null && a.document_subject.Contains(searchValue)) ||
+                (a.firstname != null && a.firstname.Contains(searchValue)) ||
+                (a.middlename != null && a.middlename.Contains(searchValue)) ||
+                (a.lastname != null && a.lastname.Contains(searchValue))
+            );
+        }
+        var data = query.ToList();
+
+        int totalRecord = data.Count();
+        if (pageSize == -1)
+            pageSize = totalRecord;
+        var cData = data.Skip(skip).Take(pageSize).ToList();
+
+        var jsonData = new
+        {
+            draw = draw,
+            recordsFiltered = totalRecord,
+            recordsTotal = totalRecord,
+            data = cData
+        };
+
+        return new JsonResult(jsonData);
+
+    }
+    #endregion
+    /*public string ListContractAlert1(string parm)
     {
         int rCnt = 0;
         string fnStrStart;
@@ -495,10 +605,10 @@ public class DashboardController : Controller
             // No contracts at all
             return "<div class=\"normal\">No records found</div>";
         }
-    }
+    }*/
 
 
-    public string GetApprovedTravelSettlementSubmitedList()
+    /*public string GetApprovedTravelSettlementSubmitedList()
     {
         DateTime parm_date_from = Convert.ToDateTime(HttpContext.Session.GetString("date_from"));
         DateTime parm_date_to = Convert.ToDateTime(HttpContext.Session.GetString("date_to"));
@@ -605,7 +715,7 @@ public class DashboardController : Controller
             fnStr.AppendLine("</div>");
         }
         return fnStr.ToString();
-    }
+    }*/
 
 
 }
