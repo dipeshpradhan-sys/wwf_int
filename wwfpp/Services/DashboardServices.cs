@@ -464,7 +464,7 @@ namespace wwf_pp.Services
             var query = _context.tbl_employee_overtime_request
                 .Where(t =>
                     (
-                        (t.app_status == "P" && t.app_by == supervisorId) ||
+                        (t.app_status == "P" && t.app_by == supervisorId && t.req_status == "R") ||
                         (t.req_status == "P" && t.requested_by == supervisorId)
                     )
                 );

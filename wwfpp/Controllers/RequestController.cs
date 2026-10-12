@@ -2774,9 +2774,13 @@ namespace wwfpp.Controllers
             if (!string.IsNullOrEmpty(OtStatusFilter))
             {
                 if (OtStatusFilter == "Pending")
-                    query = query.Where(x => x.o.req_status == "P");
+                    query = query.Where(x => x.o.req_status == "P" || (x.o.app_status == "P" && x.o.req_status == "R"));
                 else if (OtStatusFilter == "Approved")
                     query = query.Where(x => x.o.app_status == "A");
+                else if (OtStatusFilter == "Declined")
+                    query = query.Where(x => x.o.app_status == "D" || x.o.req_status == "D");
+                else if (OtStatusFilter == "Cancelled")
+                    query = query.Where(x => x.o.app_status == "C" || x.o.req_status == "C");
             }
             if (!string.IsNullOrEmpty(searchValue))
             {
