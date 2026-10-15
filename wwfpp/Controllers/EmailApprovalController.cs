@@ -247,6 +247,7 @@ namespace wwfpp.Controllers
             var leave = await context.tbl_employee_leave
                 .FirstOrDefaultAsync(l => l.emp_leave_id == Convert.ToInt32(model.AppID));
 
+
             if (leave == null)
             {
                 return Json(new { status = "notfound", message = "Leave record not found." });

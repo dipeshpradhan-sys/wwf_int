@@ -151,8 +151,6 @@ namespace wwfpp.Data
         public DbSet<tbl_employee_gratuity_accrual_fund_wise_final> tbl_employee_gratuity_accrual_fund_wise_final { get; set; }
         public DbSet<tbl_employee_gratuity_info> tbl_employee_gratuity_info { get; set; }
 
-
-
         //Attendance
         public DbSet<tbl_employee_check_in_out_change_log> tbl_employee_check_in_out_change_log { get; set; }
         public DbSet<tbl_employee_check_in_out_change_log_outside> tbl_employee_check_in_out_change_log_outside { get; set; }
@@ -162,6 +160,8 @@ namespace wwfpp.Data
         public DbSet<tbl_employee_check_in_out_staff_update> tbl_employee_check_in_out_staff_update { get; set; }
         public DbSet<tbl_employee_check_in_out_sub> tbl_employee_check_in_out_sub { get; set; }
         public DbSet<tbl_employee_check_in_out_sub_outside> tbl_employee_check_in_out_sub_outside { get; set; }
+        public DbSet<tbl_employee_request_app_token> tbl_employee_request_app_token { get; set; }
+
         /** Views */
         public DbSet<vwAttendanceDailyStaffUpdate> vwAttendanceDailyStaffUpdate { get; set; }
         public DbSet<vwAttendanceDailyStaffUpdateSub> vwAttendanceDailyStaffUpdateSub { get; set; }

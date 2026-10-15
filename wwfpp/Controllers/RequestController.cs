@@ -645,6 +645,31 @@ namespace wwfpp.Controllers
 
                 int newEmpLeaveId = Efs.emp_leave_id;
 
+                #region ADD TOKEN WHILE SENDING MAIL
+                    string token = Guid.NewGuid().ToString();
+                    string token_expiry_in_days = _requestServices.GetApplicationSetting("op_token_expiry_in_days") ?? "1";
+                    DateTime submit_date = System.DateTime.Now;
+                    var emailToken = new tbl_employee_request_app_token
+                    {
+                        token = token,
+                        submit_date = submit_date,
+                        expiry_date = submit_date.AddDays(Convert.ToInt32(token_expiry_in_days)),
+                        request_category = "leave",
+                        request_id = newEmpLeaveId,
+                        emp_id = Convert.ToInt32(model.emp_id),
+                        toid = toID,
+                        toemp_id = toEmpID,
+                        action_st = "a/d",
+                        action_via = "email",
+                        ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown",
+                        user_agent = Request.Headers["User-Agent"].ToString(),
+                        is_used = "N"
+                    };
+                    _context.tbl_employee_request_app_token.Add(emailToken);
+                    _context.SaveChanges();
+                #endregion
+
+
                 //Send Email To Manager for Approval or decline
                 string EmployeeName = _employeeServices.GetEmployeeName(Convert.ToInt32(model.emp_id));
                 string str_to = _employeeServices.GetEmployeeNameEmail(toEmpID);
@@ -657,8 +682,10 @@ namespace wwfpp.Controllers
                      .Select(e => e.description)
                      .FirstOrDefaultAsync();
 
-                string approveEmailLink = $"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={model.emp_id}&app_id={newEmpLeaveId}&toid={toID}&toemp_id={toEmpID}&st=a&approval_from=email&approve_for=leave'>Approve</a> | ";
-                string declineEmailLink = $"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={model.emp_id}&app_id={newEmpLeaveId}&toid={toID}&toemp_id={toEmpID}&st=d&approval_from=email&approve_for=leave'>Decline</a>";
+                //string approveEmailLink = $"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={model.emp_id}&app_id={newEmpLeaveId}&toid={toID}&toemp_id={toEmpID}&st=a&approval_from=email&approve_for=leave'>Approve</a> | ";
+                //string declineEmailLink = $"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={model.emp_id}&app_id={newEmpLeaveId}&toid={toID}&toemp_id={toEmpID}&st=d&approval_from=email&approve_for=leave'>Decline</a>";
+                string approveEmailLink = $"<a href='{_appSettings.BaseUrl}Home/TokenIndex?token={token}&st=a'>Approve</a> | ";
+                string declineEmailLink = $"<a href='{_appSettings.BaseUrl}Home/TokenIndex?token={token}&st=d'>Decline</a>";
 
                 string subject = $"Leave submitted by {EmployeeName}";
                 string strMessage = $"<b>Leave Type: </b>{LeaveTypeName}<br/><b>Submit Date: </b>{SubmitDate:MM/dd/yyyy}<br/><b>Leave From Date: </b>{model.leave_from_date:MM/dd/yyyy}<br/><b>Leave To Date: </b>{model.leave_to_date:MM/dd/yyyy}<br/><b>Leave hours: </b>{model.leave_in_hrs}<br/><b>Description: </b><br/>{model.leave_desc}<br><br>Please click Approve or Decline link provided below as appropriate.<br/><br/>{approveEmailLink} {declineEmailLink}";

@@ -1,0 +1,86 @@
+﻿@model ApprovalFromEmailVM
+
+@if (!string.IsNullOrWhiteSpace(@ViewBag.ErrorMessage))
+{
+    <div class="alert alert-danger" role="alert">
+        @ViewBag.ErrorMessage
+    </div>
+}
+else
+{
+    <h1>@ViewBag.HeaderMessage</h1>
+    <div id="ModalForm">
+        @Html.AntiForgeryToken()
+        @Html.HiddenFor(m => m.EmpID) <!-- Needed for Edit -->
+        @Html.HiddenFor(m => m.AppID)
+        @Html.HiddenFor(m => m.ToID)
+        @Html.HiddenFor(m => m.ToEmpID)
+        @Html.HiddenFor(m => m.St)
+        @Html.HiddenFor(m => m.Counter)
+        @Html.HiddenFor(m => m.Month)
+        @Html.HiddenFor(m => m.Year)
+        @Html.HiddenFor(m => m.ApproveFor)
+
+        <div class="form-group row p-1">
+            <label class="col-sm-4 col-form-label"><h5>Description</h5></label>
+            <div class="col-sm-8">
+                <div class="input-group input-group-sm">
+                    <textarea asp-for="Description" rows="5" cols="50" class="form-control" placeholder="Enter Description"></textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @await Html.PartialAsync("_SharedModal", new wwfpp.Models.ModalViewModel
+    {
+        ModalId = "ModalID",
+        DialogClass = "modal-lg",
+        Title = "Add / Edit User",
+        BodyId = "ModalBody",
+        SaveButtonId = "BtnModalSave",
+        SaveButtonText = "Save",
+        CancelButtonText = "Cancel",
+        ShowEditButton = "true"
+    })
+
+    @section Scripts {
+        <script>
+            $(document).on("click", ".send-to-me-action", function (e) {
+                e.preventDefault();
+                const empId    = $(this).data("emp-id");
+                const appId    = $(this).data("app-id");
+                const month    = $(this).data("month");
+                const year     = $(this).data("year");
+                const toID     = $(this).data("to-id");
+                const toEmpID  = $(this).data("to-emp-id");
+                const st       = $(this).data("st");
+                const counter  = $(this).data("counter");
+                const approveFor = $(this).data("sent-to-me-type");
+                const approveForDisplay = (
+                                    approveFor === "leavefuture" ? "Future Leave":approveFor
+                        );
+                const approveDecline = approveForDisplay + " " +
+                    (st === "a" ? "Approval" :
+                        st === "d" ? "Decline" :
+                        st === "nr" ? "Recommendation Decline" :
+                        st === "rr" ? "Recommend" : "Unknown");
+
+                if (empId && appId) {
+                    $.get("/EmailApproval/EmailApproval",
+                    { empId, appId, month, year, toID, toEmpID, st, counter, approveFor },
+                    function (data) {
+                        $("#ModalBody").html(data);
+                        $("#ModalID .modal-title").text(approveDecline);
+                        $("#BtnModalSave").text("Submit");
+
+                        const modal = new bootstrap.Modal(document.getElementById("ModalID"), {
+                            backdrop: 'static',
+                            keyboard: true
+                        });
+                        modal.show();
+                    });
+                }
+            });
+        </script>
+    }
+}

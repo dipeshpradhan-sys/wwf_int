@@ -56,6 +56,8 @@
     <header >
         <div id="top">
             <div id="curve-left"><script>var timesheet_type = "@Timesheet_type";</script></div>
+            @if (!string.IsNullOrEmpty(username))
+            {
             <div id="logo-01">
                 <div class="center-box">
                     <span id="sCountDown"></span>
@@ -84,7 +86,7 @@
                    
                 </div>
             </div>
-            
+            }
             <div id="curve-right">
                 <div id="header-txt">
                     <h5><img src="@login_user_photo_info" title="@tp_name" width="40" height="40" style="border:0px solid #cfcfcf;border-radius:50%;vertical-align:middle;"> &nbsp;&nbsp;<img src=@Url.Content("~/images/flag.png") height="26" width="40" title="@OrgOpName" /></h5>
@@ -98,12 +100,15 @@
     <form name = "frm" id = "frm" onsubmit = "return false" >
         <div id="wrapper">
             <!-- Module Menu Start Here -->
+            @if (!string.IsNullOrEmpty(username))
+            {
             <div id="left-bar">
                 <div id="left-box">
                     @if(int.TryParse(Context.Session.GetString("user_id"), out int new_user_id)){/*success*/}else{new_user_id = -1;}
                     @await Component.InvokeAsync("LeftMenu", new { UserId = new_user_id })
                 </div><!-- left-box -->
             </div><!-- left-bar -->
+            }
             <!-- Module Menu End  Here -->
 
             <div id="main-bar">

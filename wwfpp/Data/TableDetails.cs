@@ -61,4 +61,23 @@ namespace wwfpp.Data
         public tbl_email_list TblEmailList { get; set; } = null!;
         public DateTime? log_date { get; set; }     // datetime NULL
     }
+    public class tbl_employee_request_app_token
+    {
+        [Key]
+        public int Id { get; set; } //int NOT NULL PRIMARY KEY,
+        public string? token { get; set; }    //nvarchar(100) NULL,
+        public DateTime? submit_date { get; set; }        //datetime NULL,
+        public DateTime? expiry_date { get; set; }
+        public string? request_category { get; set; }     // nvarchar(100) NULL
+        public int request_id { get; set; } //int NOT NULL,
+        public int emp_id { get; set; } //int NOT NULL,
+        public int toid { get; set; } //int NOT NULL,
+        public int toemp_id { get; set; } //int NOT NULL,
+        public string? action_st { get; set; } // nvarchar(100) NULL
+        public string? action_via { get; set; } // nvarchar(100) NULL
+        public DateTime? update_date { get; set; }
+        public string? ip { get; set; } // nvarchar(255) NULL
+        public string? user_agent { get; set; } // nvarchar(255) NULL
+        public string? is_used { get; set; } // nvarchar(5) NULL
+    }
 }

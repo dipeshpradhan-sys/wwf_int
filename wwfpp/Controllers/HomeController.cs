@@ -1,3 +1,4 @@
+using Azure.Core;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -8,6 +9,7 @@ using wwfpp.Data;
 using wwfpp.EmailServices;
 using wwfpp.Helpers;
 using wwfpp.Models;
+using wwfpp.Models.Employee;
 using wwfpp.Services;
 
 namespace wwfpp.Controllers
@@ -18,6 +20,7 @@ namespace wwfpp.Controllers
         SessionHelper sessionHelper,
         EmailService emailService,
         ILogger<HomeController> logger,
+        EmployeeServices employeeServices,
         GlobalOptionServices globalOptionServices
             ) : Controller
     {
@@ -25,6 +28,7 @@ namespace wwfpp.Controllers
         private readonly SessionHelper _sessionHelper = sessionHelper;
         private readonly EmailService _emailService = emailService;
         private readonly ILogger<HomeController> _logger = logger;
+        private readonly EmployeeServices _employeeServices = employeeServices;
         private readonly GlobalOptionServices _globalOptionServices = globalOptionServices;
         private readonly AppDbContext _context = context;
 
@@ -116,6 +120,72 @@ namespace wwfpp.Controllers
         public IActionResult Error()
         {
             return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
+        }
+        [AllowAnonymous]
+        public IActionResult TokenIndex(string? Token, string? st)
+        {
+            var model = new ApprovalFromEmailVM();
+            if (string.IsNullOrWhiteSpace(Token))
+            {
+                ViewBag.ErrorMessage = "Token is required.";
+            }
+            else
+            {
+                var tokenInfo = _context.tbl_employee_request_app_token
+                    .Where(r => r.token == Token)
+                    .Select(r => new { r.Id, r.submit_date, r.request_category, r.request_id, r.emp_id, r.toid, r.toemp_id, r.action_st, r.action_via, r.is_used, r.expiry_date })
+                    .FirstOrDefault();
+                if (tokenInfo == null)
+                {
+                    ViewBag.ErrorMessage = "Invalid Token.";
+                }
+                else 
+                { 
+                    if (tokenInfo.expiry_date.HasValue && tokenInfo.expiry_date.Value < DateTime.Now)
+                    {
+                        ViewBag.ErrorMessage = "Token is expired.";
+                    }
+                    else if (tokenInfo.is_used == "Y")
+                    {
+                        ViewBag.ErrorMessage = "Token already used.";
+                    }
+                    else
+                    {
+                        model = new ApprovalFromEmailVM
+                        {
+                            EmpID = tokenInfo.emp_id,
+                            AppID = Convert.ToString(tokenInfo.request_id),
+                            Month = 0,
+                            Year = 0,
+                            ToID = tokenInfo.toid,
+                            ToEmpID = tokenInfo.toemp_id,
+                            St = st,
+                            Counter = 0,
+                            ApproveFor = tokenInfo.request_category
+                        };
+                        string approveDecline = st == "a" ? "Approve" : st == "d" ? "Decline" : "Unknown";
+                        string employeeName = _employeeServices.GetEmployeeName(tokenInfo.emp_id);
+
+                        switch (tokenInfo.request_category.ToLower())
+                        {
+                            case "timesheet":
+                                ViewBag.HeaderMessage = "Timesheet " + approveDecline + " for " + employeeName;
+                                break;
+                            case "leave":
+                                ViewBag.HeaderMessage = "Leave " + approveDecline + " for " + employeeName;
+                                break;
+                            case "Overtime":
+                                ViewBag.HeaderMessage = "Overtime " + approveDecline + " for " + employeeName;
+                                break;
+                            case "travel":
+                                ViewBag.HeaderMessage = "Travel " + approveDecline + " for " + employeeName;
+                                break;
+                        }
+                    }
+                }
+            }
+
+            return View(model);
         }
     }
 }

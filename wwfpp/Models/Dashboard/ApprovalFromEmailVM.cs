@@ -16,7 +16,7 @@ namespace wwfpp.Models
         public string? St { get; set; }
         public int? Counter { get; set; }
 
-        public string?Description { get; set; }
+        public string? Description { get; set; }
         public string? ApproveFor { get; set; }
         
 

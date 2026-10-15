@@ -270,6 +270,7 @@ else
                 // 🔹 Approval or Decline Mode initializer Auto Pop when clicked from Email Link
             // *****************************************************************************
                 $(document).ready(function () {
+                    const token = $("#Token").val();
                     const empId = $("#EmpId").val();
                     const appId = $("#AppId").val();
                     if (empId && appId) {
