@@ -159,7 +159,7 @@ function GetAllData(ilaka, chkValue, dynamicColumns, filters = "") {
 	});
 }
 /*----------------------------------------------------------------------------------------*/
-function GetAllDataSN(ilaka, chkValue, dynamicColumns, filters = "", groupBy = null) {
+function GetAllDataSN(ilaka, chkValue, dynamicColumns, filters = "", groupBy = null, tableName = "tblData") {
 	var sTtl = "Edit"; var sImg = "edit";
 	var img_icon = `<img src="${path}images/${sImg}.png" title="${sTtl}" height="16" width="16" border="0">`;
 
@@ -185,7 +185,7 @@ function GetAllDataSN(ilaka, chkValue, dynamicColumns, filters = "", groupBy = n
 	}
 	var groupCounter = 0;
 	if (typeof isFixedHeader === "undefined" || isFixedHeader === null || isFixedHeader === "") {isFixedHeader = false;}
-	var table = $("#tblData").DataTable({
+	var table = $("#" + tableName).DataTable({
 		fixedHeader: isFixedHeader,
 		processing: true,
 		serverSide: true,

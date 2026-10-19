@@ -133,9 +133,9 @@ else
                     <!-- Right side dropdowns -->
                     <div class="d-flex">
                         <div id="cmbMarkOnly" style="display:none" class="me-2">
-                            @Html.DropDownList("cmbMeEmployee", (SelectList)ViewBag.cmbMeEmployee, new { @class = "form-select form-select-sm", style = "width:300px;" })
+                            @Html.DropDownList("cmbMeEmployee", (SelectList)ViewBag.cmbMeEmployee, new { @class = "form-select form-select-sm", style = "width:100px;" })
                         </div>
-                        @Html.DropDownList("cmbMark", (SelectList)ViewBag.cmbMark, new { @class = "form-select form-select-sm", style = "width:300px;" })
+                        @Html.DropDownList("cmbMark", (SelectList)ViewBag.cmbMark, new { @class = "form-select form-select-sm", style = "width:200px;" })
                     </div>
                 </div>
 
@@ -154,7 +154,7 @@ else
                     <h5 class="timesheet-header mb-0"><div id="TravelSettlementContainerHeading">Unsettled Travel(s)</div></h5>
                     <div class="d-flex">
                         <div id="divTravelStatus" class="me-2">
-                            @Html.DropDownList("cmbTravelStatus", (SelectList)ViewBag.cmbTravelStatus, new { @class = "form-select form-select-sm", style = "width:300px;" })
+                            @Html.DropDownList("cmbTravelStatus", (SelectList)ViewBag.cmbTravelStatus, new { @class = "form-select form-select-sm", style = "width:200px;" })
                         </div>
                     </div>
                 </div>

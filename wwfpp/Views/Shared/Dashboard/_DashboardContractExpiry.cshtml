@@ -34,13 +34,13 @@
             var hideviewaction = "";
             $(document).ready(function() {
                 var ilaka = document.getElementById('ilakaContract').value;
-                GetAllDataContractSN(ilaka, "emp_contract_id", [
+                GetAllDataSN(ilaka, "emp_contract_id", [
                     { data: "employee", name: "employee", className: "dt-left", autoWidth: false },
                     { data: "document_subject", name: "document_subject", className: "dt-left", autoWidth: false },
                     { data: "issue_date", name: "issue_date", className: "dt-left", autoWidth: false, render: function(data, type, row) { if (type === 'display' || type === 'filter') { return moment(data).format(my_format); } return data; } },
                     { data: "end_date", name: "end_date", className: "dt-left", autoWidth: false, render: function(data, type, row) { if (type === 'display' || type === 'filter') { return moment(data).format(my_format); } return data; } },
                     { data: "contract_status", name: "contract_status", className: "dt-left", autoWidth: false, render: function(data, type, row) { if(data === "A") {return "Active";} else {return "Inactive";} }}
-                ]
+                    ], "", null, "tblDataContract"
                 );
             });
         </script>
