@@ -160,6 +160,9 @@ function GetAllData(ilaka, chkValue, dynamicColumns, filters = "") {
 }
 /*----------------------------------------------------------------------------------------*/
 function GetAllDataSN(ilaka, chkValue, dynamicColumns, filters = "", groupBy = null, tableName = "tblData") {
+	if ($.fn.DataTable.isDataTable('#' + tableName)) {
+		$('#' + tableName).DataTable().clear().destroy();
+	}
 	var sTtl = "Edit"; var sImg = "edit";
 	var img_icon = `<img src="${path}images/${sImg}.png" title="${sTtl}" height="16" width="16" border="0">`;
 
@@ -271,7 +274,7 @@ function GetAllDataSN(ilaka, chkValue, dynamicColumns, filters = "", groupBy = n
 			var groupCounter = 0;
 			table.draw();
 		});
-	});
+	});	
 }
 /*----------------------------------------------------------------------------------------*/
 function GetAllDataContractSN(ilaka, chkValue, dynamicColumns, filters = "", groupBy = null) {
