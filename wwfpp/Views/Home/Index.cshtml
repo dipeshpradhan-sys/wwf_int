@@ -133,18 +133,9 @@ else
                     <!-- Right side dropdowns -->
                     <div class="d-flex">
                         <div id="cmbMarkOnly" style="display:none" class="me-2">
-                            <select id="cmbMeEmployee" name="cmbMeEmployee" class="form-select form-select-sm"
-                                    onchange="toggleDiv();">
-                                <option value="0">All</option>
-                                <option value="@Context.Session.GetString("emp_id")">By Me</option>
-                            </select>
+                            @Html.DropDownList("cmbMeEmployee", (SelectList)ViewBag.cmbMeEmployee, new { @class = "form-select form-select-sm", style = "width:300px;" })
                         </div>
-
-                        <select id="cmbMark" name="cmbMark" class="form-select form-select-sm"
-                                onchange="toggleDiv();">
-                            <option value="unmarkonly">New and not set checked</option>
-                            <option value="markonly">Set as checked</option>
-                        </select>
+                        @Html.DropDownList("cmbMark", (SelectList)ViewBag.cmbMark, new { @class = "form-select form-select-sm", style = "width:300px;" })
                     </div>
                 </div>
 
@@ -161,15 +152,11 @@ else
                 <!-- Header bar -->
                 <div class="form-group p-2 d-flex justify-content-between align-items-center timesheet-header mb-0 text-black">
                     <h5 class="timesheet-header mb-0"><div id="TravelSettlementContainerHeading">Unsettled Travel(s)</div></h5>
-                        <div class="d-flex">
-                            <div id="divTravelStatus" class="me-2">
-                                <select id="cmbTravelStatus" name="cmbTravelStatus" class="form-select form-select-sm" onchange="toggleTravelDiv();">
-                                    <option value="U">Unsettled</option>
-                                    <option value="I">Saved</option>
-                                    <option value="R">Submitted</option>
-                                </select>
-                            </div>
+                    <div class="d-flex">
+                        <div id="divTravelStatus" class="me-2">
+                            @Html.DropDownList("cmbTravelStatus", (SelectList)ViewBag.cmbTravelStatus, new { @class = "form-select form-select-sm", style = "width:300px;" })
                         </div>
+                    </div>
                 </div>
                 <!-- Content -->
                 <div id="TravelSettlementContainer"></div>
@@ -527,7 +514,7 @@ else
                     }
                 });            
             
-                function toggleDiv() {
+                $(document).on("change", "#cmbMeEmployee, #cmbMark", function () {
                     var value = document.getElementById("cmbMark").value;
                     var markonlyval = document.getElementById("cmbMeEmployee").value;
                     var div = document.getElementById("cmbMarkOnly");
@@ -539,7 +526,7 @@ else
                         div.style.display = "none";    // hide
                         loadWithSpinner("#DashboardTravelApprovedAccount", "/Dashboard/DashboardTravelApprovedAccount/?cmbMark=unmarkonly&cmbMeEmployee="+markonlyval);
                     }
-                }
+                });
 
             function setChecked(emp_travel_id, saveValue) {
                 var value = document.getElementById("cmbMark").value;
@@ -551,7 +538,7 @@ else
                 }
             }
 
-            function toggleTravelDiv() {
+            $(document).on("change", "#cmbTravelStatus", function () {
                 var value = document.getElementById("cmbTravelStatus").value;
                 if(value == "U"){
                     data = "Unsettled Travel(s)";
@@ -564,7 +551,7 @@ else
                     $("#TravelSettlementContainerHeading").html(data);
                 }                
                 loadWithSpinner("#TravelSettlementContainer", "/Dashboard/DashboardTravelSettlement/?travelStatus="+value);
-            }
+            });
         </script>
     }
 

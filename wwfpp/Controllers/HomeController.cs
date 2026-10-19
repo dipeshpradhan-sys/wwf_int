@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using System.Data;
 using System.Diagnostics;
+using wwf_pp.Services;
 using wwfpp.Data;
 using wwfpp.EmailServices;
 using wwfpp.Helpers;
@@ -21,6 +22,7 @@ namespace wwfpp.Controllers
         EmailService emailService,
         ILogger<HomeController> logger,
         EmployeeServices employeeServices,
+        DashboardService dashboardServices,
         GlobalOptionServices globalOptionServices
             ) : Controller
     {
@@ -29,6 +31,7 @@ namespace wwfpp.Controllers
         private readonly EmailService _emailService = emailService;
         private readonly ILogger<HomeController> _logger = logger;
         private readonly EmployeeServices _employeeServices = employeeServices;
+        private readonly DashboardService _dashboardServices = dashboardServices;
         private readonly GlobalOptionServices _globalOptionServices = globalOptionServices;
         private readonly AppDbContext _context = context;
 
@@ -100,6 +103,11 @@ namespace wwfpp.Controllers
                 ViewData["ApprovalMode"] = false;
             }
             */
+
+            int empId = Convert.ToInt32(HttpContext.Session.GetString("emp_id"));
+            ViewBag.cmbMeEmployee = DashboardService.DashboardTravelMeEmployee(empId.ToString(), "");
+            ViewBag.cmbMark = DashboardService.DashboardTravelMark();
+            ViewBag.cmbTravelStatus = DashboardService.DashboardTravelStatus();
 
             return View();
 

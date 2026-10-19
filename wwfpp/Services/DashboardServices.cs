@@ -1,5 +1,6 @@
 ﻿using Azure.Core;
 using DocumentFormat.OpenXml.InkML;
+using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Linq;
@@ -750,6 +751,54 @@ namespace wwf_pp.Services
 
             return await result.ToListAsync();
         }*/
+        public static SelectList DashboardTravelMeEmployee(string empId, string selvalue = "")
+        {
+            var options = new Dictionary<string, string>
+            {
+                { "0", "All" },
+                { empId, "By Me" }
+            };
 
+            var items = options.Select(o => new SelectListItem
+            {
+                Value = o.Key,
+                Text = o.Value
+            }).ToList();
+
+            return new SelectList(items, "Value", "Text", selvalue);
+        }
+        public static SelectList DashboardTravelMark(string selvalue = "")
+        {
+            var options = new Dictionary<string, string>
+            {
+                { "unmarkonly", "New and not set checked" },
+                { "markonly", "Set as checked" }
+            };
+
+            var items = options.Select(o => new SelectListItem
+            {
+                Value = o.Key,
+                Text = o.Value
+            }).ToList();
+
+            return new SelectList(items, "Value", "Text", selvalue);
+        }
+        public static SelectList DashboardTravelStatus(string selvalue = "")
+        {
+            var options = new Dictionary<string, string>
+            {
+                { "U", "Unsettled" },
+                { "I", "Saved" },
+                { "R", "Submitted" }
+            };
+
+            var items = options.Select(o => new SelectListItem
+            {
+                Value = o.Key,
+                Text = o.Value
+            }).ToList();
+
+            return new SelectList(items, "Value", "Text", selvalue);
+        }
     }
 }

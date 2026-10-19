@@ -242,8 +242,8 @@ public class DashboardController : Controller
                     )
         }).ToList();
 
-        ViewBag.CmbMark = cmbMark;
-        ViewBag.CmbMeEmployee = empId;
+        ViewBag.CmbMarkVal = cmbMark;
+        ViewBag.CmbMeEmployeeVal = empId;
 
         return PartialView("Dashboard/_DashboardTravelApprovedAccount", travels);
     }
