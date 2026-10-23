@@ -169,10 +169,12 @@ namespace wwfpp.Controllers
                             ToEmpID = tokenInfo.toemp_id,
                             St = st,
                             Counter = 0,
-                            ApproveFor = tokenInfo.request_category
+                            ApproveFor = tokenInfo.request_category,
+                            Token = Token
                         };
                         string approveDecline = st == "a" ? "Approve" : st == "d" ? "Decline" : "Unknown";
                         string employeeName = _employeeServices.GetEmployeeName(tokenInfo.emp_id);
+                        ViewBag.ApproveDeclineRecommend = approveDecline;
 
                         switch (tokenInfo.request_category.ToLower())
                         {

@@ -11,15 +11,16 @@ else
     <h1>@ViewBag.HeaderMessage</h1>
     <div id="ModalForm">
         @Html.AntiForgeryToken()
-        @Html.HiddenFor(m => m.EmpID) <!-- Needed for Edit -->
-        @Html.HiddenFor(m => m.AppID)
-        @Html.HiddenFor(m => m.ToID)
-        @Html.HiddenFor(m => m.ToEmpID)
-        @Html.HiddenFor(m => m.St)
-        @Html.HiddenFor(m => m.Counter)
-        @Html.HiddenFor(m => m.Month)
-        @Html.HiddenFor(m => m.Year)
-        @Html.HiddenFor(m => m.ApproveFor)
+        @Html.TextBoxFor(m => m.EmpID) <!-- Needed for Edit -->
+        @Html.TextBoxFor(m => m.AppID)
+        @Html.TextBoxFor(m => m.ToID)
+        @Html.TextBoxFor(m => m.ToEmpID)
+        @Html.TextBoxFor(m => m.St)
+        @Html.TextBoxFor(m => m.Counter)
+        @Html.TextBoxFor(m => m.Month)
+        @Html.TextBoxFor(m => m.Year)
+        @Html.TextBoxFor(m => m.ApproveFor)
+        @Html.TextBoxFor(m => m.Token)
 
         <div class="form-group row p-1">
             <label class="col-sm-4 col-form-label"><h5>Description</h5></label>
@@ -29,58 +30,13 @@ else
                 </div>
             </div>
         </div>
+        <div>
+            <input id="send-to-me-action" type="button" value="@ViewBag.ApproveDeclineRecommend">
+        </div>
     </div>
 
-    @await Html.PartialAsync("_SharedModal", new wwfpp.Models.ModalViewModel
-    {
-        ModalId = "ModalID",
-        DialogClass = "modal-lg",
-        Title = "Add / Edit User",
-        BodyId = "ModalBody",
-        SaveButtonId = "BtnModalSave",
-        SaveButtonText = "Save",
-        CancelButtonText = "Cancel",
-        ShowEditButton = "true"
-    })
 
     @section Scripts {
-        <script>
-            $(document).on("click", ".send-to-me-action", function (e) {
-                e.preventDefault();
-                const empId    = $(this).data("emp-id");
-                const appId    = $(this).data("app-id");
-                const month    = $(this).data("month");
-                const year     = $(this).data("year");
-                const toID     = $(this).data("to-id");
-                const toEmpID  = $(this).data("to-emp-id");
-                const st       = $(this).data("st");
-                const counter  = $(this).data("counter");
-                const approveFor = $(this).data("sent-to-me-type");
-                const approveForDisplay = (
-                                    approveFor === "leavefuture" ? "Future Leave":approveFor
-                        );
-                const approveDecline = approveForDisplay + " " +
-                    (st === "a" ? "Approval" :
-                        st === "d" ? "Decline" :
-                        st === "nr" ? "Recommendation Decline" :
-                        st === "rr" ? "Recommend" : "Unknown");
 
-                if (empId && appId) {
-                    $.get("/EmailApproval/EmailApproval",
-                    { empId, appId, month, year, toID, toEmpID, st, counter, approveFor },
-                    function (data) {
-                        $("#ModalBody").html(data);
-                        $("#ModalID .modal-title").text(approveDecline);
-                        $("#BtnModalSave").text("Submit");
-
-                        const modal = new bootstrap.Modal(document.getElementById("ModalID"), {
-                            backdrop: 'static',
-                            keyboard: true
-                        });
-                        modal.show();
-                    });
-                }
-            });
-        </script>
     }
 }

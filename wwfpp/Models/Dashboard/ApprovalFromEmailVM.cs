@@ -18,7 +18,8 @@ namespace wwfpp.Models
 
         public string? Description { get; set; }
         public string? ApproveFor { get; set; }
-        
+        public string? Token { get; set; }
+
 
     }
 }
