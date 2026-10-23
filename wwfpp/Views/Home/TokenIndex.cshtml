@@ -37,6 +37,32 @@ else
 
 
     @section Scripts {
+        <script>
+            $(document).on("click", ".send-to-me-action", function () {
+                const empId = $('#EmpID').val();
+                const appId = $('#AppID').val();
+                const month = $('#Month').val();
+                const year = $('#Year').val();
+                const toID = $('#ToID').val();
+                const toEmpID = $('#ToEmpID').val();
+                const st = $('#St').val();
+                const counter = $('#Counter').val();
+                const approveFor = $('#ApproveFor').val();
+                const token = $('#Token').val();;
 
+                $.ajax({
+                    url: "/EmailApproval/EmailApprovalSave",
+                    type: 'POST',
+                    data: { empId, appId, month, year, toID, toEmpID, st, counter, approveFor, token },
+                    headers: { "RequestVerificationToken": $('input[name="__RequestVerificationToken"]').val() },
+                            success: function (data) {
+                            //nothing here
+                        },
+                        error: function () {
+                            alert("Error loading travel settlement list.");
+                        }
+                    });
+            });
+        </script>
     }
 }
