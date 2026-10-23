@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Linq;
+using System.Net.NetworkInformation;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
 using wwfpp.Data;
@@ -799,6 +800,21 @@ namespace wwf_pp.Services
             }).ToList();
 
             return new SelectList(items, "Value", "Text", selvalue);
+        }
+
+        public void UpdateToken(string? tokenID, string? actionSt)
+        {
+            if (tokenID == null) return;
+            var DataUpdate = _context.tbl_employee_request_app_token
+                .FirstOrDefault(h => h.token == tokenID);
+
+            DataUpdate.token = tokenID;
+            DataUpdate.action_st = actionSt;
+            DataUpdate.update_date = DateTime.Now;
+            DataUpdate.is_used = "Y";
+
+            _ = _context.tbl_employee_request_app_token.Update(DataUpdate);
+            _ = _context.SaveChanges();
         }
     }
 }

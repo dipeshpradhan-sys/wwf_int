@@ -19,6 +19,7 @@ using System.Reflection.Emit;
 using System.Reflection.Metadata;
 using System.Security.Cryptography;
 using System.Text.Encodings.Web;
+using wwf_pp.Services;
 using wwfpp.Data;
 using wwfpp.EmailServices;
 using wwfpp.Models;
@@ -35,9 +36,10 @@ namespace wwfpp.Controllers
         private readonly AppSettings _appSettings;
         private readonly TravelApprovalService _travelService;
         private readonly EmployeeOvertimeServices _employeeOvertimeServices;
+        private readonly DashboardService _dashboardService;
         private readonly ApproverResolverService _approverResolver;
 
-        public EmailApprovalController(AppDbContext context, EmailService emailSenderServices, AdministrationEmailService administrationEmailService, EmployeeServices employeeService, IOptions<AppSettings> appSettings, TravelApprovalService travelService ,EmployeeOvertimeServices employeeOvertimeServices, ApproverResolverService approverResolver)
+        public EmailApprovalController(AppDbContext context, EmailService emailSenderServices, AdministrationEmailService administrationEmailService, EmployeeServices employeeService, IOptions<AppSettings> appSettings, TravelApprovalService travelService ,EmployeeOvertimeServices employeeOvertimeServices, DashboardService dashboardService, ApproverResolverService approverResolver)
         {
             this.context = context;
             _emailSenderServices = emailSenderServices;
@@ -46,6 +48,7 @@ namespace wwfpp.Controllers
             _appSettings = appSettings.Value;
             _travelService = travelService;
             _employeeOvertimeServices = employeeOvertimeServices;
+            _dashboardService = dashboardService;
             _approverResolver = approverResolver;
         }
         public IActionResult EmailApproval(ApprovalFromEmailVM model, int empId, string appId, int month, int year, int toID, int toEmpID, string st, int counter, string approveFor)
@@ -63,6 +66,7 @@ namespace wwfpp.Controllers
             ViewData["ApprovalMode"] = true;
             return PartialView("EmailApproval/_EmailApproval", model);
         }
+        [AllowAnonymous]
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> EmailApprovalSave(ApprovalFromEmailVM model)
@@ -389,6 +393,9 @@ namespace wwfpp.Controllers
                 string hr_Subject = $"Leave of {EmployeeName} has been approved.";
                 string hr_boday = $"Dear {hr_Name},<br/><br/>Leave of {EmployeeName} has been approved.<br/><br/>{detailMessage}<br/><br/>Regards,<br/>{approverName}<br/><br/>";
             }
+            // ✅ Update token as used
+            _dashboardService.UpdateToken(model.Token, model.St);
+
             return Json(new { status = leave.app_status.ToLower(), message = subject , approveFor = model.ApproveFor });
         }
 
