@@ -141,7 +141,7 @@ namespace wwfpp.Controllers
             {
                 var tokenInfo = _context.tbl_employee_request_app_token
                     .Where(r => r.token == Token)
-                    .Select(r => new { r.Id, r.submit_date, r.request_category, r.request_id, r.emp_id, r.toid, r.toemp_id, r.action_st, r.action_via, r.is_used, r.expiry_date })
+                    .Select(r => new { r.Id, r.submit_date, r.request_category, r.request_id, r.emp_id, r.toid, r.toemp_id, r.action_st, r.action_via, r.is_used, r.expiry_date,r.month,r.year,r.counter })
                     .FirstOrDefault();
                 if (tokenInfo == null)
                 {
@@ -163,12 +163,12 @@ namespace wwfpp.Controllers
                         {
                             EmpID = tokenInfo.emp_id,
                             AppID = Convert.ToString(tokenInfo.request_id),
-                            Month = 0,
-                            Year = 0,
+                            Month = tokenInfo.month,
+                            Year = tokenInfo.year,
                             ToID = tokenInfo.toid,
                             ToEmpID = tokenInfo.toemp_id,
                             St = st,
-                            Counter = 0,
+                            Counter = tokenInfo.counter,
                             ApproveFor = tokenInfo.request_category,
                             Token = Token
                         };

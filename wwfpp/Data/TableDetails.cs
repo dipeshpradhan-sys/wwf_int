@@ -69,7 +69,7 @@ namespace wwfpp.Data
         public DateTime? submit_date { get; set; }        //datetime NULL,
         public DateTime? expiry_date { get; set; }
         public string? request_category { get; set; }     // nvarchar(100) NULL
-        public int request_id { get; set; } //int NOT NULL,
+        public string request_id { get; set; } //int NOT NULL,
         public int emp_id { get; set; } //int NOT NULL,
         public int toid { get; set; } //int NOT NULL,
         public int toemp_id { get; set; } //int NOT NULL,
@@ -79,5 +79,8 @@ namespace wwfpp.Data
         public string? ip { get; set; } // nvarchar(255) NULL
         public string? user_agent { get; set; } // nvarchar(255) NULL
         public string? is_used { get; set; } // nvarchar(5) NULL
+        public int?year { get; set; } //int NOT NULL,
+        public int?month { get; set; } //int NOT NULL,
+        public int?counter { get; set; } //int NOT NULL,
     }
 }

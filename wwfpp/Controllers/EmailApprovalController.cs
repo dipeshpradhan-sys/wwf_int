@@ -236,6 +236,9 @@ namespace wwfpp.Controllers
 
                 
             }
+// ✅ Update token as used
+            _dashboardService.UpdateToken(model.Token, model.St);
+
             string status = model.St == "a" ? "approved" :
                 model.St == "d" ? "declined" : "error";
             return Json(new { status, message = subject, approveFor = model.ApproveFor });

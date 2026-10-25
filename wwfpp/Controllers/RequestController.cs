@@ -12,7 +12,9 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.Reporting.NETCore;
 using System.Globalization;
 using System.Linq.Dynamic.Core;
+using System.Linq.Dynamic.Core.Tokenizer;
 using System.Net.Mail;
+using System.Security.Cryptography;
 using System.Text;
 using wwfpp.Data;
 using wwfpp.EmailServices;
@@ -643,30 +645,14 @@ namespace wwfpp.Controllers
                 _context.tbl_employee_leave.Add(Efs);
                 _context.SaveChanges();
 
-                int newEmpLeaveId = Efs.emp_leave_id;
+                string newEmpLeaveId = Convert.ToString(Efs.emp_leave_id);
 
                 #region ADD TOKEN WHILE SENDING MAIL
-                    string token = Guid.NewGuid().ToString();
-                    string token_expiry_in_days = _requestServices.GetApplicationSetting("op_token_expiry_in_days") ?? "1";
-                    DateTime submit_date = System.DateTime.Now;
-                    var emailToken = new tbl_employee_request_app_token
-                    {
-                        token = token,
-                        submit_date = submit_date,
-                        expiry_date = submit_date.AddDays(Convert.ToInt32(token_expiry_in_days)),
-                        request_category = "leave",
-                        request_id = newEmpLeaveId,
-                        emp_id = Convert.ToInt32(model.emp_id),
-                        toid = toID,
-                        toemp_id = toEmpID,
-                        action_st = "a/d",
-                        action_via = "email",
-                        ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown",
-                        user_agent = Request.Headers["User-Agent"].ToString(),
-                        is_used = "N"
-                    };
-                    _context.tbl_employee_request_app_token.Add(emailToken);
-                    _context.SaveChanges();
+
+                string ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
+                string user_agent = Request.Headers["User-Agent"].ToString();
+                string token = await _requestServices.GenerateTokenAsync(newEmpLeaveId, Convert.ToInt32(model.emp_id), toID, toEmpID, ip, user_agent,0,0,0, "leave");
+
                 #endregion
 
 
@@ -785,8 +771,18 @@ namespace wwfpp.Controllers
                      .Select(e => e.description)
                      .FirstOrDefaultAsync();
 
-                string approveEmailLink = $"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={model.emp_id}&app_id={model.id}&toid={toID}&toemp_id={toEmpID}&st=a&approval_from=email&approve_for=leave'>Approve</a> | ";
-                string declineEmailLink = $"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={model.emp_id}&app_id={model.id}&toid={toID}&toemp_id={toEmpID}&st=d&approval_from=email&approve_for=leave'>Decline</a>";
+                #region ADD TOKEN WHILE SENDING MAIL
+
+                string ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
+                string user_agent = Request.Headers["User-Agent"].ToString();
+                string token = await _requestServices.GenerateTokenAsync(Convert.ToString(model.id), Convert.ToInt32(model.emp_id), toID, toEmpID, ip, user_agent,0,0,0, "leave");
+
+                #endregion
+
+                //string approveEmailLink = $"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={model.emp_id}&app_id={model.id}&toid={toID}&toemp_id={toEmpID}&st=a&approval_from=email&approve_for=leave'>Approve</a> | ";
+                //string declineEmailLink = $"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={model.emp_id}&app_id={model.id}&toid={toID}&toemp_id={toEmpID}&st=d&approval_from=email&approve_for=leave'>Decline</a>";
+                string approveEmailLink = $"<a href='{_appSettings.BaseUrl}Home/TokenIndex?token={token}&st=a'>Approve</a> | ";
+                string declineEmailLink = $"<a href='{_appSettings.BaseUrl}Home/TokenIndex?token={token}&st=d'>Decline</a>";
 
                 string subject = $"Change in leave submitted by {EmployeeName}";
                 string strMessage = $"<b>Leave Type: </b>{LeaveTypeName}<br/><b>Submit Date: </b>{SubmitDate:MM/dd/yyyy}<br/><b>Leave From Date: </b>{model.leave_from_date:MM/dd/yyyy}<br/><b>Leave To Date: </b>{model.leave_to_date:MM/dd/yyyy}<br/><b>Leave hours: </b>{model.leave_in_hrs}<br/><b>Description: </b><br/>{model.leave_desc}<br><br>Please click Approve or Decline link provided below as appropriate.<br/><br/>{approveEmailLink} {declineEmailLink}";
@@ -2588,8 +2584,20 @@ namespace wwfpp.Controllers
                 .FirstOrDefaultAsync();
 
             string monthName = new DateTime(year, month, 1).ToString("MMMM");
-            string approveEmailLink = $"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={empid}&emp_month={month}&emp_year={year}&toid={toId}&toemp_id={toEmpId}&st=a&str_counter={maxtimeSheetCounter}&app_id={app_id}&approval_from=email&approve_for=timesheet'>Approve</a> | ";
-            string declineEmailLink = $"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={empid}&emp_month={month}&emp_year={year}&toid={toId}&toemp_id={toEmpId}&st=d&str_counter={maxtimeSheetCounter}&app_id={app_id}&approval_from=email&approve_for=timesheet'>Decline</a> ";
+            //string approveEmailLink = $"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={empid}&emp_month={month}&emp_year={year}&toid={toId}&toemp_id={toEmpId}&st=a&str_counter={maxtimeSheetCounter}&app_id={app_id}&approval_from=email&approve_for=timesheet'>Approve</a> | ";
+            //string declineEmailLink = $"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={empid}&emp_month={month}&emp_year={year}&toid={toId}&toemp_id={toEmpId}&st=d&str_counter={maxtimeSheetCounter}&app_id={app_id}&approval_from=email&approve_for=timesheet'>Decline</a> ";
+
+            #region ADD TOKEN WHILE SENDING MAIL
+
+            string ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
+            string user_agent = Request.Headers["User-Agent"].ToString();
+            string token = await _requestServices.GenerateTokenAsync(app_id, Convert.ToInt32(empid), toId, toEmpId, ip, user_agent, year, month, maxtimeSheetCounter, "timesheet");
+
+            #endregion
+
+
+            string approveEmailLink = $"<a href='{_appSettings.BaseUrl}Home/TokenIndex?token={token}&st=a'>Approve</a> | ";
+            string declineEmailLink = $"<a href='{_appSettings.BaseUrl}Home/TokenIndex?token={token}&st=d'>Decline</a>";
 
 
             // Send email to manager

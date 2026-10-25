@@ -667,6 +667,42 @@ namespace wwfpp.Services
             return GblUtilities.BuildSelectList(options, selvalue);
         }
 
+        public async Task<string> GenerateTokenAsync(string requestId,int empId,int toId,int toEmpId,string? ipAddress,string? userAgent, int?year,int?month,int?counter, string requestCategory)
+        {
+            var existingToken = await _context.tbl_employee_request_app_token.FirstOrDefaultAsync(x =>x.request_id == requestId && x.request_category == requestCategory);
+            if (existingToken != null)
+            {
+                return existingToken.token;
+            }
+
+            string token = Guid.NewGuid().ToString();
+            string tokenExpiryInDays = string.IsNullOrWhiteSpace(GetApplicationSetting("op_token_expiry_in_days")) ? "1" : GetApplicationSetting("op_token_expiry_in_days");
+            DateTime submitDate = DateTime.Now;
+            var emailToken = new tbl_employee_request_app_token
+            {
+                token = token,
+                submit_date = submitDate,
+                expiry_date = submitDate.AddDays(Convert.ToInt32(tokenExpiryInDays)),
+                request_category = requestCategory,
+                request_id = requestId,
+                emp_id = empId,
+                toid = toId,
+                toemp_id = toEmpId,
+                action_st = "a/d",
+                action_via = "email",
+                ip = ipAddress,
+                user_agent = userAgent,
+                is_used = "N",
+                year = year,
+                month = month,
+                counter = counter
+            };
+
+            _context.tbl_employee_request_app_token.Add(emailToken);
+            await _context.SaveChangesAsync();
+
+            return token;
+        }
 
 
     }
