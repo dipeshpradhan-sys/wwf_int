@@ -817,6 +817,7 @@ namespace wwfpp.Controllers
                 await context.SaveChangesAsync();
                 subject = $"Overtime of {EmployeeName} has been declined.";
             }
+            _dashboardService.UpdateToken(model.Token, model.St);
 
             await _employeeOvertimeServices.OvertimeSendEmailAsync(model.AppID, model.St);
 

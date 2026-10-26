@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Options;
 using System;
 using System.Linq;
+using System.Linq.Dynamic.Core.Tokenizer;
 using System.Numerics;
 using System.Reflection.Metadata;
 using wwfpp.Data;
@@ -125,9 +126,15 @@ namespace wwfpp.Services
                 {
                     toemp_id = app_by;
                     int toid = (int)await _approverResolver.ResolveEmployeeIdInUserTblAsync(Convert.ToInt32(toemp_id));
+                    #region ADD TOKEN WHILE SENDING MAIL
+                    string token = await _requestServices.GenerateTokenAsync(otid, Convert.ToInt32(emp_id), toid, toemp_id, 0, 0, 0, "overtime");
+                    #endregion
                     str_to =  _employeeServices.GetEmployeeNameEmail(Convert.ToInt32(toemp_id));
-                    approveEmailLink = $"<br/><br/><a href='{_appSettings.BaseUrl}Home/Index?emp_id={emp_id}&app_id={otid}&toid={toid}&toemp_id={toemp_id}&st=a&approval_from=email&approve_for=overtime'>Approve</a> | ";
-                    declineEmailLink = $"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={emp_id}&app_id={otid}&toid={toid}&toemp_id={toemp_id}&st=d&approval_from=email&approve_for=overtime'>Decline</a>";
+                    //approveEmailLink = $"<br/><br/><a href='{_appSettings.BaseUrl}Home/Index?emp_id={emp_id}&app_id={otid}&toid={toid}&toemp_id={toemp_id}&st=a&approval_from=email&approve_for=overtime'>Approve</a> | ";
+                    //declineEmailLink = $"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={emp_id}&app_id={otid}&toid={toid}&toemp_id={toemp_id}&st=d&approval_from=email&approve_for=overtime'>Decline</a>";
+
+                    approveEmailLink = $"<br/><br/><a href='{_appSettings.BaseUrl}Home/TokenIndex?token={token}&st=a'>Approve</a> | ";
+                    declineEmailLink = $"<a href='{_appSettings.BaseUrl}Home/TokenIndex?token={token}&st=d'>Decline</a>";
 
                 }
                 else
@@ -136,8 +143,14 @@ namespace wwfpp.Services
                     toemp_id = requested_by;
                     str_to =  _employeeServices.GetEmployeeNameEmail(Convert.ToInt32(toemp_id));
                     int toid = (int)await _approverResolver.ResolveEmployeeIdInUserTblAsync(Convert.ToInt32(toemp_id));
-                    approveEmailLink = $"<br/><br/><a href='{_appSettings.BaseUrl}Home/Index?emp_id={emp_id}&app_id={otid}&toid={toid}&toemp_id={toemp_id}&st=rr&approval_from=email&approve_for=overtime'>Approve</a> | ";
-                    declineEmailLink = $"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={emp_id}&app_id={otid}&toid={toid}&toemp_id={toemp_id}&st=nr&approval_from=email&approve_for=overtime'>Decline</a>";
+                    #region ADD TOKEN WHILE SENDING MAIL
+                    string token = await _requestServices.GenerateTokenAsync(otid, Convert.ToInt32(emp_id), toid, toemp_id, 0, 0, 0, "overtime");
+                    #endregion
+                    //approveEmailLink = $"<br/><br/><a href='{_appSettings.BaseUrl}Home/Index?emp_id={emp_id}&app_id={otid}&toid={toid}&toemp_id={toemp_id}&st=rr&approval_from=email&approve_for=overtime'>Recommend</a> | ";
+                    //declineEmailLink = $"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={emp_id}&app_id={otid}&toid={toid}&toemp_id={toemp_id}&st=nr&approval_from=email&approve_for=overtime'>Decline</a>";
+
+                    approveEmailLink = $"<br/><br/><a href='{_appSettings.BaseUrl}Home/TokenIndex?token={token}&st=rr'>Recommend</a> | ";
+                    declineEmailLink = $"<a href='{_appSettings.BaseUrl}Home/TokenIndex?token={token}&st=nr'>Decline</a>";
 
                 }
             }
@@ -179,8 +192,15 @@ namespace wwfpp.Services
                 toemp_id = app_by;
                 int toid = (int)await _approverResolver.ResolveEmployeeIdInUserTblAsync(Convert.ToInt32(toemp_id));
                 str_to =  _employeeServices.GetEmployeeNameEmail(Convert.ToInt32(toemp_id));
-                approveEmailLink = $"<br/><br/><a href='{_appSettings.BaseUrl}Home/Index?emp_id={emp_id}&app_id={otid}&toid={toid}&toemp_id={toemp_id}&st=a&approval_from=email&approve_for=overtime'>Approve</a> | ";
-                declineEmailLink = $"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={emp_id}&app_id={otid}&toid={toid}&toemp_id={toemp_id}&st=d&approval_from=email&approve_for=overtime'>Decline</a>";
+                //approveEmailLink = $"<br/><br/><a href='{_appSettings.BaseUrl}Home/Index?emp_id={emp_id}&app_id={otid}&toid={toid}&toemp_id={toemp_id}&st=a&approval_from=email&approve_for=overtime'>Approve</a> | ";
+                //declineEmailLink = $"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={emp_id}&app_id={otid}&toid={toid}&toemp_id={toemp_id}&st=d&approval_from=email&approve_for=overtime'>Decline</a>";
+
+                #region ADD TOKEN WHILE SENDING MAIL
+                string token = await _requestServices.GenerateTokenAsync(otid, Convert.ToInt32(emp_id), toid, toemp_id, 0, 0, 0, "overtime");
+                #endregion
+                approveEmailLink = $"<br/><br/><a href='{_appSettings.BaseUrl}Home/TokenIndex?token={token}&st=a'>Approve</a> | ";
+                declineEmailLink = $"<a href='{_appSettings.BaseUrl}Home/TokenIndex?token={token}&st=d'>Decline</a>";
+
             }
             if (mode == "nr") // Recommend Declined
             {

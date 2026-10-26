@@ -649,9 +649,7 @@ namespace wwfpp.Controllers
 
                 #region ADD TOKEN WHILE SENDING MAIL
 
-                string ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
-                string user_agent = Request.Headers["User-Agent"].ToString();
-                string token = await _requestServices.GenerateTokenAsync(newEmpLeaveId, Convert.ToInt32(model.emp_id), toID, toEmpID, ip, user_agent,0,0,0, "leave");
+                string token = await _requestServices.GenerateTokenAsync(newEmpLeaveId, Convert.ToInt32(model.emp_id), toID, toEmpID, 0,0,0, "leave");
 
                 #endregion
 
@@ -773,9 +771,7 @@ namespace wwfpp.Controllers
 
                 #region ADD TOKEN WHILE SENDING MAIL
 
-                string ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
-                string user_agent = Request.Headers["User-Agent"].ToString();
-                string token = await _requestServices.GenerateTokenAsync(Convert.ToString(model.id), Convert.ToInt32(model.emp_id), toID, toEmpID, ip, user_agent,0,0,0, "leave");
+                string token = await _requestServices.GenerateTokenAsync(Convert.ToString(model.id), Convert.ToInt32(model.emp_id), toID, toEmpID,0,0,0, "leave");
 
                 #endregion
 
@@ -2589,9 +2585,7 @@ namespace wwfpp.Controllers
 
             #region ADD TOKEN WHILE SENDING MAIL
 
-            string ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
-            string user_agent = Request.Headers["User-Agent"].ToString();
-            string token = await _requestServices.GenerateTokenAsync(app_id, Convert.ToInt32(empid), toId, toEmpId, ip, user_agent, year, month, maxtimeSheetCounter, "timesheet");
+            string token = await _requestServices.GenerateTokenAsync(app_id, Convert.ToInt32(empid), toId, toEmpId, year, month, maxtimeSheetCounter, "timesheet");
 
             #endregion
 
@@ -3028,7 +3022,6 @@ namespace wwfpp.Controllers
                 };
                 _context.tbl_employee_overtime_request.Add(entity);
                 msg = Lang.msg_added_success;
-
             }
 
             // --- Save main record ---

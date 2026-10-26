@@ -172,7 +172,7 @@ namespace wwfpp.Controllers
                             ApproveFor = tokenInfo.request_category,
                             Token = Token
                         };
-                        string approveDecline = st == "a" ? "Approve" : st == "d" ? "Decline" : "Unknown";
+                        string approveDecline = st == "a" ? "Approve" : st == "d" ? "Decline" : st == "rr" ? "Recommend" : st == "nr" ? "Recommend Decline" : "Unknown";
                         string employeeName = _employeeServices.GetEmployeeName(tokenInfo.emp_id);
                         ViewBag.ApproveDeclineRecommend = approveDecline;
 
@@ -184,7 +184,7 @@ namespace wwfpp.Controllers
                             case "leave":
                                 ViewBag.HeaderMessage = "Leave " + approveDecline + " for " + employeeName;
                                 break;
-                            case "Overtime":
+                            case "overtime":
                                 ViewBag.HeaderMessage = "Overtime " + approveDecline + " for " + employeeName;
                                 break;
                             case "travel":

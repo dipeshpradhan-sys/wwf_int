@@ -1,22 +1,27 @@
-﻿using Microsoft.AspNetCore.Mvc.Rendering;
+﻿using Azure.Core;
+using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Http;
 using System;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using wwfpp.Data;
 using wwfpp.Models;
+
 namespace wwfpp.Services
 {
     public class RequestServices
     {
+        private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly AppDbContext _context;
         private readonly AdministrationEmailService _administrationEmailService;
 
-        public RequestServices(AppDbContext context, AdministrationEmailService administrationEmailService)
+        public RequestServices(AppDbContext context, AdministrationEmailService administrationEmailService, IHttpContextAccessor httpContextAccessor)
         {
             _context = context;
             _administrationEmailService = administrationEmailService;
+            _httpContextAccessor = httpContextAccessor;
         }
 
         public string GetApplicationSetting(string optionName)
@@ -667,9 +672,12 @@ namespace wwfpp.Services
             return GblUtilities.BuildSelectList(options, selvalue);
         }
 
-        public async Task<string> GenerateTokenAsync(string requestId,int empId,int toId,int toEmpId,string? ipAddress,string? userAgent, int?year,int?month,int?counter, string requestCategory)
+        public async Task<string> GenerateTokenAsync(string requestId,int empId,int toId,int toEmpId, int?year,int?month,int?counter, string requestCategory)
         {
-            var existingToken = await _context.tbl_employee_request_app_token.FirstOrDefaultAsync(x =>x.request_id == requestId && x.request_category == requestCategory);
+            string ipAddress = _httpContextAccessor.HttpContext?.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
+            string userAgent = _httpContextAccessor.HttpContext?.Request.Headers["User-Agent"].ToString() ?? string.Empty;
+
+            var existingToken = await _context.tbl_employee_request_app_token.FirstOrDefaultAsync(x =>x.request_id == requestId && x.request_category == requestCategory && x.is_used == "N");
             if (existingToken != null)
             {
                 return existingToken.token;
