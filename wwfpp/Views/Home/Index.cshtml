@@ -215,11 +215,6 @@ else
                     }, delay);
                 }
 
-                function showAlert(message, type = "danger") {
-                    $("#divAlertText").html(`<span class="text-${type} fw-bold">${message}</span>`);
-                    $("#divAlertMain").addClass("show");
-                }
-
                 function showToast(message, bgClass = "bg-primary") {
                     const toastEl = document.getElementById("timesheetToast");
                     if (!toastEl) return; // only exists in Dashboard
@@ -477,7 +472,7 @@ else
                                 const msg = data.message || (messages[data.status] || messages.error)(data.status);
                                 const type = data.status === "success" ? "success" : "error";
 
-                                showAlert(msg, type);
+                                alert(msg);
 
                                 if (["approved", "declined", "recommended"].includes(data.status)) {
                                     switch (data.approveFor?.toLowerCase()) {

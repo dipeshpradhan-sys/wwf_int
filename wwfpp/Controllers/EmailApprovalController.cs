@@ -64,6 +64,10 @@ namespace wwfpp.Controllers
             model.Counter = counter;
             model.ApproveFor = approveFor;
             ViewData["ApprovalMode"] = true;
+            model.Token = context.tbl_employee_request_app_token
+                .Where(e => e.request_id == model.AppID && e.request_category == model.ApproveFor && e.expiry_date < DateTime.Now)
+                .Select(e => e.token)
+                .FirstOrDefault();
             return PartialView("EmailApproval/_EmailApproval", model);
         }
         [AllowAnonymous]
