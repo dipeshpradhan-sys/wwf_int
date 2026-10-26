@@ -113,6 +113,10 @@ namespace wwfpp.Controllers
             }
 
             string? FiscalYear = HttpContext.Session.GetString("fiscal_year");
+            if(FiscalYear == null)
+            {
+                FiscalYear = model.Year + "/" + ((int)model.Year + 1);
+            }
             var Adminemails = await _administrationEmailService.GetAdministrationEmailsAsync();
             int acaAdminID = Convert.ToInt32(Adminemails["aca"].Id);
             string str_to_admin = Adminemails["aca"].Email;
@@ -242,7 +246,6 @@ namespace wwfpp.Controllers
             string status = model.St == "a" ? "approved" :
                 model.St == "d" ? "declined" : "error";
             return Json(new { status, message = subject, approveFor = model.ApproveFor });
-
         }
 
         // =============================
