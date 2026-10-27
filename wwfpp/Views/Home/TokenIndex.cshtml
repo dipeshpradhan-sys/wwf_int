@@ -11,16 +11,16 @@ else
     <h1>@ViewBag.HeaderMessage</h1>
     <div id="ModalForm">
         @Html.AntiForgeryToken()
-        @Html.HiddenFor(m => m.EmpID) <!-- Needed for Edit -->
-        @Html.HiddenFor(m => m.AppID)
-        @Html.HiddenFor(m => m.ToID)
-        @Html.HiddenFor(m => m.ToEmpID)
-        @Html.HiddenFor(m => m.St)
-        @Html.HiddenFor(m => m.Counter)
-        @Html.HiddenFor(m => m.Month)
-        @Html.HiddenFor(m => m.Year)
-        @Html.HiddenFor(m => m.ApproveFor)
-        @Html.HiddenFor(m => m.Token)
+        @Html.TextBoxFor(m => m.EmpID) <!-- Needed for Edit -->
+        @Html.TextBoxFor(m => m.AppID)
+        @Html.TextBoxFor(m => m.ToID)
+        @Html.TextBoxFor(m => m.ToEmpID)
+        @Html.TextBoxFor(m => m.St)
+        @Html.TextBoxFor(m => m.Counter)
+        @Html.TextBoxFor(m => m.Month)
+        @Html.TextBoxFor(m => m.Year)
+        @Html.TextBoxFor(m => m.ApproveFor)
+        @Html.TextBoxFor(m => m.Token)
 
         <div class="form-group row p-1">
             <label class="col-sm-4 col-form-label"><h5>Description</h5></label>
@@ -56,17 +56,17 @@ else
                     url: "/EmailApproval/EmailApprovalSave",
                     type: "POST",
                     data: {empId,appId,month,year,toID,toEmpID,st,counter,approveFor,token,Description},
-                    headers: {
-                        RequestVerificationToken:
-                            $('input[name="__RequestVerificationToken"]').val()
-                    },
                     success: function (data) {
                         alert(data.message);
                     },
-                    error: function (xhr) {
-                        console.log(xhr);
-                        alert("Error loading travel settlement list.");
-                    }
+            error: function (xhr, status, error) {
+
+                console.log("Status:", xhr.status);
+                console.log("Status Text:", xhr.statusText);
+                console.log("Response:", xhr.responseText);
+
+                alert(xhr.responseText);
+            }
                 });
             });
         </script>

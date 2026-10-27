@@ -76,10 +76,14 @@ namespace wwfpp.Controllers
         }
         [AllowAnonymous]
         [HttpPost]
-        [ValidateAntiForgeryToken]
         public async Task<IActionResult> EmailApprovalSave(ApprovalFromEmailVM model)
         {
             if (!ModelState.IsValid)
+            {
+                return Json(new { status = "invalid" });
+            }
+
+            if (string.IsNullOrWhiteSpace(model.Token))
             {
                 return Json(new { status = "invalid" });
             }
