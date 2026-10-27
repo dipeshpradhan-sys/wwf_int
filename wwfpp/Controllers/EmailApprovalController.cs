@@ -69,7 +69,7 @@ namespace wwfpp.Controllers
             model.ApproveFor = approveFor;
             ViewData["ApprovalMode"] = true;
             model.Token = context.tbl_employee_request_app_token
-                .Where(e => e.request_id == model.AppID && e.request_category == model.ApproveFor && e.expiry_date > DateTime.Now)
+                .Where(e => e.request_id == model.AppID && e.request_category == model.ApproveFor && e.expiry_date > DateTime.Now && e.is_used == "N")
                 .Select(e => e.token)
                 .FirstOrDefault();
             return PartialView("EmailApproval/_EmailApproval", model);
@@ -253,7 +253,7 @@ namespace wwfpp.Controllers
                 
             }
 // ✅ Update token as used
-            _dashboardService.UpdateToken(model.Token, model.St);
+            _dashboardService.UpdateToken(model.Token, model.St, model.ActionVia);
 
             string status = model.St == "a" ? "approved" :
                 model.St == "d" ? "declined" : "error";
@@ -412,7 +412,7 @@ namespace wwfpp.Controllers
                 string hr_boday = $"Dear {hr_Name},<br/><br/>Leave of {EmployeeName} has been approved.<br/><br/>{detailMessage}<br/><br/>Regards,<br/>{approverName}<br/><br/>";
             }
             // ✅ Update token as used
-            _dashboardService.UpdateToken(model.Token, model.St);
+            _dashboardService.UpdateToken(model.Token, model.St, model.ActionVia);
 
             return Json(new { status = leave.app_status.ToLower(), message = subject , approveFor = model.ApproveFor });
         }
@@ -450,7 +450,7 @@ namespace wwfpp.Controllers
                 EmailTo = _employeeService.GetEmployeeNameEmail(Convert.ToInt32(model.ToEmpID));
                 subject = $"Travel of {EmployeeName} has been recommended.";
 
-                _dashboardService.UpdateToken(model.Token, model.St);
+                _dashboardService.UpdateToken(model.Token, model.St, model.ActionVia);
 
                 #region ADD TOKEN WHILE SENDING MAIL
                 string token = await _requestServices.GenerateTokenAsync(Convert.ToString(model.AppID), Convert.ToInt32(model.EmpID), Convert.ToInt32(model.ToID), Convert.ToInt32(model.ToEmpID), 0, 0, 0, "travel");
@@ -481,7 +481,7 @@ namespace wwfpp.Controllers
                 string EmailFromName = _employeeService.GetEmployeeName(Convert.ToInt32(model.ToEmpID));
                 subject = $"Travel of {EmployeeName} has been declined.";
                 var EmailContent = await _travelService.GetTravelEmailHtmlContent(Convert.ToInt32(model.AppID));
-                _dashboardService.UpdateToken(model.Token, model.St);
+                _dashboardService.UpdateToken(model.Token, model.St, model.ActionVia);
                 body = $"Dear {EmployeeName},<br/><br/>Your following travel request has been declined. Please make necessary correction and send it again.<br/><br/>{EmailContent}<br/><br/>Regards<br/>{EmailFromName}<br/><br/>";
             }
 
@@ -536,7 +536,7 @@ namespace wwfpp.Controllers
                 subject = $"Travel of {EmployeeName} has been approved.";
                 var EmailContent = await _travelService.GetTravelEmailHtmlContent(Convert.ToInt32(model.AppID));
                 string ToEmployeeName = _employeeService.GetEmployeeName(Convert.ToInt32(model.ToEmpID));
-                _dashboardService.UpdateToken(model.Token, model.St);
+                _dashboardService.UpdateToken(model.Token, model.St, model.ActionVia);
                 body = $"Dear {EmployeeName},<br/><br/>Your following travel request has been approved.<br/><br/>{EmailContent}<br/><br/>Regards<br/>{ToEmployeeName}<br/><br/>";
             }
             else if (model.St == "d") // Decline
@@ -556,7 +556,7 @@ namespace wwfpp.Controllers
                 subject = $"Travel of {EmployeeName} has been declined.";
                 var EmailContent = await _travelService.GetTravelEmailHtmlContent(Convert.ToInt32(model.AppID));
                 string ToEmployeeName = _employeeService.GetEmployeeName(Convert.ToInt32(model.ToEmpID));
-                _dashboardService.UpdateToken(model.Token, model.St);
+                _dashboardService.UpdateToken(model.Token, model.St, model.ActionVia);
                 body = $"Dear {EmployeeName},<br/><br/>Your following travel request has been declined.<br/><br/>{EmailContent}<br/><br/>Regards<br/>{ToEmployeeName}<br/><br/>";
             }
             else if (model.St == "ca") // Travel Cancel Approved
@@ -837,7 +837,7 @@ namespace wwfpp.Controllers
                 await context.SaveChangesAsync();
                 subject = $"Overtime of {EmployeeName} has been declined.";
             }
-            _dashboardService.UpdateToken(model.Token, model.St);
+            _dashboardService.UpdateToken(model.Token, model.St, model.ActionVia);
 
             await _employeeOvertimeServices.OvertimeSendEmailAsync(model.AppID, model.St);
 

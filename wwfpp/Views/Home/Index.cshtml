@@ -367,8 +367,10 @@ else
                         const st       = $(this).data("st");
                         const counter  = $(this).data("counter");
                         const approveFor = $(this).data("sent-to-me-type");
+                    let str = approveFor;
+                    let result = str.charAt(0).toUpperCase() + str.slice(1);
                         const approveForDisplay = (
-                                            approveFor === "leavefuture" ? "Future Leave":approveFor
+                            approveFor === "leavefuture" ? "Future Leave" : result
                                 );
                         const approveDecline = approveForDisplay + " " +
                             (st === "a" ? "Approval" :

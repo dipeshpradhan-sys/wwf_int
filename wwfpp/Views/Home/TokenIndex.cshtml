@@ -21,6 +21,7 @@ else
         @Html.HiddenFor(m => m.Year)
         @Html.HiddenFor(m => m.ApproveFor)
         @Html.HiddenFor(m => m.Token)
+        @Html.Hidden("ActionVia", "email")
 
         <div class="form-group row p-1">
             <label class="col-sm-4 col-form-label"><h5>Description</h5></label>

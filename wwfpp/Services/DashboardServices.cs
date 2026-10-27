@@ -802,7 +802,7 @@ namespace wwf_pp.Services
             return new SelectList(items, "Value", "Text", selvalue);
         }
 
-        public void UpdateToken(string? tokenID, string? actionSt)
+        public void UpdateToken(string? tokenID, string? actionSt, string? actionVia)
         {
             if (tokenID == null) return;
             var DataUpdate = _context.tbl_employee_request_app_token
@@ -810,6 +810,7 @@ namespace wwf_pp.Services
 
             DataUpdate.token = tokenID;
             DataUpdate.action_st = actionSt;
+            DataUpdate.action_via = actionVia;
             DataUpdate.update_date = DateTime.Now;
             DataUpdate.is_used = "Y";
 
