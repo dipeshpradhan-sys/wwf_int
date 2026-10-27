@@ -1,4 +1,5 @@
-﻿using DocumentFormat.OpenXml.Wordprocessing;
+﻿using DocumentFormat.OpenXml.EMMA;
+using DocumentFormat.OpenXml.Wordprocessing;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -24,6 +25,7 @@ using wwfpp.Data;
 using wwfpp.EmailServices;
 using wwfpp.Models;
 using wwfpp.Services;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace wwfpp.Controllers
 {
@@ -38,8 +40,9 @@ namespace wwfpp.Controllers
         private readonly EmployeeOvertimeServices _employeeOvertimeServices;
         private readonly DashboardService _dashboardService;
         private readonly ApproverResolverService _approverResolver;
+        private readonly RequestServices _requestServices;
 
-        public EmailApprovalController(AppDbContext context, EmailService emailSenderServices, AdministrationEmailService administrationEmailService, EmployeeServices employeeService, IOptions<AppSettings> appSettings, TravelApprovalService travelService ,EmployeeOvertimeServices employeeOvertimeServices, DashboardService dashboardService, ApproverResolverService approverResolver)
+        public EmailApprovalController(AppDbContext context, EmailService emailSenderServices, AdministrationEmailService administrationEmailService, EmployeeServices employeeService, IOptions<AppSettings> appSettings, TravelApprovalService travelService ,EmployeeOvertimeServices employeeOvertimeServices, DashboardService dashboardService, ApproverResolverService approverResolver, RequestServices requestServices)
         {
             this.context = context;
             _emailSenderServices = emailSenderServices;
@@ -50,6 +53,7 @@ namespace wwfpp.Controllers
             _employeeOvertimeServices = employeeOvertimeServices;
             _dashboardService = dashboardService;
             _approverResolver = approverResolver;
+            _requestServices = requestServices;
         }
         public IActionResult EmailApproval(ApprovalFromEmailVM model, int empId, string appId, int month, int year, int toID, int toEmpID, string st, int counter, string approveFor)
 
@@ -441,8 +445,17 @@ namespace wwfpp.Controllers
                 // Email Contents
                 EmailTo = _employeeService.GetEmployeeNameEmail(Convert.ToInt32(model.ToEmpID));
                 subject = $"Travel of {EmployeeName} has been recommended.";
-                eml_app_link_outside = $"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={model.EmpID}&app_id={model.AppID}&toid={model.ToID}&toemp_id={model.ToEmpID}&st=a&approval_from=email&approve_for=travel'>Approve</a> | ";
-                eml_dec_link_outside = $"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={model.EmpID}&app_id={model.AppID}&toid={model.ToID}&toemp_id={model.ToEmpID}&st=d&approval_from=email&approve_for=travel'>Decline</a> | ";
+
+                _dashboardService.UpdateToken(model.Token, model.St);
+
+                #region ADD TOKEN WHILE SENDING MAIL
+                string token = await _requestServices.GenerateTokenAsync(Convert.ToString(model.AppID), Convert.ToInt32(model.EmpID), Convert.ToInt32(model.ToID), Convert.ToInt32(model.ToEmpID), 0, 0, 0, "travel");
+                #endregion
+                //eml_app_link_outside = $"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={model.EmpID}&app_id={model.AppID}&toid={model.ToID}&toemp_id={model.ToEmpID}&st=a&approval_from=email&approve_for=travel'>Approve</a> | ";
+                //eml_dec_link_outside = $"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={model.EmpID}&app_id={model.AppID}&toid={model.ToID}&toemp_id={model.ToEmpID}&st=d&approval_from=email&approve_for=travel'>Decline</a> | ";
+
+                eml_app_link_outside = $"<br/><br/><a href='{_appSettings.BaseUrl}Home/TokenIndex?token={token}&st=a'>Approve</a> | ";
+                eml_dec_link_outside = $"<a href='{_appSettings.BaseUrl}Home/TokenIndex?token={token}&st=d'>Decline</a>";
                 var EmailContent = await _travelService.GetTravelEmailHtmlContent(Convert.ToInt32(model.AppID));
                 body = $"Dear Sir/Madam,<br/><br/>Please find my <u>recommended</u> travel request below.<br/><br/>{EmailContent}<br/><br/>Please click Approve or Decline link provided below as appropriate.<br/><br/>{eml_app_link_outside} {eml_dec_link_outside}<br/><br/>Regards<br/>{EmployeeName}<br/><br/>";
             }
@@ -464,6 +477,7 @@ namespace wwfpp.Controllers
                 string EmailFromName = _employeeService.GetEmployeeName(Convert.ToInt32(model.ToEmpID));
                 subject = $"Travel of {EmployeeName} has been declined.";
                 var EmailContent = await _travelService.GetTravelEmailHtmlContent(Convert.ToInt32(model.AppID));
+                _dashboardService.UpdateToken(model.Token, model.St);
                 body = $"Dear {EmployeeName},<br/><br/>Your following travel request has been declined. Please make necessary correction and send it again.<br/><br/>{EmailContent}<br/><br/>Regards<br/>{EmailFromName}<br/><br/>";
             }
 
@@ -518,6 +532,7 @@ namespace wwfpp.Controllers
                 subject = $"Travel of {EmployeeName} has been approved.";
                 var EmailContent = await _travelService.GetTravelEmailHtmlContent(Convert.ToInt32(model.AppID));
                 string ToEmployeeName = _employeeService.GetEmployeeName(Convert.ToInt32(model.ToEmpID));
+                _dashboardService.UpdateToken(model.Token, model.St);
                 body = $"Dear {EmployeeName},<br/><br/>Your following travel request has been approved.<br/><br/>{EmailContent}<br/><br/>Regards<br/>{ToEmployeeName}<br/><br/>";
             }
             else if (model.St == "d") // Decline
@@ -537,6 +552,7 @@ namespace wwfpp.Controllers
                 subject = $"Travel of {EmployeeName} has been declined.";
                 var EmailContent = await _travelService.GetTravelEmailHtmlContent(Convert.ToInt32(model.AppID));
                 string ToEmployeeName = _employeeService.GetEmployeeName(Convert.ToInt32(model.ToEmpID));
+                _dashboardService.UpdateToken(model.Token, model.St);
                 body = $"Dear {EmployeeName},<br/><br/>Your following travel request has been declined.<br/><br/>{EmailContent}<br/><br/>Regards<br/>{ToEmployeeName}<br/><br/>";
             }
             else if (model.St == "ca") // Travel Cancel Approved

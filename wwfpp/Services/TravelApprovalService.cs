@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using DocumentFormat.OpenXml.InkML;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Text;
 using System.Threading.Tasks;
@@ -172,6 +173,9 @@ public class TravelApprovalService
 
         var strParticulars = new StringBuilder();
 
+        //CLOSE THE EXISTING INSTANCE
+        _context.ChangeTracker.Clear();
+        //END CLOSE THE EXISTING INSTANCE
         // --- Sub records (expenses) ---
         var subs = await _context.tbl_employee_travel_sub
             .Where(s => s.emp_travel_id == empTravelId)

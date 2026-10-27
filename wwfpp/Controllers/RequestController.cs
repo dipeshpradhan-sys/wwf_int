@@ -1812,17 +1812,29 @@ namespace wwfpp.Controllers
                     string eml_dec_link_outside = "";
                     if (ToInfo.Stage == "ad")
                     {
+                        #region ADD TOKEN WHILE SENDING MAIL
+                        string token = await _requestServices.GenerateTokenAsync(Convert.ToString(newEmpTravelID), Convert.ToInt32(model.emp_id), toId, Convert.ToInt32(ToInfo.ApproverId), 0, 0, 0, "travel");
+                        #endregion
                         // Build email
                         //$"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={model.emp_id}&app_id={model.id}&toid={toID}&toemp_id={toEmpID}&st=a&approval_from=email&approve_for=leave'>Approve</a> | ";
-                        eml_app_link_outside = $"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={model.emp_id}&app_id={newEmpTravelID}&toid={toId}&toemp_id={ToInfo.ApproverId}&st=a&approval_from=email&approve_for=travel'>Approve</a> | ";
-                        eml_dec_link_outside = $"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={model.emp_id}&app_id={newEmpTravelID}&toid={toId}&toemp_id={ToInfo.ApproverId}&st=d&approval_from=email&approve_for=travel'>Decline</a>";
+                        //eml_app_link_outside = $"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={model.emp_id}&app_id={newEmpTravelID}&toid={toId}&toemp_id={ToInfo.ApproverId}&st=a&approval_from=email&approve_for=travel'>Approve</a> | ";
+                        //eml_dec_link_outside = $"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={model.emp_id}&app_id={newEmpTravelID}&toid={toId}&toemp_id={ToInfo.ApproverId}&st=d&approval_from=email&approve_for=travel'>Decline</a>";
+
+                        eml_app_link_outside = $"<br/><br/><a href='{_appSettings.BaseUrl}Home/TokenIndex?token={token}&st=a'>Approve</a> | ";
+                        eml_dec_link_outside = $"<a href='{_appSettings.BaseUrl}Home/TokenIndex?token={token}&st=d'>Decline</a>";
                     }
                     else
                     {
+                        #region ADD TOKEN WHILE SENDING MAIL
+                        string token = await _requestServices.GenerateTokenAsync(Convert.ToString(newEmpTravelID), Convert.ToInt32(model.emp_id), toId, Convert.ToInt32(ToInfo.ApproverId), 0, 0, 0, "travel");
+                        #endregion
                         // Build email
                         //$"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={model.emp_id}&app_id={model.id}&toid={toID}&toemp_id={toEmpID}&st=a&approval_from=email&approve_for=leave'>Approve</a> | ";
-                        eml_app_link_outside = $"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={model.emp_id}&app_id={newEmpTravelID}&toid={toId}&toemp_id={ToInfo.ApproverId}&st=rr&approval_from=email&approve_for=travel'>Recommend</a> | ";
-                        eml_dec_link_outside = $"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={model.emp_id}&app_id={newEmpTravelID}&toid={toId}&toemp_id={ToInfo.ApproverId}&st=nr&approval_from=email&approve_for=travel'>Decline</a>";
+                        //eml_app_link_outside = $"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={model.emp_id}&app_id={newEmpTravelID}&toid={toId}&toemp_id={ToInfo.ApproverId}&st=rr&approval_from=email&approve_for=travel'>Recommend</a> | ";
+                        //eml_dec_link_outside = $"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={model.emp_id}&app_id={newEmpTravelID}&toid={toId}&toemp_id={ToInfo.ApproverId}&st=nr&approval_from=email&approve_for=travel'>Decline</a>";
+
+                        eml_app_link_outside = $"<br/><br/><a href='{_appSettings.BaseUrl}Home/TokenIndex?token={token}&st=rr'>Recommend</a> | ";
+                        eml_dec_link_outside = $"<a href='{_appSettings.BaseUrl}Home/TokenIndex?token={token}&st=nr'>Decline</a>";
                         bodyApproveRecommend = "recommend";
                     }
 
@@ -1937,17 +1949,27 @@ namespace wwfpp.Controllers
                     string eml_dec_link_outside = "";
                     if (ToInfo.Stage == "ad")
                     {
+                        #region ADD TOKEN WHILE SENDING MAIL
+                        string token = await _requestServices.GenerateTokenAsync(Convert.ToString(EmpTravelId), Convert.ToInt32(model.emp_id), toId, Convert.ToInt32(ToInfo.ApproverId), 0, 0, 0, "travel");
+                        #endregion
                         // Build email
                         //$"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={model.emp_id}&app_id={model.id}&toid={toID}&toemp_id={toEmpID}&st=a&approval_from=email&approve_for=leave'>Approve</a> | ";
-                        eml_app_link_outside = $"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={model.emp_id}&app_id={EmpTravelId}&toid={toId}&toemp_id={ToInfo.ApproverId}&st=a&approval_from=email&approve_for=travel'>Approve</a> | ";
-                        eml_dec_link_outside = $"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={model.emp_id}&app_id={EmpTravelId}&toid={toId}&toemp_id={ToInfo.ApproverId}&st=d&approval_from=email&approve_for=travel'>Decline</a>";
+                        //eml_app_link_outside = $"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={model.emp_id}&app_id={EmpTravelId}&toid={toId}&toemp_id={ToInfo.ApproverId}&st=a&approval_from=email&approve_for=travel'>Approve</a> | ";
+                        //eml_dec_link_outside = $"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={model.emp_id}&app_id={EmpTravelId}&toid={toId}&toemp_id={ToInfo.ApproverId}&st=d&approval_from=email&approve_for=travel'>Decline</a>";
+                        eml_app_link_outside = $"<br/><br/><a href='{_appSettings.BaseUrl}Home/TokenIndex?token={token}&st=a'>Approve</a> | ";
+                        eml_dec_link_outside = $"<a href='{_appSettings.BaseUrl}Home/TokenIndex?token={token}&st=d'>Decline</a>";
                     }
                     else
                     {
+                        #region ADD TOKEN WHILE SENDING MAIL
+                        string token = await _requestServices.GenerateTokenAsync(Convert.ToString(EmpTravelId), Convert.ToInt32(model.emp_id), toId, Convert.ToInt32(ToInfo.ApproverId), 0, 0, 0, "travel");
+                        #endregion
                         // Build email
                         //$"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={model.emp_id}&app_id={model.id}&toid={toID}&toemp_id={toEmpID}&st=a&approval_from=email&approve_for=leave'>Approve</a> | ";
-                        eml_app_link_outside = $"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={model.emp_id}&app_id={EmpTravelId}&toid={toId}&toemp_id={ToInfo.ApproverId}&st=rr&approval_from=email&approve_for=travel'>Recommend</a> | ";
-                        eml_dec_link_outside = $"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={model.emp_id}&app_id={EmpTravelId}&toid={toId}&toemp_id={ToInfo.ApproverId}&st=nr&approval_from=email&approve_for=travel'>Decline</a>";
+                        //eml_app_link_outside = $"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={model.emp_id}&app_id={EmpTravelId}&toid={toId}&toemp_id={ToInfo.ApproverId}&st=rr&approval_from=email&approve_for=travel'>Recommend</a> | ";
+                        //eml_dec_link_outside = $"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={model.emp_id}&app_id={EmpTravelId}&toid={toId}&toemp_id={ToInfo.ApproverId}&st=nr&approval_from=email&approve_for=travel'>Decline</a>";
+                        eml_app_link_outside = $"<br/><br/><a href='{_appSettings.BaseUrl}Home/TokenIndex?token={token}&st=rr'>Recommend</a> | ";
+                        eml_dec_link_outside = $"<a href='{_appSettings.BaseUrl}Home/TokenIndex?token={token}&st=nr'>Decline</a>";
                         bodyApproveRecommend = "recommend";
                     }
 
