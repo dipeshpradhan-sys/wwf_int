@@ -263,4 +263,13 @@ public static class Lang
     public static string EMAIL_EMPLOYEE_CONTRACT_NTR_SUBJECT = "Employee contract expiry notification from <[SITE-TITLE]>";
     public static string EMAIL_EMPLOYEE_CONTRACT_NTR_MESSAGE = "Dear Sir/Madam,<br/><br/>Following employee's contract are going to expire or has been expired.<br/><br/><[STR-MESSAGE]>Please visit to the <[SITE-TITLE]> and update as required and appropriate.<br/><br/><b>Regards</b>,<br/><[SITE-ADMIN-NAME]><br/><[SITE-TITLE]><br/><br/>";
 
+    /*--------------------------------------------------------------------------------'
+    * TOKEN
+    *--------------------------------------------------------------------------------'
+    */
+    public const string TOKEN_IS_REQUIRED = "Token is required";
+    public const string INVALID_TOKEN = "Invalid Token";
+    public const string TOKEN_IS_EXPIRED = "Token is expired";
+    public const string TOKEN_ALREADY_USED = "Token already used";
+
 }

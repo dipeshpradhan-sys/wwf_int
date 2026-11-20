@@ -135,7 +135,7 @@ namespace wwfpp.Controllers
             var model = new ApprovalFromEmailVM();
             if (string.IsNullOrWhiteSpace(Token))
             {
-                ViewBag.ErrorMessage = "Token is required.";
+                ViewBag.ErrorMessage = Lang.TOKEN_IS_REQUIRED;
             }
             else
             {
@@ -145,17 +145,17 @@ namespace wwfpp.Controllers
                     .FirstOrDefault();
                 if (tokenInfo == null)
                 {
-                    ViewBag.ErrorMessage = "Invalid Token.";
+                    ViewBag.ErrorMessage = Lang.INVALID_TOKEN;
                 }
                 else 
                 { 
                     if (tokenInfo.expiry_date.HasValue && tokenInfo.expiry_date.Value < DateTime.Now)
                     {
-                        ViewBag.ErrorMessage = "Token is expired.";
+                        ViewBag.ErrorMessage = Lang.TOKEN_IS_EXPIRED;
                     }
                     else if (tokenInfo.is_used == "Y")
                     {
-                        ViewBag.ErrorMessage = "Token already used.";
+                        ViewBag.ErrorMessage = Lang.TOKEN_ALREADY_USED;
                     }
                     else
                     {

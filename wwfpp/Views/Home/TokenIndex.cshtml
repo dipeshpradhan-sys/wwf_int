@@ -1,14 +1,16 @@
 ﻿@model ApprovalFromEmailVM
+@{
+    string ShowMsg = ViewBag.ErrorMessage;
+}
 
 @if (!string.IsNullOrWhiteSpace(@ViewBag.ErrorMessage))
 {
-    <div class="alert alert-danger" role="alert">
-        @ViewBag.ErrorMessage
-    </div>
+    <div id="message" class='error'>@Html.Raw(ShowMsg)</div>
 }
 else
 {
     <h1>@ViewBag.HeaderMessage</h1>
+    <div id="message_header">@Html.Raw(ShowMsg)</div>
     <div id="ModalForm">
         @Html.AntiForgeryToken()
         @Html.HiddenFor(m => m.EmpID) <!-- Needed for Edit -->
@@ -59,7 +61,8 @@ else
                     type: "POST",
                     data: {empId,appId,month,year,toID,toEmpID,st,counter,approveFor,token,Description,ActionVia},
                     success: function (data) {
-                        alert(data.message);
+                        showSuccess(data.message);
+                        $("#ModalForm").hide(); 
                     },
             error: function (xhr, status, error) {
 
