@@ -52,11 +52,12 @@ else
                 const approveFor = $('#ApproveFor').val();
                 const token = $('#Token').val();
                 const Description = $('#Description').val();
+                const ActionVia = "email";
 
                 $.ajax({
                     url: "/EmailApproval/EmailApprovalSave",
                     type: "POST",
-                    data: {empId,appId,month,year,toID,toEmpID,st,counter,approveFor,token,Description},
+                    data: {empId,appId,month,year,toID,toEmpID,st,counter,approveFor,token,Description,ActionVia},
                     success: function (data) {
                         alert(data.message);
                     },
