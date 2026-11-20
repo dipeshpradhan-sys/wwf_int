@@ -98,18 +98,18 @@
         @if (Model.ShowAddEditTimeSheetButton && (ViewBag.apern == "true" || ViewBag.epern == "true"))
         {
 
-            <button id="btnEdit" class="btn btn-warning btn-sm fw-bold">
+            <button id="btnEdit" class="btn btn-warning btn-sm fw-bold d-inline-flex align-items-center">
                 <i class="bi bi-pencil-square"></i> Add / Edit Timesheet
             </button>
         }
         @if (Model.ShowSendButton)
         {
-            <button id="btnSend" class="btn btn-light fw-bold">
+            <button id="btnSend" class="btn btn-light fw-bold d-inline-flex align-items-center">
                 <i class="bi bi-pencil-square"></i> Send
             </button>
         }
         @if (Model.ShowTimesheetPreviewButton){
-            <button id="btnTimesheetPreview" class="btn btn-light fw-bold">
+            <button id="btnTimesheetPreview" class="btn btn-light fw-bold d-inline-flex align-items-center">
                 <i class="bi bi-pencil-square"></i> Preview
             </button>
         }

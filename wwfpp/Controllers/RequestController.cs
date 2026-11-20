@@ -2357,7 +2357,7 @@ namespace wwfpp.Controllers
             // --- Button logic ---
             bool canEdit = _context.tbl_employee_administrator.Any(ea => ea.aca == Convert.ToInt32(EmployeeID)) || Convert.ToInt32(EmployeeID) == empid;
             bool showSaveButton = canEdit;
-            bool showSendButton = (prevTimesheetStatus == "" || prevTimesheetStatus == "active") && (curTimesheetStatus == "justsaved" || curTimesheetStatus == "declined");
+            bool showSendButton = (prevTimesheetStatus == "" || prevTimesheetStatus == "active") && (curTimesheetStatus == "justsaved" || curTimesheetStatus == "declined" || curTimesheetStatus == "pending");
 
             bool showAddEditTimeSheetButton = calendarFilled && empActive && employeeFiscalFund && canEdit && (prevTimesheetStatus == "" || prevTimesheetStatus == "active") && curTimesheetStatus != "pending";
             bool showTimesheetPreviewButton = _context.tbl_employee_timesheet_app.Any(t => t.emp_id == empid && t.emp_month == month && t.emp_year == year);
