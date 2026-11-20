@@ -6,7 +6,9 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.AspNetCore.StaticFiles;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Microsoft.Reporting.NETCore;
 using System.Globalization;
 using System.Linq.Dynamic.Core;
 using System.Net.NetworkInformation;
@@ -41,6 +43,9 @@ namespace wwfpp.Controllers
         private readonly TravelServices _travelServices;
         private readonly GeneralServices _generalServices;
         private readonly RequestServices _requestServices;
+        private readonly ApproverResolverService _approverResolver;
+        private readonly TimesheetMessageService _timesheetMessageService;
+        private readonly AdministrationEmailService _administrationEmailService;
         public PersonnelController(
             AppDbContext context,
             IOptions<AppSettings> appSettings,
@@ -54,7 +59,10 @@ namespace wwfpp.Controllers
             IWebHostEnvironment webHostEnvironment,
             TravelServices travelServices,
             GeneralServices generalServices,
-            RequestServices requestServices
+            RequestServices requestServices,
+            ApproverResolverService approverResolver,
+            TimesheetMessageService timesheetMessageService,
+            AdministrationEmailService administrationEmailService
         )
         {
             _context = context;
@@ -70,6 +78,9 @@ namespace wwfpp.Controllers
             _travelServices = travelServices;
             _generalServices = generalServices;
             _requestServices = requestServices;
+            _approverResolver = approverResolver;
+            _timesheetMessageService = timesheetMessageService;
+            _administrationEmailService = administrationEmailService;
         }
         /********************************************************************************************************************/
         /********************************************************************************************************************/
@@ -789,6 +800,641 @@ namespace wwfpp.Controllers
             }
             ViewBag.ChargePerOrAmt = _requestServices.GetChargePerOrAmt(model.TravelSettlement.ChargePerOrAmt);
             return PartialView("Personnel/_TravelSettlementAddEdit", model);
+        }
+        #endregion
+
+        #region TIMESHEET VIEW,ADD,UPDATE,APPROVAL
+        public IActionResult timesheet()
+        {
+            string PageId = "10203";
+            #region FOR PERMISSION
+            var perm = _accountServices.GetMenuPermission(PageId);
+            if (perm.vpern == "false") { return RedirectToAction("PermissionDenied", "Home"); }
+            ViewBag.apern = perm.apern;
+            ViewBag.epern = perm.epern;
+            ViewBag.dpern = perm.dpern;
+            #endregion FOR END PERMISSION
+
+            //Employee List On Combo Box
+            var Employee = _context.vw_Employee.OrderBy(c => c.employeename).ToList();
+            ViewBag.EmployeeList = new SelectList(Employee, "emp_id", "employeename");
+
+            ViewBag.CalYears = _settingsServices.GetYears(DateTime.Now.Year);
+            ViewBag.CalMonth = _settingsServices.GetMonths(DateTime.Now.Month);
+            return PartialView("Personnel/_Timesheet");
+        }
+        [HttpGet]
+        public async Task<JsonResult> CheckEmployeeApprover(int empid)
+        {
+            var approver = await _approverResolver.ResolveApproverAsync(empid);
+            var toEmpID = approver.toEmpId ?? 0;
+            var toID = approver.toId ?? 0;
+
+            bool hasApprover = (toEmpID > 0 || toID > 0);
+
+            return Json(new { hasApprover });
+        }
+        [HttpGet]
+        public async Task<IActionResult> TimesheetGetDays(int year, int month, int empid)
+        {
+            var approver = await _approverResolver.ResolveApproverAsync(empid);
+            var toEmpID = approver.toEmpId ?? 0;
+            var toID = approver.toId ?? 0;
+
+            if (toEmpID <= 0 && toID <= 0)
+            {
+                return PartialView("Request/_TimesheetAddEdit", new wwfpp.Models.Request.TimesheetViewModel { HasApprover = false });
+            }
+
+            string PageId = "10203";
+            var perm = _accountServices.GetMenuPermission(PageId);
+            if (perm.vpern == "false") return RedirectToAction("PermissionDenied", "Home");
+            ViewBag.apern = perm.apern;
+            ViewBag.epern = perm.epern;
+            ViewBag.dpern = perm.dpern;
+
+            DateTime start = new DateTime(year, month, 1);
+            DateTime end = start.AddMonths(1);
+            int daysInMonth = DateTime.DaysInMonth(year, month);
+            var curMonthLastDate = new DateTime(year, month, daysInMonth);
+
+            int maxtimeSheetCounter = await _requestServices.GetCurrentMaxCounterAsync(empid, year, month);
+            var prevApprovedTimesheet = await _context.tbl_employee_timesheet_app.Where(c => c.emp_year == (short)year && c.emp_month == (byte)month && c.emp_id == empid && c.submit_counter < maxtimeSheetCounter && (c.app_dec == "i" || c.app_dec == "a")).CountAsync();
+
+            // --- Preload data in fewer queries ---
+            var dbRecords = await _context.tbl_employee_timesheet_sub.Where(c => c.emp_year == (short)year && c.emp_month == (byte)month && c.emp_id == empid && c.submit_counter == maxtimeSheetCounter).ToListAsync();
+            var otRecords = await _context.tbl_employee_overtime_request.Where(o => o.emp_id == empid && o.ot_date.HasValue && o.ot_date.Value.Year == year && o.ot_date.Value.Month == month && o.app_status == "A").ToListAsync();
+            var holidayDates = await _context.tbl_setting_holidays.Where(h => h.holiday_date.HasValue && h.holiday_date.Value.Year == year && h.holiday_date.Value.Month == month).Select(h => h.holiday_date.Value.Date).ToHashSetAsync();
+            var dayOffDates = await _context.tbl_employee_dayoff.Where(h => h.dayoff_date.HasValue && h.dayoff_date.Value.Year == year && h.dayoff_date.Value.Month == month).Select(h => h.dayoff_date.Value.Date).ToHashSetAsync();
+            var restrictedLeaveRecords = await _context.tbl_employee_leave.Where(l => l.app_status == "Approved" && l.emp_id == empid && l.leave_type_id == 15 && l.leave_from_date.HasValue && l.leave_to_date.HasValue && l.leave_from_date.Value <= curMonthLastDate && l.leave_to_date.Value >= start).ToListAsync();
+            var restrictedLeaveDates = restrictedLeaveRecords.SelectMany(l => Enumerable.Range(0, (l.leave_to_date.Value.Date - l.leave_from_date.Value.Date).Days + 1).Select(offset => l.leave_from_date.Value.Date.AddDays(offset))).Where(d => d.Year == year && d.Month == month).ToHashSet();
+
+            var hoursAllowedInHolidayWeekend = _requestServices.GetLimitHoursSetting();
+            string hoursAllowedForHoliday = hoursAllowedInHolidayWeekend?.populate_hrs_in_timesheet_for_holiday ?? "N";
+            string hoursAllowedForWeekEnd = hoursAllowedInHolidayWeekend?.populate_hrs_in_timesheet_for_weekend ?? "N";
+
+            var (dateStart, dateEnd) = await _requestServices.GetFiscalYearRangeAsync(start);
+            dateStart ??= start;
+            dateEnd ??= DateTime.Today;
+
+            var fiscalFunds = (from a in _context.tbl_fund_source
+                               join b in _context.tbl_employee_fund_source on a.fund_id equals b.fund_id
+                               join s in _context.tbl_employee_timesheet_sub on a.fund_id equals s.fund_id into subs
+                               where b.emp_id == empid &&
+                                     b.start_date <= dateStart.Value &&
+                                     b.end_date >= dateEnd.Value
+                               select new
+                               {
+                                   fund_id = a.fund_id,
+                                   fund_source = a.fund_source,
+                                   expiry_date = (DateTime?)a.expiry_date,
+                                   default_for_holiday = a.default_for_holiday,
+                                   annual_hrs = b.annual_hrs,
+                                   used_hours = subs.Where(x => x.emp_id == empid && x.is_active == "A" && !(x.emp_month == month))
+                                                    .Sum(x => (double?)(x.time_hours ?? 0) + (double?)(x.overtime_hours ?? 0)) ?? 0
+                               }).ToList();
+
+            // --- Precompute lookups
+            // For TimesheetFullyFilled: group by day, collapse to "has hours"
+            var recordLookupByDay = dbRecords.GroupBy(r => r.emp_day).ToDictionary(
+                    g => g.Key,
+                    g => g.Any(r => r.time_hours.HasValue && r.time_hours > 0)
+                );
+
+            // For FundRows: composite key (fund_id, emp_day)
+            var recordLookupByFundDay = dbRecords.ToDictionary(r => (r.fund_id, r.emp_day), r => r);
+            // Overtime records keyed by date
+            var otLookup = otRecords.Where(o => o.ot_date.HasValue).ToDictionary(o => o.ot_date.Value.Date, o => o);
+
+            bool TimesheetFullyFilled = dbRecords.Any() &&
+                Enumerable.Range(1, daysInMonth).All(day =>
+                {
+                    var currentDate = new DateTime(year, month, day);
+                    if ((holidayDates.Contains(currentDate)) && hoursAllowedForHoliday == "N") return true;
+                    if ((currentDate.DayOfWeek == DayOfWeek.Saturday || currentDate.DayOfWeek == DayOfWeek.Sunday) && hoursAllowedForWeekEnd == "N") return true;
+                    if (dayOffDates.Contains(currentDate)) return true;
+
+                    var activeFundsForDay = fiscalFunds.Where(f => !f.expiry_date.HasValue || f.expiry_date.Value >= currentDate).ToList();
+                    if (!activeFundsForDay.Any()) return true;
+
+                    return recordLookupByDay.TryGetValue((byte)day, out var hasHours) && hasHours;
+                });
+
+            ViewBag.TimesheetFullyFilled = TimesheetFullyFilled;
+
+            string? EmployeeID = HttpContext.Session.GetString("emp_id");
+            bool fundSourceEditable = fiscalFunds.Any(fs => fs.default_for_holiday != "1");
+            double fundBalance = fiscalFunds.Sum(f => (double)(f.annual_hrs ?? 0) - f.used_hours);
+            bool empActive = _context.tbl_employee.Any(e => e.emp_id == empid && e.join_date <= end && (!e.end_date.HasValue || e.end_date >= start));
+            bool calendarFilled = _context.tbl_calendar_setting.Any(c => c.cal_year == year && c.cal_month == month);
+            bool employeeFiscalFund = fiscalFunds.Any();
+
+            // Previous Month Timesheet
+            var prevTimesheetStatus = "active";
+            var MinFiscalYearStart = _context.tbl_fiscal_year.Min(fy => fy.date_from);
+            DateTime? FiscalStartDate = Convert.ToDateTime(HttpContext.Session.GetString("date_from"));
+            if ((FiscalStartDate > MinFiscalYearStart) || (start > FiscalStartDate))
+            {
+                DateTime prevPeriod = start.AddMonths(-1);
+                int empMonthPrev = prevPeriod.Month;
+                int empYearPrev = prevPeriod.Year;
+                int prevCounter = await _requestServices.GetCurrentMaxCounterAsync(empid, empYearPrev, empMonthPrev);
+                prevTimesheetStatus = await _requestServices.GetTimesheetStatusAsync(empid, empYearPrev, empMonthPrev, prevCounter);
+            }
+
+            var curTimesheetStatus = await _requestServices.GetTimesheetStatusAsync(empid, year, month, maxtimeSheetCounter);
+
+            var messages = await _timesheetMessageService.BuildMessagesAsync(empid, year, month, maxtimeSheetCounter, empActive, calendarFilled, employeeFiscalFund, prevTimesheetStatus, curTimesheetStatus);
+
+            // --- Button logic ---
+            bool canEdit = _context.tbl_employee_administrator.Any(ea => ea.aca == Convert.ToInt32(EmployeeID)) || Convert.ToInt32(EmployeeID) == empid;
+            bool showSaveButton = canEdit;
+            bool showSendButton = (prevTimesheetStatus == "" || prevTimesheetStatus == "active") && (curTimesheetStatus == "justsaved" || curTimesheetStatus == "declined" || curTimesheetStatus == "pending");
+
+            bool showAddEditTimeSheetButton = calendarFilled && empActive && employeeFiscalFund && canEdit && (prevTimesheetStatus == "" || prevTimesheetStatus == "active") && curTimesheetStatus != "pending";
+            bool showTimesheetPreviewButton = _context.tbl_employee_timesheet_app.Any(t => t.emp_id == empid && t.emp_month == month && t.emp_year == year);
+
+            // --- Fund rows ---
+            var fundRows = fiscalFunds.Select(f => new wwfpp.Models.Request.FundTimesheetRow
+            {
+                FundId = f.fund_id,
+                FundSourceName = f.fund_source,
+                FundSourceDefault = f.default_for_holiday,
+                ExpiryDate = f.expiry_date,
+                AnnualHours = (double)(f.annual_hrs ?? 0.0),
+                UsedHours = f.used_hours,
+                RemainingHours = (double)(f.annual_hrs ?? 0.0) - f.used_hours,
+
+                Days = Enumerable.Range(1, daysInMonth).Select(d =>
+                {
+                    var date = new DateTime(year, month, d);
+                    recordLookupByFundDay.TryGetValue((f.fund_id, (byte)d), out var record);
+                    otLookup.TryGetValue(date, out var otRecord);
+
+                    return new wwfpp.Models.Request.DayData
+                    {
+                        Date = date,
+                        Value = record?.time_hours?.ToString("0.##") ?? "0",
+                        OvertimeValue = record?.overtime_hours?.ToString("0.##") ?? "0",
+                        EmployeeMaxOverTimeValueInAday = otRecord?.total_hours?.ToString("0.##") ?? "0",
+                        IsHoliday = holidayDates.Contains(date),
+                        IsEmpDayOff = dayOffDates.Contains(date),
+                        AllowOvertimeBoxToUpdateOverLeave = !restrictedLeaveDates.Contains(date),
+                        OvertimeEditable = otRecord != null && otRecord.app_status == "A",
+                        FundSourceEditable = true,
+                        IsEditableByFund = !f.expiry_date.HasValue || date <= f.expiry_date.Value.Date,
+                        CanEditOnWeekEnd = hoursAllowedForWeekEnd,
+                        CanEditOnHoliday = hoursAllowedForHoliday
+                    };
+                }).ToList()
+            }).ToList();
+
+
+            // Max Normal and Overtime hours defined
+            var limits = await _context.tbl_setting_limit_hrs.FirstOrDefaultAsync();
+            int maxNormal = limits?.normal_working_hrs ?? 8;
+            int maxOvertime = limits?.overtime_normal_working_hrs ?? 4;
+
+            // --- Build daily totals ---
+            var days = Enumerable.Range(1, daysInMonth).Select(d =>
+            {
+                var date = new DateTime(year, month, d);
+
+                var totalNormal = fundRows.Sum(fr =>
+                    fr.Days.Where(x => x.Date.Day == d).Sum(x => double.TryParse(x.Value, out var v) ? v : 0));
+
+                var totalOvertime = fundRows.Sum(fr =>
+                    fr.Days.Where(x => x.Date.Day == d).Sum(x => double.TryParse(x.OvertimeValue, out var v) ? v : 0));
+
+                return new wwfpp.Models.Request.DayData
+                {
+                    Date = date,
+                    Value = totalNormal.ToString("0.##"),
+                    OvertimeValue = totalOvertime.ToString("0.##"),
+                    IsHoliday = holidayDates.Contains(date),
+                    IsEmpDayOff = dayOffDates.Contains(date),
+                    AllowOvertimeBoxToUpdateOverLeave = !restrictedLeaveDates.Contains(date),
+                    IsEditableByFund = true,
+                    OvertimeEditable = true,
+                    FundSourceEditable = true
+                };
+            }).ToList();
+
+            var viewModel = new wwfpp.Models.Request.TimesheetViewModel
+            {
+                FundRows = fundRows,
+                Days = days,
+                Messages = messages,
+                ShowAddEditTimeSheetButton = showAddEditTimeSheetButton,
+                ShowSaveButton = showSaveButton,
+                ShowSendButton = showSendButton,
+                MaxNormalHours = maxNormal,
+                MaxOvertimeHours = maxOvertime,
+                FundBalance = fundBalance,
+                PrevApprovedTimesheetCount = prevApprovedTimesheet,
+                ShowTimesheetPreviewButton = showTimesheetPreviewButton
+            };
+
+            return PartialView("Personnel/_TimesheetAddEdit", viewModel);
+        }
+        [HttpPost]
+        public async Task<IActionResult> SaveTimesheet(IFormCollection form, int year, int month, int empid)
+        {
+            int timeSheetCounter = await _requestServices.GetTimeSheetCounter(empid, year, month);
+            var fiscalYearActive = HttpContext.Session.GetString("fiscal_year");
+
+            var newEntries = new List<tbl_employee_timesheet_sub>();
+
+            foreach (var key in form.Keys)
+            {
+                if (!key.StartsWith("Hours[")) continue;
+
+                var match = System.Text.RegularExpressions.Regex.Match(key, @"Hours\[(\d+)\]\[(\d{8})\]");
+                if (!match.Success) continue;
+
+                int fundId = int.Parse(match.Groups[1].Value);
+                string dateStr = match.Groups[2].Value;
+                var date = DateTime.ParseExact(dateStr, "yyyyMMdd", null);
+
+                var hours = double.TryParse(form[key], out var h) ? h : 0;
+                var overtimeKey = $"OvertimeHours[{fundId}][{dateStr}]";
+                var overtime = form.ContainsKey(overtimeKey) && double.TryParse(form[overtimeKey], out var o) ? o : 0;
+                if (hours > 0 || overtime > 0)
+                {
+                    newEntries.Add(new tbl_employee_timesheet_sub
+                    {
+                        emp_id = empid,
+                        emp_year = (short)year,
+                        emp_month = (byte)month,
+                        emp_day = (byte)date.Day,
+                        fund_id = fundId,
+                        time_hours = hours,
+                        overtime_hours = overtime,
+                        submit_date = DateTime.Now,
+                        is_active = "N",
+                        submit_counter = timeSheetCounter,
+                        fiscal_year = fiscalYearActive,
+                        emp_week = 0
+                    });
+                }
+            }
+
+            await _context.Database.ExecuteSqlRawAsync(
+                @"DELETE FROM tbl_employee_timesheet_sub 
+            WHERE emp_id = {0} AND emp_year = {1} AND emp_month = {2} AND submit_counter = {3}",
+                empid, year, month, timeSheetCounter);
+
+            if (newEntries.Any())
+            {
+                await _context.tbl_employee_timesheet_sub.AddRangeAsync(newEntries);
+                await _context.SaveChangesAsync();
+            }
+
+
+
+            await _context.Database.ExecuteSqlRawAsync(
+                @"DELETE FROM tbl_employee_timesheet_main 
+            WHERE emp_id = {0} AND emp_year = {1} AND emp_month = {2} AND submit_counter = {3}",
+                empid, year, month, timeSheetCounter);
+
+            for (int day = 1; day <= DateTime.DaysInMonth(year, month); day++)
+            {
+                var dateToCheck = new DateTime(year, month, day);
+
+                var leave = await _context.tbl_employee_leave
+                    .Where(l => l.app_status == "Approved"
+                             && l.emp_id == empid
+                             && dateToCheck >= l.leave_from_date
+                             && dateToCheck <= l.leave_to_date)
+                    .FirstOrDefaultAsync();
+
+                if (leave != null)
+                {
+                    var entry = new tbl_employee_timesheet_main
+                    {
+                        emp_id = empid,
+                        emp_year = (short)year,
+                        emp_month = (byte)month,
+                        emp_day = (byte)day,
+                        leave_type_id = leave.leave_type_id,
+                        submit_date = DateTime.Now,
+                        submit_counter = timeSheetCounter,
+                        fiscal_year = "",
+                        emp_week = 0
+                    };
+
+                    _context.tbl_employee_timesheet_main.Add(entry);
+                    await _context.SaveChangesAsync();
+                }
+            }
+
+            return Json(new { success = true, message = "Timesheet saved successfully." });
+        }
+        public async Task<IActionResult> TimesheetToBeSentForApproval(IFormCollection form, int year, int month, int empid)
+        {
+
+            int maxtimeSheetCounter = await _requestServices.GetCurrentMaxCounterAsync(empid, year, month);
+            var fiscalYearActive = HttpContext.Session.GetString("fiscal_year");
+
+
+            var sql = _context.tbl_employee_timesheet_app
+                .Where(a => a.emp_id == empid && a.emp_year == year && a.emp_month == month && a.submit_counter == maxtimeSheetCounter)
+                .ToQueryString();
+
+            var existingApp = await _context.tbl_employee_timesheet_app
+                .Where(a => a.emp_id == empid &&
+                            a.emp_year == year &&
+                            a.emp_month == month &&
+                            a.submit_counter == maxtimeSheetCounter)
+                .ToListAsync();
+
+            if (existingApp.Any())
+            {
+                _context.tbl_employee_timesheet_app.RemoveRange(existingApp);
+                await _context.SaveChangesAsync();
+            }
+
+            var approver = await _approverResolver.ResolveApproverAsync(empid);
+            int toEmpId = approver.toEmpId ?? 0;
+            int toId = approver.toId ?? 0;
+
+            string app_id = Guid.NewGuid().ToString();
+            var appEntry = new wwfpp.Data.tbl_employee_timesheet_app
+            {
+                app_id = app_id,
+                emp_id = empid,
+                emp_year = year,
+                emp_month = month,
+                submit_date = DateTime.UtcNow,
+                app_dec = "p",
+                app_by = Convert.ToInt32(toEmpId),
+                submit_counter = maxtimeSheetCounter,
+                fiscal_year = fiscalYearActive,
+                emp_week = 0,
+                app_date = DateTime.UtcNow,
+                app_remarks = null
+            };
+
+            _context.tbl_employee_timesheet_app.Add(appEntry);
+
+            await _context.SaveChangesAsync();
+            //await transaction.CommitAsync();
+
+            var Adminemails = await _administrationEmailService.GetAdministrationEmailsAsync();
+            string str_to = Adminemails["aca"].Email;
+
+            string EmployeeName = _employeeServices.GetEmployeeName(empid);
+            var orgName = await _context.tbl_pp_options
+                .Where(e => e.option_name == "op_org_name")
+                .Select(e => e.option_value)
+                .FirstOrDefaultAsync();
+
+            string monthName = new DateTime(year, month, 1).ToString("MMMM");
+            //string approveEmailLink = $"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={empid}&emp_month={month}&emp_year={year}&toid={toId}&toemp_id={toEmpId}&st=a&str_counter={maxtimeSheetCounter}&app_id={app_id}&approval_from=email&approve_for=timesheet'>Approve</a> | ";
+            //string declineEmailLink = $"<a href='{_appSettings.BaseUrl}Home/Index?emp_id={empid}&emp_month={month}&emp_year={year}&toid={toId}&toemp_id={toEmpId}&st=d&str_counter={maxtimeSheetCounter}&app_id={app_id}&approval_from=email&approve_for=timesheet'>Decline</a> ";
+
+            #region ADD TOKEN WHILE SENDING MAIL
+
+            string token = await _requestServices.GenerateTokenAsync(app_id, Convert.ToInt32(empid), toId, toEmpId, year, month, maxtimeSheetCounter, "timesheet");
+
+            #endregion
+
+
+            string approveEmailLink = $"<a href='{_appSettings.BaseUrl}Home/TokenIndex?token={token}&st=a'>Approve</a> | ";
+            string declineEmailLink = $"<a href='{_appSettings.BaseUrl}Home/TokenIndex?token={token}&st=d'>Decline</a>";
+
+
+            // Send email to manager
+            string toEmail = str_to;
+            string addOptText = "";
+            if (maxtimeSheetCounter > 1)
+                addOptText = " re-submitted ";
+
+            string subject = $"{orgName} {addOptText} Timesheet of {EmployeeName}";
+            string body = $"Dear Sir/Madam,<br/><br/>Attached file is {addOptText} Timesheet of employee {EmployeeName} of the period {monthName}, {year} fiscal year. Please click Approve or Decline link provided below as appropriate.<br/><br/> {approveEmailLink} {declineEmailLink}";
+
+
+            string EmployeeTimesheetFileName = await CreateEmployeeTimesheet(year, month, empid, maxtimeSheetCounter);
+            string filePath = Path.Combine(Directory.GetCurrentDirectory(), "Temp", "Timesheet");
+            if (!Directory.Exists(filePath))
+                Directory.CreateDirectory(filePath);
+            string EmployeeTimesheet = filePath + "/" + EmployeeTimesheetFileName;
+
+            _emailService.SendEmail(null, toEmail, subject, body, EmployeeTimesheet, null, null, null, null);
+
+            return Json(new { success = true, message = "Timesheet has been sent for approval." });
+
+        }
+        public async Task<string> CreateEmployeeTimesheet(int year, int month, int empid, int timeSheetCounter)
+        {
+            string empName = _employeeServices.GetEmployeeName(empid);
+            string monthName = CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(month);
+
+            // Go up three levels from bin\Debug\net10.0 to project root
+            var projectRoot = Directory.GetParent(AppContext.BaseDirectory).Parent.Parent.Parent.FullName;
+
+            var uploadsFolder = Path.Combine(projectRoot, "Reports", "Employee");
+            var filePath = Path.Combine(projectRoot, "Temp", "Timesheet");
+
+            Directory.CreateDirectory(uploadsFolder);
+            Directory.CreateDirectory(filePath);
+
+            string rdlcPath = Path.Combine(uploadsFolder, "EmpTimesheet.rdlc");
+
+            LocalReport localReport = new LocalReport();
+            using (var fs = new FileStream(rdlcPath, FileMode.Open, FileAccess.Read))
+            {
+                localReport.LoadReportDefinition(fs);
+            }
+
+            // Add data source
+            var data = _requestServices.GetEmployeeTimesheet(year, month, empid, timeSheetCounter).ToList();
+            localReport.DataSources.Add(new ReportDataSource("DataSet1", data));
+
+            // Parameters
+            var parameters = new ReportParameterCollection
+    {
+        new ReportParameter("Employee", empName),
+        new ReportParameter("Month", monthName),
+        new ReportParameter("Year", year.ToString())
+    };
+            localReport.SetParameters(parameters);
+
+            // Render to Excel (OpenXML)
+            string mimeType, encoding, extension;
+            string[] streams;
+            Warning[] warnings;
+
+            byte[] bytes = localReport.Render(
+                "EXCELOPENXML", // Output format
+                null,           // DeviceInfo string
+                out mimeType,
+                out encoding,
+                out extension,
+                out streams,
+                out warnings
+            );
+
+            string fileName = $"EmployeeTimesheet{DateTime.Now:MMddyyyy}.xlsx";
+            string fullPath = Path.Combine(filePath, fileName);
+            System.IO.File.WriteAllBytes(fullPath, bytes);
+
+            return fileName;
+        }
+        public async Task<IActionResult> GetPreviousApprovedTimesheets(int year, int month, int empid)
+        {
+            int maxtimeSheetCounter = await _requestServices.GetCurrentMaxCounterAsync(empid, year, month);
+
+            // Get all approved counters less than current
+            var approvedCounters = _context.tbl_employee_timesheet_app
+                .Where(c => c.emp_year == year
+                         && c.emp_month == month
+                         && c.emp_id == empid
+                         && c.submit_counter < maxtimeSheetCounter
+                         && (c.app_dec == "i" || c.app_dec == "a"))
+                .OrderByDescending(c => c.submit_counter)
+                .Select(c => c.submit_counter)
+                .ToList();
+
+            var prevApprovedTimesheets = new Dictionary<int, List<FundTimesheetRow>>();
+
+            // Build full calendar days for the month
+            var daysInMonth = Enumerable.Range(1, DateTime.DaysInMonth(year, month))
+                .Select(d => new DateTime(year, month, d))
+                .ToList();
+
+            foreach (var counter in approvedCounters)
+            {
+                var rows = _context.tbl_employee_timesheet_sub
+                    .Where(c => c.emp_year == year
+                             && c.emp_month == month
+                             && c.emp_id == empid
+                             && c.submit_counter == counter)
+                    .ToList();
+
+                var fundRows = rows
+                    .GroupBy(r => r.fund_id)
+                    .Select(g =>
+                    {
+                        var fundId = g.Key ?? 0;
+                        var fundSourceName = _context.tbl_fund_source
+                            .Where(f => f.fund_id == fundId)
+                            .Select(f => f.fund_source)
+                            .FirstOrDefault();
+
+                        // For each day in the month, either show actual hours or 0
+                        var dayDataList = daysInMonth.Select(date =>
+                        {
+                            var row = g.FirstOrDefault(r => r.emp_day == date.Day);
+                            return new DayData
+                            {
+                                Date = date,
+                                Value = row?.time_hours?.ToString("0.##") ?? "0",
+                                OvertimeValue = row?.overtime_hours?.ToString("0.##") ?? "0",
+                                IsHoliday = false,
+                                IsEmpDayOff = false,
+                                AllowOvertimeBoxToUpdateOverLeave = false,
+                                OvertimeEditable = false,
+                                FundSourceEditable = false,
+                                IsEditableByFund = false
+                            };
+                        }).ToList();
+
+                        return new FundTimesheetRow
+                        {
+                            FundId = fundId,
+                            FundSourceName = fundSourceName,
+                            Days = dayDataList
+                        };
+                    }).ToList();
+
+                prevApprovedTimesheets[(int)counter] = fundRows;
+            }
+
+            var viewModel = new TimesheetViewModel
+            {
+                PrevApprovedTimesheetCount = approvedCounters.Count,
+                PrevApprovedTimesheets = prevApprovedTimesheets
+            };
+
+            return PartialView("Personnel/_PrevApprovedTimesheetsPartial", viewModel);
+        }
+        public async Task<IActionResult> TimesheetPreview(int year, int month, int empid)
+        {
+            int maxtimeSheetCounter = await _requestServices.GetCurrentMaxCounterAsync(empid, year, month);
+
+            // Get all approved counters less than current
+            var approvedCounters = _context.tbl_employee_timesheet_app
+                .Where(c => c.emp_year == year
+                         && c.emp_month == month
+                         && c.emp_id == empid
+                         && (c.app_dec == "i" || c.app_dec == "a" || c.app_dec == "p"))
+                .OrderByDescending(c => c.submit_counter)
+                .Select(c => c.submit_counter)
+                .ToList();
+
+            var prevApprovedTimesheets = new Dictionary<int, List<FundTimesheetRow>>();
+
+            // Build full calendar days for the month
+            var daysInMonth = Enumerable.Range(1, DateTime.DaysInMonth(year, month))
+                .Select(d => new DateTime(year, month, d))
+                .ToList();
+
+            foreach (var counter in approvedCounters)
+            {
+                var rows = _context.tbl_employee_timesheet_sub
+                    .Where(c => c.emp_year == year
+                             && c.emp_month == month
+                             && c.emp_id == empid
+                             && c.submit_counter == counter)
+                    .ToList();
+
+                var fundRows = rows
+                    .GroupBy(r => r.fund_id)
+                    .Select(g =>
+                    {
+                        var fundId = g.Key ?? 0;
+                        var fundSourceName = _context.tbl_fund_source
+                            .Where(f => f.fund_id == fundId)
+                            .Select(f => f.fund_source)
+                            .FirstOrDefault();
+
+                        // For each day in the month, either show actual hours or 0
+                        var dayDataList = daysInMonth.Select(date =>
+                        {
+                            var row = g.FirstOrDefault(r => r.emp_day == date.Day);
+                            return new DayData
+                            {
+                                Date = date,
+                                Value = row?.time_hours?.ToString("0.##") ?? "0",
+                                OvertimeValue = row?.overtime_hours?.ToString("0.##") ?? "0",
+                                IsHoliday = false,
+                                IsEmpDayOff = false,
+                                AllowOvertimeBoxToUpdateOverLeave = false,
+                                OvertimeEditable = false,
+                                FundSourceEditable = false,
+                                IsEditableByFund = false
+                            };
+                        }).ToList();
+
+                        return new FundTimesheetRow
+                        {
+                            FundId = fundId,
+                            FundSourceName = fundSourceName,
+                            Days = dayDataList
+                        };
+                    }).ToList();
+
+                prevApprovedTimesheets[(int)counter] = fundRows;
+            }
+
+            var viewModel = new TimesheetViewModel
+            {
+                PrevApprovedTimesheetCount = approvedCounters.Count,
+                PrevApprovedTimesheets = prevApprovedTimesheets
+            };
+
+            return PartialView("Personnel/_PrevApprovedTimesheetsPartial", viewModel);
         }
         #endregion
 
