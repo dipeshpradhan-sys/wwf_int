@@ -5,7 +5,7 @@
     <div id="prevApprovedSection" class="mt-3">
         @foreach (var kvp in Model.PrevApprovedTimesheets.OrderByDescending(x => x.Key))
         {
-            <h5>Approved Timesheet (Counter: @kvp.Key)</h5>
+            <h5>Timesheet (Counter: @kvp.Key)</h5>
             <table class="table table-bordered table-striped">
                 <thead>
                     <tr>

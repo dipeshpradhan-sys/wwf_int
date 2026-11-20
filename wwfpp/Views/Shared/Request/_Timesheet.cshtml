@@ -55,6 +55,16 @@
 <div id="daysTable" style="display:none;">
     <!-- AJAX-loaded table + message div will be injected here -->
 </div>
+
+<div>
+    <!-- Close button, hidden initially -->
+    <button id="btnCloseTimesheetPreview" type="button" class="btn btn-sm"
+            style="background-color: red; color: white; font-size: 0.85rem; display:none;">
+        Close Preview
+    </button>
+</div>
+
+<div id="TimesheetPreviewContainer"></div>
         
 @section scripts {
 
@@ -62,6 +72,7 @@
     <script>
         $(document).off("click", "#btnLoadDays").on("click", "#btnLoadDays", async function() {
             $('#message').removeClass().html("").hide();
+            $("#TimesheetPreviewContainer").empty();
             const year = document.getElementById("year").value;
             const month = document.getElementById("month").value;
             const EmployeeID = document.getElementById("EmployeeList").value;
@@ -630,7 +641,24 @@
             $("#prevApprovedContainer").empty();       // remove preview grids
             $("#btnClosePreview").hide();              // hide Close button
             $("#btnPreview").show();                   // show Preview button again
+
         }
+
+        $(document).off("click", "#btnTimesheetPreview").on("click", "#btnTimesheetPreview", function() {
+            $.get("/Request/TimesheetPreview",
+                  { year: document.getElementById("year").value, month: document.getElementById("month").value, empid: document.getElementById("EmployeeList").value },
+                  function (data) {
+                      $("#TimesheetPreviewContainer").html(data);
+                      $("#btnTimesheetPreview").hide();              // hide Preview button
+                      $("#btnCloseTimesheetPreview").show();     // show Close button
+                  });
+        });
+        $(document).off("click", "#btnCloseTimesheetPreview").on("click", "#btnCloseTimesheetPreview", function() {
+            $("#TimesheetPreviewContainer").empty();  
+            $("#btnTimesheetPreview").show();              // hide Preview button
+            $("#btnCloseTimesheetPreview").hide();     // show Close button
+
+        });
 
 
     </script>    
