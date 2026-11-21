@@ -645,17 +645,18 @@
         }
 
         $(document).off("click", "#btnTimesheetPreview").on("click", "#btnTimesheetPreview", function() {
+            
             $.get("/Request/TimesheetPreview",
                   { year: document.getElementById("year").value, month: document.getElementById("month").value, empid: document.getElementById("EmployeeList").value },
                   function (data) {
                       $("#TimesheetPreviewContainer").html(data);
-                      $("#btnTimesheetPreview").hide();              // hide Preview button
+                    $("#btnTimesheetPreview").removeClass("d-inline-flex").hide();              // hide Preview button
                       $("#btnCloseTimesheetPreview").show();     // show Close button
                   });
         });
         $(document).off("click", "#btnCloseTimesheetPreview").on("click", "#btnCloseTimesheetPreview", function() {
             $("#TimesheetPreviewContainer").empty();  
-            $("#btnTimesheetPreview").show();              // hide Preview button
+            $("#btnTimesheetPreview").addClass("d-inline-flex");              // hide Preview button
             $("#btnCloseTimesheetPreview").hide();     // show Close button
 
         });
