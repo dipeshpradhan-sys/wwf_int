@@ -75,6 +75,7 @@
         {
             $('#message').removeClass().html("").hide();
             $("#TimesheetPreviewContainer").empty();
+            $("#btnCloseTimesheetPreview").hide();
             const year = document.getElementById("year").value;
             const month = document.getElementById("month").value;
             const EmployeeID = "@HttpContextAccessor.HttpContext?.Session.GetString("emp_id")";

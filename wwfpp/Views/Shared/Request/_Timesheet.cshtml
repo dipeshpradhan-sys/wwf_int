@@ -73,6 +73,7 @@
         $(document).off("click", "#btnLoadDays").on("click", "#btnLoadDays", async function() {
             $('#message').removeClass().html("").hide();
             $("#TimesheetPreviewContainer").empty();
+            $("#btnCloseTimesheetPreview").hide();
             const year = document.getElementById("year").value;
             const month = document.getElementById("month").value;
             const EmployeeID = document.getElementById("EmployeeList").value;
