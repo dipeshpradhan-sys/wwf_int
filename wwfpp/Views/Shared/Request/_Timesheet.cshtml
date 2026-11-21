@@ -656,7 +656,7 @@
         });
         $(document).off("click", "#btnCloseTimesheetPreview").on("click", "#btnCloseTimesheetPreview", function() {
             $("#TimesheetPreviewContainer").empty();  
-            $("#btnTimesheetPreview").addClass("d-inline-flex");              // hide Preview button
+            $("#btnTimesheetPreview").addClass("d-inline-flex").show();              // hide Preview button
             $("#btnCloseTimesheetPreview").hide();     // show Close button
 
         });
