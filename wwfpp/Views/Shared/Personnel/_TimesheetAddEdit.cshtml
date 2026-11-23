@@ -321,7 +321,7 @@
         <div>
             <button id="btnPreview" type="button" class="btn btn-sm"
                     style="background-color: lightyellow; color: black; font-size: 0.85rem;"
-                    onclick="loadPrevApprovedTimesheets(@Model.Days.First().Date.Year, @Model.Days.First().Date.Month, document.getElementById('EmployeeList').value)">
+                    onclick="loadPrevApprovedTimesheets(@Model.Days.First().Date.Year, @Model.Days.First().Date.Month, '@Context.Session.GetString("emp_id")')">
                 Preview Previous Approved Timesheets (@Model.PrevApprovedTimesheetCount)
             </button>
 

@@ -843,7 +843,7 @@ namespace wwfpp.Controllers
 
             if (toEmpID <= 0 && toID <= 0)
             {
-                return PartialView("Request/_TimesheetAddEdit", new wwfpp.Models.Request.TimesheetViewModel { HasApprover = false });
+                return PartialView("Personnel/_TimesheetAddEdit", new wwfpp.Models.Request.TimesheetViewModel { HasApprover = false });
             }
 
             string PageId = "10203";
